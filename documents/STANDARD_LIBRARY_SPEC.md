@@ -236,40 +236,40 @@ def not(value: Bool): Bool
 v0.1 typechecker は初期環境へ以下を登録する。
 
 ```text
-Some       : [T] (T) -> Option[T]
+Some       : [T] T -> Option[T]
 None       : [T] () -> Option[T]
-Ok         : [T, E] (T) -> Result[T, E]
-Err        : [T, E] (E) -> Result[T, E]
-Cons       : [T] (T, List[T]) -> List[T]
+Ok         : [T, E] T -> Result[T, E]
+Err        : [T, E] E -> Result[T, E]
+Cons       : [T] T -> List[T] -> List[T]
 Nil        : [T] () -> List[T]
 
-isSome     : [T] (Option[T]) -> Bool
-isNone     : [T] (Option[T]) -> Bool
-getOrElse  : [T] (Option[T], T) -> T
-optionMap  : [T, U] (Option[T], (T) -> U) -> Option[U]
+isSome     : [T] Option[T] -> Bool
+isNone     : [T] Option[T] -> Bool
+getOrElse  : [T] Option[T] -> T -> T
+optionMap  : [T, U] Option[T] -> (T -> U) -> Option[U]
 
-isOk       : [T, E] (Result[T, E]) -> Bool
-isErr      : [T, E] (Result[T, E]) -> Bool
-resultMap  : [T, U, E] (Result[T, E], (T) -> U) -> Result[U, E]
-unwrapOr   : [T, E] (Result[T, E], T) -> T
+isOk       : [T, E] Result[T, E] -> Bool
+isErr      : [T, E] Result[T, E] -> Bool
+resultMap  : [T, U, E] Result[T, E] -> (T -> U) -> Result[U, E]
+unwrapOr   : [T, E] Result[T, E] -> T -> T
 
-isEmpty    : [T] (List[T]) -> Bool
-head       : [T] (List[T]) -> Option[T]
-tail       : [T] (List[T]) -> Option[List[T]]
-length     : [T] (List[T]) -> Int
-map        : [T, U] (List[T], (T) -> U) -> List[U]
-filter     : [T] (List[T], (T) -> Bool) -> List[T]
-fold       : [T, U] (List[T], U, (U, T) -> U) -> U
-take       : [T] (List[T], Int) -> List[T]
-drop       : [T] (List[T], Int) -> List[T]
-range      : (Int, Int) -> List[Int]
+isEmpty    : [T] List[T] -> Bool
+head       : [T] List[T] -> Option[T]
+tail       : [T] List[T] -> Option[List[T]]
+length     : [T] List[T] -> Int
+map        : [T, U] List[T] -> (T -> U) -> List[U]
+filter     : [T] List[T] -> (T -> Bool) -> List[T]
+fold       : [T, U] List[T] -> U -> (U -> T -> U) -> U
+take       : [T] List[T] -> Int -> List[T]
+drop       : [T] List[T] -> Int -> List[T]
+range      : Int -> Int -> List[Int]
 
-print      : (Any) -> Unit
-println    : (Any) -> Unit
-show       : (Any) -> String
-id         : [T] (T) -> T
-const      : [T, U] (T, U) -> T
-not        : (Bool) -> Bool
+print      : Any -> Unit
+println    : Any -> Unit
+show       : Any -> String
+id         : [T] T -> T
+const      : [T, U] T -> U -> T
+not        : Bool -> Bool
 ```
 
 v0.1 の型チェッカは表面構文の関数型注釈に限定対応であるため、builtin の関数型は内部表現で登録する。

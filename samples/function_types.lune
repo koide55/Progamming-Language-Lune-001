@@ -1,0 +1,20 @@
+module sample.function_types
+
+let inc: Int -> Int = fn x -> x + 1
+let addA: Int -> Int -> Int = fn x y -> x + y
+let addB: (Int, Int) -> Int = fn x y -> x + y
+let nested: Int -> Int -> Int = fn x -> fn y -> x + y
+
+let answerA = addA(20, 22)
+let answerB = addB(20, 22)
+let answerNested = nested(20, 22)
+let plusTen = addA(10)
+let answerPartial = plusTen(32)
+
+def applyTwice(f: Int -> Int, x: Int): Int =
+    f(f(x))
+
+let answerTwice = applyTwice(inc, 40)
+
+let thunk: () -> Int = fn -> 42
+let answerThunk = thunk()

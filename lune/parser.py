@@ -46,6 +46,36 @@ EXPR_END = {
     TokenKind.COMMA,
 }
 
+LISP_LIST_ITEM_START = {
+    TokenKind.IF,
+    TokenKind.WHILE,
+    TokenKind.FOR,
+    TokenKind.MATCH,
+    TokenKind.FN,
+    TokenKind.LET,
+    TokenKind.INT_LITERAL,
+    TokenKind.FLOAT_LITERAL,
+    TokenKind.STRING_LITERAL,
+    TokenKind.CHAR_LITERAL,
+    TokenKind.TRUE,
+    TokenKind.FALSE,
+    TokenKind.NULL,
+    TokenKind.THIS,
+    TokenKind.SUPER,
+    TokenKind.IDENT,
+    TokenKind.IO_KW,
+    TokenKind.BANG,
+    TokenKind.LPAREN,
+    TokenKind.LBRACKET,
+    TokenKind.LAZY,
+    TokenKind.FORCE,
+    TokenKind.SEQ,
+    TokenKind.DEEP_FORCE,
+    TokenKind.RAISE,
+    TokenKind.THROW,
+    TokenKind.NEW,
+}
+
 
 def parse_source(source: str, filename: str = "<input>") -> ast.ModuleFile:
     return Parser(apply_layout(lex(source, filename))).parse_file()
@@ -230,11 +260,15 @@ class Parser:
                 continue
 
             if token.kind == TokenKind.LPAREN:
+                if not self.is_adjacent_to_previous(token):
+                    break
                 args = self.parse_argument_list_parens()
                 left = ast.CallExpr(left, args, span=getattr(left, "span", None) or token_span(token))
                 continue
 
             if token.kind == TokenKind.LBRACKET:
+                if not self.is_adjacent_to_previous(token):
+                    break
                 bracket = self.advance()
                 args = []
                 if self.peek().kind != TokenKind.RBRACKET:
@@ -448,6 +482,13 @@ class Parser:
         if self.match(TokenKind.RPAREN):
             return ast.LiteralExpr((), span=token_span(start))
         first = self.parse_expr(stop={TokenKind.COMMA, TokenKind.RPAREN})
+        if self.peek().kind in LISP_LIST_ITEM_START:
+            items = [first]
+            item_stop = {TokenKind.RPAREN, *LISP_LIST_ITEM_START}
+            while self.peek().kind != TokenKind.RPAREN:
+                items.append(self.parse_expr(stop=item_stop))
+            self.expect(TokenKind.RPAREN)
+            return ast.ListExpr(items, span=token_span(start))
         if not self.match(TokenKind.COMMA):
             self.expect(TokenKind.RPAREN)
             return first
@@ -578,18 +619,21 @@ class Parser:
     def parse_type_atom(self) -> ast.TypeNode:
         start = self.peek()
         if self.match(TokenKind.LPAREN):
-            first = self.parse_type()
-            if self.match(TokenKind.COMMA):
-                items = [first]
-                while self.peek().kind != TokenKind.RPAREN:
-                    items.append(self.parse_type())
-                    if not self.match(TokenKind.COMMA):
-                        break
-                self.expect(TokenKind.RPAREN)
-                node: ast.TypeNode = ast.TupleType(items, span=token_span(start))
+            if self.match(TokenKind.RPAREN):
+                node: ast.TypeNode = ast.TupleType([], span=token_span(start))
             else:
-                self.expect(TokenKind.RPAREN)
-                node = first
+                first = self.parse_type()
+                if self.match(TokenKind.COMMA):
+                    items = [first]
+                    while self.peek().kind != TokenKind.RPAREN:
+                        items.append(self.parse_type())
+                        if not self.match(TokenKind.COMMA):
+                            break
+                    self.expect(TokenKind.RPAREN)
+                    node = ast.TupleType(items, span=token_span(start))
+                else:
+                    self.expect(TokenKind.RPAREN)
+                    node = first
         else:
             node = ast.TypeName(self.parse_qualified_name(), span=token_span(start))
 
@@ -673,6 +717,14 @@ class Parser:
             self.advance()
             return True
         return False
+
+    def is_adjacent_to_previous(self, token: Token) -> bool:
+        if self.pos == 0:
+            return False
+        previous = self.tokens[self.pos - 1]
+        if previous.span.line != token.span.line:
+            return False
+        return token.span.column == previous.span.column + len(previous.lexeme)
 
     def expect(self, kind: TokenKind) -> Token:
         token = self.peek()

@@ -299,13 +299,17 @@ let answer = ada.age
 Lune v0.1 では、いくつかの便利な型と関数が最初から使えます。
 
 ```lune
-let xs = [1, 2, 3, 4]
+let xs = (1 2 3 4)
 let doubled = map(xs, fn x -> x * 2)
 let total = fold(doubled, 0, fn acc x -> acc + x)
 let answer = total
 ```
 
-`[1, 2, 3, 4]` はリストリテラルです。`Cons(1, Cons(2, Cons(3, Cons(4, Nil))))` と書く代わりに、短く自然に有限リストを作れます。
+`(1 2 3 4)` は Lisp 風のリストリテラルです。表示と同じ形で入力できます。`[1, 2, 3, 4]` も同じ意味です。
+
+どちらも `Cons(1, Cons(2, Cons(3, Cons(4, Nil))))` と書く代わりに、短く自然に有限リストを作れます。
+
+空リストは `[]` です。`()` は `Unit` なので、ここは分けて考えます。
 
 `range(1, 5)` でも同じく `1, 2, 3, 4` のリストを作れます。
 
@@ -313,6 +317,8 @@ REPL ではリストは Lisp 風に表示されます。
 
 ```text
 lune> [1, 2, 3, 4]
+(1 2 3 4) : List[Int]
+lune> (1 2 3 4)
 (1 2 3 4) : List[Int]
 lune> "Ada"
 "Ada" : String

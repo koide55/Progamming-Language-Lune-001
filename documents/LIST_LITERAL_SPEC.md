@@ -26,9 +26,19 @@ let numbers = Cons(1, Cons(2, Cons(3, Nil)))
 [expr]
 [expr, expr]
 [expr, expr,]
+(expr expr)
 ```
 
-末尾カンマを許可する。
+角括弧形式では末尾カンマを許可する。
+
+丸括弧形式は、REPL / `show` / `repr` の Lisp 風表示と対応する糖衣構文である。非空リストだけを表す。
+
+```lune
+let numbers = (1 2 3)
+let nested = ((1 2) (3 4))
+```
+
+`()` は空リストではなく、従来通り `Unit` である。空リストには `[]` を使う。
 
 ## 3. AST
 
@@ -48,10 +58,11 @@ ListExpr(items, span)
 let empty: List[Int] = []
 ```
 
-非空リスト `[a, b, c]` の型は、各要素型の共通型 `T` を使って `List[T]` とする。
+非空リスト `[a, b, c]` または `(a b c)` の型は、各要素型の共通型 `T` を使って `List[T]` とする。
 
 ```lune
 let numbers = [1, 2, 3]       # List[Int]
+let more = (4 5 6)            # List[Int]
 let words = ["a", "b"]        # List[String]
 ```
 
@@ -67,6 +78,7 @@ let bad = [1, true]
 
 ```lune
 [1, 2, 3]
+(1 2 3)
 ```
 
 評価結果:

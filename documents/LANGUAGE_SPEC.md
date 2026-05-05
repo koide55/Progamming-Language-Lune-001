@@ -12,6 +12,7 @@ Future target reference: `LANGUAGE_FUTURE_SPEC.md`
 - lexer/parser 詳細: `LEXER_PARSER_SPEC.md`
 - 遅延評価: `LAZY_EVALUATION_SPEC.md`
 - 型チェッカ: `TYPE_CHECKER_SPEC.md`
+- 関数型注釈: `FUNCTION_TYPE_SPEC.md`
 - REPL: `REPL_SPEC.md`
 - エラー表示: `ERROR_DIAGNOSTICS_SPEC.md`
 - 値表示: `VALUE_DISPLAY_SPEC.md`
@@ -150,14 +151,16 @@ String?
 
 `T?` は `Nullable[T]` として AST/type 表現される。ただし null safety の完全な検査はまだない。
 
-関数型は内部表現として存在する。
+関数型注釈はカリー化表記を正規形とする。
 
 ```text
-(Int) -> Int
-(Int, Int) -> Int
+Int -> Int
+Int -> Int -> Int
 ```
 
-表面構文としての関数型注釈は parser で限定的に読めるが、型チェッカの本格検査は未完成である。
+`->` は右結合である。`(Int, Int) -> Int` は `Int -> Int -> Int` の糖衣として扱う。
+
+タプル引数を 1 つ受け取る関数は `Tuple[Int, Int] -> Int` と書く。
 
 ## 7. 束縛
 
@@ -277,7 +280,7 @@ let add = fn x: Int y: Int -> x + y
 let inc = add(1)
 ```
 
-`inc` の型は `(Int) -> Int` である。
+`inc` の型は `Int -> Int` である。
 
 組み込み関数の部分適用は v0.1 では未対応である。
 
@@ -646,8 +649,11 @@ range
 
 ```lune
 let numbers = [1, 2, 3]
+let sameNumbers = (1 2 3)
 let empty: List[Int] = []
 ```
+
+`(1 2 3)` は表示互換の Lisp 風リストリテラルである。`()` は空リストではなく `Unit` のままなので、空リストには `[]` を使う。
 
 リストリテラルの要素は同じ型でなければならない。`[1, true]` は型エラーである。
 

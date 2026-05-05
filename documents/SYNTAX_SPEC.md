@@ -237,6 +237,7 @@ Nothing
 
 ```lune
 Int -> Int
+Int -> Int -> Int
 (Int, Int) -> Int
 String -> IO[Unit]
 ```
@@ -247,6 +248,8 @@ String -> IO[Unit]
 Int -> Int -> Int
 # Int -> (Int -> Int)
 ```
+
+`(Int, Int) -> Int` は `Int -> Int -> Int` の糖衣である。タプルを 1 つ受け取る関数は `Tuple[Int, Int] -> Int` と書く。
 
 ### 7.3 ジェネリクス
 
@@ -412,8 +415,11 @@ type List[T] =
 
 ```lune
 let numbers = [1, 2, 3]
+let sameNumbers = (1 2 3)
 let empty: List[Int] = []
 ```
+
+`()` は `Unit` であり、空リストには `[]` を使う。
 
 正格フィールド:
 

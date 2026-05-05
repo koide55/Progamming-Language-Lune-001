@@ -96,6 +96,13 @@ let answer =
         self.assertIsInstance(decl.value, ast.ListExpr)
         self.assertEqual(len(decl.value.items), 3)
 
+    def test_parse_lisp_style_list_literal(self) -> None:
+        tree = parse_source("let numbers = (1 2 3)\n")
+        decl = tree.declarations[0]
+        self.assertIsInstance(decl, ast.LetDecl)
+        self.assertIsInstance(decl.value, ast.ListExpr)
+        self.assertEqual(len(decl.value.items), 3)
+
     def test_operator_precedence(self) -> None:
         tree = parse_source("let x = 1 + 2 * 3\n")
         decl = tree.declarations[0]

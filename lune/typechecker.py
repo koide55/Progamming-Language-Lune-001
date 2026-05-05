@@ -47,9 +47,8 @@ class FunctionType:
     variadic: bool = False
 
     def __repr__(self) -> str:
-        params = ", ".join(repr(param) for param in self.params)
         prefix = f"[{', '.join(self.type_params)}] " if self.type_params else ""
-        return f"{prefix}({params}) -> {self.result!r}"
+        return f"{prefix}{format_function_type(self)}"
 
 
 @dataclass(frozen=True)
@@ -76,6 +75,24 @@ STRING = Type("String")
 CHAR = Type("Char")
 UNIT = Type("Unit")
 NULL = Type("Null")
+
+
+def format_function_type(function: FunctionType) -> str:
+    if not function.params:
+        return f"() -> {format_function_result(function.result)}"
+    parts = [format_function_param(param) for param in function.params]
+    parts.append(format_function_result(function.result))
+    return " -> ".join(parts)
+
+
+def format_function_param(value_type: ValueType) -> str:
+    if isinstance(value_type, FunctionType):
+        return f"({format_function_type(value_type)})"
+    return repr(value_type)
+
+
+def format_function_result(value_type: ValueType) -> str:
+    return format_function_type(value_type) if isinstance(value_type, FunctionType) else repr(value_type)
 
 
 @dataclass(frozen=True)
@@ -283,14 +300,14 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         value_type = infer_expr(decl.value, env)
         expected = type_from_ast(decl.type) if decl.type is not None else None
         if expected is not None:
-            require_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), f"this expression has type {value_type!r}")
+            require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), f"this expression has type {value_type!r}")
             value_type = expected
         bind_pattern_types(decl.pattern, value_type, env)
         return
     if isinstance(decl, ast.VarDecl):
         value_type = infer_expr(decl.value, env)
         expected = type_from_ast(decl.type) if decl.type is not None else value_type
-        require_assignable(value_type, expected, "var annotation")
+        require_value_assignable(value_type, expected, "var annotation")
         env.define_value(decl.name, expected)
         return
     raise LuneTypeError(f"unsupported declaration: {type(decl).__name__}")
@@ -305,7 +322,7 @@ def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
         env.define_value(decl.name, FunctionType(tuple(required_type(param.type, f"parameter {param.name}") for param in decl.params), body_type, tuple(decl.type_params)))
         return
     expected = type_from_ast(decl.return_type, decl.type_params)
-    require_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), f"function body has type {body_type!r}")
+    require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), f"function body has type {body_type!r}")
 
 
 def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
@@ -352,7 +369,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
         local = env.child()
         for param, param_type in zip(expr.params, params, strict=True):
             local.define_value(param.name, param_type)
-        return FunctionType(params, ensure_type(infer_expr(expr.body, local)))
+        return FunctionType(params, infer_expr(expr.body, local))
     if isinstance(expr, ast.UnaryExpr):
         value_type = ensure_type(infer_expr(expr.expr, env))
         if expr.op == "-":
@@ -453,6 +470,7 @@ def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, s
         return infer_record_constructor_call(callee_type, args, env, span)
     if not isinstance(callee_type, FunctionType):
         raise LuneTypeError(f"value is not callable: {callee_type!r}", "TYP0004", span, "this value is not callable")
+    callee_type = flatten_function_type(callee_type)
     if callee_type.variadic:
         substitutions: dict[str, Type] = {}
         expected = callee_type.params[-1] if callee_type.params else ANY
@@ -595,24 +613,47 @@ def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> 
     raise LuneTypeError(f"unsupported pattern: {type(pattern).__name__}")
 
 
-def type_from_ast(node: ast.TypeNode | None, type_params: list[str] | tuple[str, ...] = ()) -> Type:
+def type_from_ast(node: ast.TypeNode | None, type_params: list[str] | tuple[str, ...] = ()) -> ValueType:
     if node is None:
         return ANY
     if isinstance(node, ast.TypeName):
         return Type(node.name)
     if isinstance(node, ast.TypeApply):
         base = type_from_ast(node.base, type_params)
+        if not isinstance(base, Type):
+            raise LuneTypeError(f"unsupported generic type base: {base!r}")
         return Type(base.name, tuple(type_from_ast(arg, type_params) for arg in node.args))
     if isinstance(node, ast.TupleType):
+        if not node.items:
+            return UNIT
         return Type("Tuple", tuple(type_from_ast(item, type_params) for item in node.items))
     if isinstance(node, ast.NullableType):
-        return Type("Nullable", (type_from_ast(node.inner, type_params),))
+        inner = type_from_ast(node.inner, type_params)
+        if not isinstance(inner, Type):
+            raise LuneTypeError(f"function type cannot be nullable in v0.1: {inner!r}")
+        return Type("Nullable", (inner,))
     if isinstance(node, ast.FunctionType):
-        return ANY
+        return function_type_from_ast(node, type_params)
     raise LuneTypeError(f"unsupported type syntax: {type(node).__name__}")
 
 
-def required_type(node: ast.TypeNode | None, label: str) -> Type:
+def function_type_from_ast(node: ast.FunctionType, type_params: list[str] | tuple[str, ...] = ()) -> FunctionType:
+    params: list[ValueType] = []
+    current: ast.TypeNode = node
+    while isinstance(current, ast.FunctionType):
+        for param in current.params:
+            params.extend(function_params_from_ast(param, type_params))
+        current = current.result
+    return FunctionType(tuple(params), type_from_ast(current, type_params))
+
+
+def function_params_from_ast(node: ast.TypeNode, type_params: list[str] | tuple[str, ...]) -> list[ValueType]:
+    if isinstance(node, ast.TupleType):
+        return [type_from_ast(item, type_params) for item in node.items]
+    return [type_from_ast(node, type_params)]
+
+
+def required_type(node: ast.TypeNode | None, label: str) -> ValueType:
     if node is None:
         raise LuneTypeError(f"{label} requires a type annotation in v0.1")
     return type_from_ast(node)
@@ -662,6 +703,8 @@ def unify_value(expected: ValueType, actual: ValueType, substitutions: dict[str,
             return
         raise LuneTypeError(f"expected {expected!r}, got {actual!r}")
     if isinstance(expected, FunctionType):
+        expected = flatten_function_type(expected)
+        actual = flatten_function_type(actual) if isinstance(actual, FunctionType) else actual
         if actual == ANY:
             return
         if not isinstance(actual, FunctionType):
@@ -673,10 +716,20 @@ def unify_value(expected: ValueType, actual: ValueType, substitutions: dict[str,
         unify_value(expected.result, actual.result, substitutions)
         return
     if isinstance(actual, FunctionType):
+        actual = flatten_function_type(actual)
         if expected == ANY:
             return
         raise LuneTypeError(f"expected {expected!r}, got {actual!r}")
     unify(expected, actual, substitutions)
+
+
+def flatten_function_type(function: FunctionType) -> FunctionType:
+    params = list(function.params)
+    result = function.result
+    while isinstance(result, FunctionType) and result.params:
+        params.extend(result.params)
+        result = result.result
+    return FunctionType(tuple(params), result, function.type_params, function.partial, function.variadic)
 
 
 def substitute(typ: Type, substitutions: dict[str, Type]) -> Type:
@@ -728,6 +781,19 @@ def require_assignable(
             require_assignable(actual_arg, expected_arg, context)
         return
     raise LuneTypeError(f"{context}: expected {expected!r}, got {actual!r}", "TYP0003", span, label)
+
+
+def require_value_assignable(
+    actual: ValueType,
+    expected: ValueType,
+    context: str,
+    span: SourceSpan | None = None,
+    label: str | None = None,
+) -> None:
+    try:
+        unify_value(expected, actual, {})
+    except LuneTypeError as exc:
+        raise LuneTypeError(f"{context}: expected {expected!r}, got {actual!r}", "TYP0003", span, label) from exc
 
 
 def require_numeric(typ: Type, context: str) -> None:

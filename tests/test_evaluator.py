@@ -40,6 +40,20 @@ let answer = inc(41)
 """
         self.assertEqual(self.value_of(source, "answer"), 42)
 
+    def test_curried_function_can_receive_multiple_call_arguments(self) -> None:
+        source = """
+let add = fn x -> fn y -> x + y
+let answer = add(20, 22)
+"""
+        self.assertEqual(self.value_of(source, "answer"), 42)
+
+    def test_zero_arg_function_call(self) -> None:
+        source = """
+let thunk = fn -> 42
+let answer = thunk()
+"""
+        self.assertEqual(self.value_of(source, "answer"), 42)
+
     def test_partial_application_preserves_lazy_arguments(self) -> None:
         source = """
 let first = fn x y -> x
@@ -123,6 +137,10 @@ let answer = Some(1)
     def test_list_literal_evaluates_to_list(self) -> None:
         self.assertEqual(repr(self.value_of("let answer = [1, 2, 3]\n", "answer")), "(1 2 3)")
         self.assertEqual(repr(self.value_of("let answer = []\n", "answer")), "()")
+
+    def test_lisp_style_list_literal_evaluates_to_list(self) -> None:
+        self.assertEqual(repr(self.value_of("let answer = (1 2 3)\n", "answer")), "(1 2 3)")
+        self.assertEqual(repr(self.value_of("let answer = ((1 2) (3 4))\n", "answer")), "((1 2) (3 4))")
 
     def test_list_literal_elements_are_lazy(self) -> None:
         source = """

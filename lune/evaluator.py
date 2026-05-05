@@ -532,8 +532,9 @@ def eval_call(expr: ast.CallExpr, env: Env) -> Value:
     if isinstance(callee, RecordConstructorValue):
         return apply_record_constructor(callee, expr.args, env)
     if isinstance(callee, FunctionValue):
-        args = prepare_function_args(callee, expr.args, env)
-        return apply_function(callee, args)
+        if not expr.args and not callee.params:
+            return apply_function(callee, [])
+        return apply_function_to_ast_args(callee, expr.args, env)
     raise LuneRuntimeError(f"value is not callable: {callee!r}")
 
 
@@ -566,8 +567,6 @@ def apply_record_constructor(constructor: RecordConstructorValue, args: list[ast
 
 
 def prepare_function_args(function: FunctionValue, args: list[ast.Argument], env: Env) -> list[Value]:
-    if len(args) > len(function.params):
-        raise LuneRuntimeError(f"{function.name or '<lambda>'} expects at most {len(function.params)} arguments, got {len(args)}")
     values: list[Value] = []
     for param, arg in zip(function.params, args):
         if param.is_strict:
@@ -575,6 +574,23 @@ def prepare_function_args(function: FunctionValue, args: list[ast.Argument], env
         else:
             values.append(Thunk(arg.value, env))
     return values
+
+
+def apply_function_to_ast_args(function: FunctionValue, args: list[ast.Argument], env: Env) -> Value:
+    current: Value = function
+    remaining = args
+    while remaining:
+        current = force_value(current)
+        if not isinstance(current, FunctionValue):
+            raise LuneRuntimeError(f"value is not callable: {current!r}")
+        if not current.params:
+            current = apply_function(current, [])
+            continue
+        batch = remaining[: len(current.params)]
+        values = prepare_function_args(current, batch, env)
+        current = apply_function(current, values)
+        remaining = remaining[len(batch) :]
+    return current
 
 
 def apply_function(function: FunctionValue, args: list[Value]) -> Value:
@@ -771,14 +787,28 @@ def apply_value(function: Value, args: list[Value]) -> Value:
         values = prepare_runtime_constructor_args(function.constructor, function.bound_fields, args)
         return apply_constructor(function.constructor, function.bound_fields, values)
     if isinstance(function, FunctionValue):
-        values = prepare_runtime_function_args(function, args)
-        return apply_function(function, values)
+        return apply_function_to_values(function, args)
     raise LuneRuntimeError(f"value is not callable: {function!r}")
 
 
+def apply_function_to_values(function: FunctionValue, args: list[Value]) -> Value:
+    current: Value = function
+    remaining = args
+    while remaining:
+        current = force_value(current)
+        if not isinstance(current, FunctionValue):
+            raise LuneRuntimeError(f"value is not callable: {current!r}")
+        if not current.params:
+            current = apply_function(current, [])
+            continue
+        batch = remaining[: len(current.params)]
+        values = prepare_runtime_function_args(current, batch)
+        current = apply_function(current, values)
+        remaining = remaining[len(batch) :]
+    return current
+
+
 def prepare_runtime_function_args(function: FunctionValue, args: list[Value]) -> list[Value]:
-    if len(args) > len(function.params):
-        raise LuneRuntimeError(f"{function.name or '<lambda>'} expects at most {len(function.params)} arguments, got {len(args)}")
     return [force_value(arg) if param.is_strict else arg for param, arg in zip(function.params, args)]
 
 

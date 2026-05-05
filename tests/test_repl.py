@@ -16,7 +16,7 @@ class ReplTests(unittest.TestCase):
 
     def test_list_result_uses_lisp_style_display(self) -> None:
         session = ReplSession()
-        result = session.submit("[1, 2]")
+        result = session.submit("(1 2)")
         self.assertEqual(result.message, "(1 2) : List[Int]")
 
     def test_string_result_uses_lune_display(self) -> None:
@@ -60,8 +60,8 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
             session.submit("let bad: Int = true")
         env_message = session.submit(":env").message
         self.assertNotIn("bad :", env_message)
-        self.assertIn("Some : [T] (T) -> Option[T]", env_message)
-        self.assertIn("range : (Int, Int) -> List[Int]", env_message)
+        self.assertIn("Some : [T] T -> Option[T]", env_message)
+        self.assertIn("range : Int -> Int -> List[Int]", env_message)
 
     def test_commands(self) -> None:
         session = ReplSession()

@@ -14,6 +14,7 @@
 - `LEXER_PARSER_SPEC.md`: lexer/layout/parser/AST 実装のための詳細仕様。
 - `LAZY_EVALUATION_SPEC.md`: 遅延評価、サンク、strict、部分適用の仕様。
 - `TYPE_CHECKER_SPEC.md`: v0.1 typechecker の仕様。
+- `FUNCTION_TYPE_SPEC.md`: 関数型注釈とカリー化表記の仕様。
 - `REPL_SPEC.md`: 対話 REPL の仕様。
 - `ERROR_DIAGNOSTICS_SPEC.md`: エラー診断表示の仕様。
 - `VALUE_DISPLAY_SPEC.md`: REPL / show / print の値表示仕様。

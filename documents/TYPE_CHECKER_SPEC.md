@@ -112,8 +112,8 @@ let inc = add(1)
 型:
 
 ```text
-add: (Int, Int) -> Int
-inc: (Int) -> Int
+add: Int -> Int -> Int
+inc: Int -> Int
 ```
 
 コンストラクタにも同じ規則を適用する。
@@ -128,11 +128,26 @@ let withOne = Pair(1)
 型:
 
 ```text
-Pair: (Int, Int) -> Pair
-withOne: (Int) -> Pair
+Pair: Int -> Int -> Pair
+withOne: Int -> Pair
 ```
 
 arity より多い引数を渡した場合は型エラーにする。
+
+## 7.1 関数型注釈
+
+関数型注釈は `FUNCTION_TYPE_SPEC.md` に従う。
+
+```lune
+let addA: Int -> Int -> Int = fn x y -> x + y
+let addB: (Int, Int) -> Int = fn x y -> x + y
+```
+
+`addA` と `addB` は同じ型であり、表示は正規形に寄せる。
+
+```text
+Int -> Int -> Int
+```
 
 ## 8. match
 

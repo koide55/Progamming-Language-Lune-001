@@ -556,6 +556,8 @@ Int -> Int -> Int        => FunctionType([Int], FunctionType([Int], Int))
 Map[String, List[Int]?]  => TypeApply(Map, [String, NullableType(TypeApply(List, [Int]))])
 ```
 
+typechecker では `Int -> Int -> Int` と `(Int, Int) -> Int` を同じ関数型へ正規化する。タプル引数 1 個の関数は `Tuple[Int, Int] -> Int` と書く。
+
 ## 8. 文とブロック
 
 ```ebnf
@@ -723,13 +725,19 @@ lazy_body
 tuple_or_group
   ::= expr
    |  expr COMMA expr_list? COMMA?
+   |  lisp_list_literal
 
 list_literal
   ::= LBRACKET expr_list? COMMA? RBRACKET
 
+lisp_list_literal
+  ::= expr expr+
+
 expr_list
   ::= expr (COMMA expr)* 
 ```
+
+`()` は `Unit` であり、空リストではない。空リストは `[]` として読む。
 
 `expr_prefix` は prefix binding power 以上で読む式を表す実装上の補助規則である。Pratt parser では `parseExpr(90)` 相当として扱う。
 

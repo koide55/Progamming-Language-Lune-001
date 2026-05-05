@@ -21,6 +21,43 @@ def add(x: Int, y: Int): Int =
 """
         env = check_source(source)
         self.assertEqual(env.lookup_value("add"), FunctionType((INT, INT), INT))
+        self.assertEqual(repr(env.lookup_value("add")), "Int -> Int -> Int")
+
+    def test_checks_curried_function_type_annotations(self) -> None:
+        source = """
+let addA: Int -> Int -> Int = fn x y -> x + y
+let addB: (Int, Int) -> Int = fn x y -> x + y
+let nested: Int -> Int -> Int = fn x -> fn y -> x + y
+let inc = addA(1)
+let answer = nested(20, 22)
+"""
+        env = check_source(source)
+        expected = FunctionType((INT, INT), INT)
+        self.assertEqual(env.lookup_value("addA"), expected)
+        self.assertEqual(env.lookup_value("addB"), expected)
+        self.assertEqual(env.lookup_value("nested"), expected)
+        self.assertEqual(env.lookup_value("inc"), FunctionType((INT,), INT))
+        self.assertEqual(env.lookup_value("answer"), INT)
+
+    def test_checks_higher_order_curried_function_annotation(self) -> None:
+        source = """
+def applyTwice(f: Int -> Int, x: Int): Int =
+    f(f(x))
+
+let answer = applyTwice(fn x -> x + 1, 40)
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("applyTwice"), FunctionType((FunctionType((INT,), INT), INT), INT))
+        self.assertEqual(env.lookup_value("answer"), INT)
+
+    def test_checks_zero_arg_function_type_annotation(self) -> None:
+        source = """
+let thunk: () -> Int = fn -> 42
+let answer = thunk()
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("thunk"), FunctionType((), INT))
+        self.assertEqual(env.lookup_value("answer"), INT)
 
     def test_infers_lambda_partial_application_type(self) -> None:
         source = """
@@ -237,15 +274,19 @@ let answer =
         env = check_source(
             """
 let numbers = [1, 2, 3]
+let more = (4 5 6)
 let empty: List[Int] = []
 """
         )
         self.assertEqual(env.lookup_value("numbers"), Type("List", (INT,)))
+        self.assertEqual(env.lookup_value("more"), Type("List", (INT,)))
         self.assertEqual(env.lookup_value("empty"), Type("List", (INT,)))
 
     def test_rejects_mixed_list_literal_type(self) -> None:
         with self.assertRaises(LuneTypeError):
             check_source("let bad = [1, true]\n")
+        with self.assertRaises(LuneTypeError):
+            check_source("let bad = (1 true)\n")
 
     def test_checks_lazy_and_force(self) -> None:
         source = """
