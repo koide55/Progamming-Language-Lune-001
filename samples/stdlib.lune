@@ -1,0 +1,16 @@
+module sample.stdlib
+
+let optionValue = getOrElse(Some(42), 0)
+let noneValue = getOrElse(None, 7)
+
+let numbers = range(1, 5)
+let doubled = map(numbers, fn x: Int -> x * 2)
+let evens = filter(doubled, fn x: Int -> x % 4 == 0)
+let total = fold(numbers, 0, fn acc: Int x: Int -> acc + x)
+
+let first = head(numbers)
+let rest = tail(numbers)
+let firstTwo = take(numbers, 2)
+let afterTwo = drop(numbers, 2)
+let size = length(numbers)
+let shown = show(Some(1))

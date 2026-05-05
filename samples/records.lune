@@ -1,0 +1,13 @@
+module sample.records
+
+record User:
+    name: String
+    age: Int
+
+record Box[T]:
+    value: T
+
+let ada = User(name = "Ada", age = 36)
+let name = ada.name
+let boxed = Box(value = ada.age)
+let answer = boxed.value + 6

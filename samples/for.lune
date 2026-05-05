@@ -1,0 +1,12 @@
+let total =
+    var result = 0
+    for x in range(1, 5):
+        result = result + x
+    result
+
+let pairTotal =
+    var result = 0
+    let pairs = [(1, 10), (2, 20)]
+    for (left, right) in pairs:
+        result = result + left + right
+    result

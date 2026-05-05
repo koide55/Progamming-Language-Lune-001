@@ -1,0 +1,36 @@
+module sample.list_tools
+
+let numbers = [1, 2, 3, 4, 5, 6]
+
+let doubled = map(numbers, fn x: Int -> x * 2)
+let evens = filter(numbers, fn x: Int -> x % 2 == 0)
+let total = fold(numbers, 0, fn acc: Int x: Int -> acc + x)
+
+let firstThree = take(numbers, 3)
+let afterThree = drop(numbers, 3)
+let first = head(numbers)
+let rest = tail(numbers)
+
+let page1 = take(numbers, 2)
+let page2 = take(drop(numbers, 2), 2)
+let page3 = take(drop(numbers, 4), 2)
+
+record User:
+    name: String
+    age: Int
+
+let users = [
+    User(name = "Ada", age = 36),
+    User(name = "Grace", age = 85),
+    User(name = "Linus", age = 55),
+]
+
+let names = map(users, fn user: User -> user.name)
+let adults = filter(users, fn user: User -> user.age >= 60)
+let adultNames = map(adults, fn user: User -> user.name)
+let totalAge = fold(users, 0, fn acc: Int user: User -> acc + user.age)
+let firstAdult = head(adults)
+
+let safeHead = getOrElse(head(numbers), 0)
+let emptyHead = getOrElse(head([]), -1)
+let lazySlice = take([1, crash()], 1)

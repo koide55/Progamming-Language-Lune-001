@@ -1,0 +1,13 @@
+module sample.option
+
+type Option[T] =
+    | Some(value: T)
+    | None
+
+def getOrElse[T](option: Option[T], defaultValue: T): T =
+    match option:
+        | Some(value) -> value
+        | None -> defaultValue
+
+let answer = getOrElse(Some(42), 0)
+
