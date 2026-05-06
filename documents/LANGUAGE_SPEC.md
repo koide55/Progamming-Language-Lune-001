@@ -745,7 +745,7 @@ Lune v0.1 はデフォルト遅延評価である。
 起動:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --repl
+./bin/lune
 ```
 
 コマンド:
@@ -776,31 +776,31 @@ REPL の `import` は v0.1 では `Any` 登録に留まり、ファイルモジ�
 parse:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli samples/option.lune
+./bin/lune samples/option.lune
 ```
 
 tokens:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --tokens samples/basics.lune
+./bin/lune --tokens samples/basics.lune
 ```
 
 type check:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --check samples/option.lune
+./bin/lune --check samples/option.lune
 ```
 
 evaluate a top-level binding:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --eval answer samples/modules/main.lune
+./bin/lune --eval answer samples/modules/main.lune
 ```
 
 module path:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --module-path lib --check src/main.lune
+./bin/lune --module-path lib --check src/main.lune
 ```
 
 ## 20. エラー表示

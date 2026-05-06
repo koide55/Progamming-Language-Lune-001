@@ -27,8 +27,10 @@ cd lune_v0_1
 式や宣言を試すなら REPL が便利です。
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --repl
+./bin/lune
 ```
+
+引数なしの `./bin/lune` は REPL を起動します。ファイルを指定したいときは、同じスクリプトへ CLI 引数を渡します。
 
 端末で起動した REPL は、Bash のコマンドラインのように行編集できます。
 
@@ -42,13 +44,13 @@ PYTHONPATH=. python3 -m lune.cli --repl
 ファイルを評価する場合:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --eval answer samples/records.lune
+./bin/lune --eval answer samples/records.lune
 ```
 
 型チェックだけしたい場合:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --check samples/records.lune
+./bin/lune --check samples/records.lune
 ```
 
 ## 2. `let` は遅延される
@@ -70,7 +72,7 @@ let answer = 42
 `answer` を評価しても `danger` は使われないので、`crash()` は評価されません。
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --eval answer your_file.lune
+./bin/lune --eval answer your_file.lune
 ```
 
 結果:
@@ -510,9 +512,9 @@ lune> one
 この章のまとまった例は `samples/list_tools.lune` にあります。
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --check samples/list_tools.lune
-PYTHONPATH=. python3 -m lune.cli --eval doubled samples/list_tools.lune
-PYTHONPATH=. python3 -m lune.cli --eval adultNames samples/list_tools.lune
+./bin/lune --check samples/list_tools.lune
+./bin/lune --eval doubled samples/list_tools.lune
+./bin/lune --eval adultNames samples/list_tools.lune
 ```
 
 `Option` も組み込み済みです。
@@ -648,7 +650,7 @@ let answer = add(20, 22)
 実行:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --eval answer main.lune
+./bin/lune --eval answer main.lune
 ```
 
 v0.1 では import したモジュールのトップレベル名が同じ環境に入ります。そのため `math.add` ではなく `add` と書きます。
@@ -664,7 +666,7 @@ let answer: Int = true
 これは型エラーです。
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --check bad.lune
+./bin/lune --check bad.lune
 ```
 
 エラーはコード位置つきで表示されます。
@@ -708,7 +710,7 @@ let answer = render(greet(ada))
 評価:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --eval answer tutorial.lune
+./bin/lune --eval answer tutorial.lune
 ```
 
 結果:

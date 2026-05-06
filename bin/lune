@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+if [ "${PYTHONPATH:-}" ]; then
+    export PYTHONPATH="$ROOT_DIR:$PYTHONPATH"
+else
+    export PYTHONPATH="$ROOT_DIR"
+fi
+
+if [ "$#" -eq 0 ]; then
+    exec python3 -m lune.cli --repl
+fi
+
+exec python3 -m lune.cli "$@"

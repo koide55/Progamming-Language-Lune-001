@@ -23,28 +23,36 @@ Run tests:
 PYTHONPATH=. python3 -m unittest discover -s tests
 ```
 
+Run Lune:
+
+```sh
+./bin/lune
+```
+
+`./bin/lune` starts the REPL when called without arguments. With arguments, it forwards to the normal CLI.
+
 Parse a sample:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli samples/option.lune
-PYTHONPATH=. python3 -m lune.cli --tokens samples/basics.lune
+./bin/lune samples/option.lune
+./bin/lune --tokens samples/basics.lune
 ```
 
 Type-check a sample:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --check samples/option.lune
-PYTHONPATH=. python3 -m lune.cli --check samples/eval.lune
-PYTHONPATH=. python3 -m lune.cli --check samples/stdlib.lune
-PYTHONPATH=. python3 -m lune.cli --check samples/modules/main.lune
-PYTHONPATH=. python3 -m lune.cli --check samples/records.lune
-PYTHONPATH=. python3 -m lune.cli --check samples/while.lune
+./bin/lune --check samples/option.lune
+./bin/lune --check samples/eval.lune
+./bin/lune --check samples/stdlib.lune
+./bin/lune --check samples/modules/main.lune
+./bin/lune --check samples/records.lune
+./bin/lune --check samples/while.lune
 ```
 
 Start the REPL:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --repl
+./bin/lune
 ```
 
 When started in a terminal, the REPL supports readline-style line editing and command history.
@@ -71,18 +79,18 @@ error[LXL0001]: unexpected character '$'
 Evaluate a top-level binding:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --eval lazySafe samples/eval.lune
-PYTHONPATH=. python3 -m lune.cli --eval matched samples/eval.lune
-PYTHONPATH=. python3 -m lune.cli --eval total samples/stdlib.lune
-PYTHONPATH=. python3 -m lune.cli --eval answer samples/modules/main.lune
-PYTHONPATH=. python3 -m lune.cli --eval answer samples/records.lune
-PYTHONPATH=. python3 -m lune.cli --eval answer samples/while.lune
+./bin/lune --eval lazySafe samples/eval.lune
+./bin/lune --eval matched samples/eval.lune
+./bin/lune --eval total samples/stdlib.lune
+./bin/lune --eval answer samples/modules/main.lune
+./bin/lune --eval answer samples/records.lune
+./bin/lune --eval answer samples/while.lune
 ```
 
 Add extra module search roots with repeated `--module-path PATH` flags:
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --module-path samples/modules --check samples/modules/main.lune
+./bin/lune --module-path samples/modules --check samples/modules/main.lune
 ```
 
 The evaluator is intentionally small. It supports default-lazy `let` bindings and function arguments, `lazy` / `force`, arithmetic, booleans, ADT constructors, and pattern matching. Lazy evaluation includes success memoization, failed-thunk memoization, recursive thunk detection, strict parameters, strict constructor fields, `seq`, and `deepForce`.

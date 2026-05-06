@@ -152,8 +152,8 @@ module loader は依存順に各モジュールを評価する。
 v0.1 CLI は file mode で module loader を使う。
 
 ```sh
-PYTHONPATH=. python3 -m lune.cli --check src/main.lune
-PYTHONPATH=. python3 -m lune.cli --eval answer src/main.lune
+./bin/lune --check src/main.lune
+./bin/lune --eval answer src/main.lune
 ```
 
 追加 option:
