@@ -7,6 +7,7 @@
 - `LANGUAGE_SPEC.md`: 現在の実装で利用できる Lune v0.1 の言語仕様。
 - `LANGUAGE_FUTURE_SPEC.md`: JVM/Java/OO 連携まで含む将来目標仕様。
 - `TUTORIAL.md`: Lune v0.1 を楽しく学ぶためのチュートリアル。
+- `TUTORIAL_EN.md`: `TUTORIAL.md` の英語版。
 
 ## 詳細仕様
 
