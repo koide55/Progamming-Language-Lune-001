@@ -132,9 +132,16 @@ class TypeEnv:
     constructors: dict[str, ConstructorInfo] = field(default_factory=dict)
     types: dict[str, TypeInfo] = field(default_factory=dict)
     records: dict[str, RecordInfo] = field(default_factory=dict)
+    warnings: list[Diagnostic] = field(default_factory=list)
 
     def child(self) -> TypeEnv:
         return TypeEnv(self)
+
+    def report_warning(self, diagnostic: Diagnostic) -> None:
+        if self.parent is not None:
+            self.parent.report_warning(diagnostic)
+        else:
+            self.warnings.append(diagnostic)
 
     def define_value(self, name: str, typ: ValueType) -> None:
         self.values[name] = typ
@@ -750,15 +757,66 @@ def find_missing_pattern(rows: list[list[NormalPattern]], column_types: list[Typ
     return ["_"] + witness
 
 
+def _head_field_types(head: PatternHead, column_type: Type, env: TypeEnv) -> list[Type]:
+    if head.kind == "lit":
+        return []
+    if head.kind == "tuple":
+        if column_type.name == "Tuple" and len(column_type.args) == head.arity:
+            return list(column_type.args)
+        return [ANY] * head.arity
+    try:
+        ctor = env.lookup_constructor(str(head.key))
+    except LuneTypeError:
+        return [ANY] * head.arity
+    substitutions: dict[str, Type] = {}
+    try:
+        unify(ctor.result, column_type, substitutions)
+        return [substitute(field_type, substitutions) for field_type in ctor.fields]
+    except LuneTypeError:
+        return [ANY] * head.arity
+
+
+def is_useful(rows: list[list[NormalPattern]], q: list[NormalPattern], column_types: list[Type], env: TypeEnv) -> bool:
+    """Maranget usefulness: does q match some value that rows do not cover?"""
+    if not column_types:
+        return not rows
+    first = q[0]
+    column_type = column_types[0]
+    rest_types = column_types[1:]
+    if first.head is not None:
+        field_types = _head_field_types(first.head, column_type, env)
+        return is_useful(_specialize(rows, first.head), list(first.args) + q[1:], field_types + rest_types, env)
+    signature = _type_signature(column_type, env)
+    present = {row[0].head for row in rows if row[0].head is not None}
+    if signature is not None and all(head in present for head, _fields, _display in signature):
+        for head, field_types, _display in signature:
+            padded = [WILDCARD_PATTERN] * head.arity + q[1:]
+            if is_useful(_specialize(rows, head), padded, list(field_types) + rest_types, env):
+                return True
+        return False
+    default_rows = [row[1:] for row in rows if row[0].head is None]
+    return is_useful(default_rows, q[1:], rest_types, env)
+
+
 def check_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: TypeEnv) -> None:
     if scrutinee_type in {ANY, BOTTOM} or is_type_var(scrutinee_type):
         return
     rows: list[list[NormalPattern]] = []
     for case in expr.cases:
-        if case.guard is not None:
-            continue
-        for normalized in normalize_pattern(case.pattern):
-            rows.append([normalized])
+        case_rows = [[normalized] for normalized in normalize_pattern(case.pattern)]
+        if rows and not any(is_useful(rows, case_row, [scrutinee_type], env) for case_row in case_rows):
+            rendered = render_pattern(case.pattern)
+            env.report_warning(
+                Diagnostic(
+                    code="TYP0009",
+                    severity="warning",
+                    message=f"unreachable match case: {rendered}",
+                    primary=Label(case.span, "this case can never match") if case.span is not None else None,
+                    hints=["remove this case, or move it before the cases that cover it"],
+                )
+            )
+        if case.guard is None:
+            rows.extend(case_rows)
     witness = find_missing_pattern(rows, [scrutinee_type], env)
     if witness is None:
         return

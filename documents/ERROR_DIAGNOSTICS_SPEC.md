@@ -58,7 +58,7 @@ warning
 note
 ```
 
-v0.1 では基本的に `error` のみを実装する。非網羅 match は `TYP0007` の error として検査する (`MATCH_EXHAUSTIVENESS_SPEC.md`)。将来、未使用変数や到達不能 match ケースなどを `warning` として扱う。
+非網羅 match は `TYP0007` の error、到達不能 match ケースは `TYP0009` の `warning` として検査する (`MATCH_EXHAUSTIVENESS_SPEC.md`)。warning は型チェックを中断せず、型チェッカが収集して CLI (`--check`) と REPL が stderr に表示する。将来、未使用変数などにも `warning` を拡張する。
 
 ## 4. DiagnosticCode
 
@@ -94,7 +94,7 @@ v0.1 の標準コード:
 | `TYP0006` | typechecker | unsupported syntax in v0.1 |
 | `TYP0007` | typechecker | non-exhaustive match |
 | `TYP0008` | typechecker | refutable pattern in let/for binding |
-| `TYP0009` | typechecker | unreachable match case (warning、予約、未実装) |
+| `TYP0009` | typechecker | unreachable match case (warning) |
 | `RUN0001` | runtime | undefined variable |
 | `RUN0002` | runtime | value is not callable |
 | `RUN0003` | runtime | wrong number of arguments |

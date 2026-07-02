@@ -5,7 +5,7 @@ import sys
 from typing import TextIO
 
 from . import nodes as ast
-from .diagnostics import SourceMap, format_exception
+from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import Env, eval_module_into, force_value, format_value, initial_env
 from .parser import parse_source
 from .tokens import LuneSyntaxError
@@ -33,6 +33,7 @@ class ReplResult:
     message: str
     value: object | None = None
     type_repr: str | None = None
+    warnings: tuple = ()
 
 
 class ReplSession:
@@ -49,19 +50,22 @@ class ReplSession:
 
         module, is_expr = self._parse_input(source, filename)
         type_snapshot = _clone_type_env(self.type_env)
+        warning_start = len(self.type_env.warnings)
         try:
             check_module_into(module, self.type_env)
         except Exception:
             self.type_env = type_snapshot
             raise
+        warnings = tuple(self.type_env.warnings[warning_start:])
+        del self.type_env.warnings[warning_start:]
         eval_module_into(module, self.eval_env)
 
         if is_expr:
             value = force_value(self.eval_env.lookup_raw(REPL_VALUE))
             typ = self.type_env.lookup_value(REPL_VALUE)
             message = f"{format_value(value)} : {typ!r}"
-            return ReplResult("value", message, value, repr(typ))
-        return ReplResult("ok", "ok")
+            return ReplResult("value", message, value, repr(typ), warnings)
+        return ReplResult("ok", "ok", warnings=warnings)
 
     def run_command(self, command: str) -> ReplResult:
         parts = command.split()
@@ -127,6 +131,8 @@ def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
             result = session.submit(source, filename)
             if result.kind == "empty":
                 continue
+            for warning in result.warnings:
+                stderr.write(format_diagnostic(warning, source_map) + "\n")
             stdout.write(result.message + "\n")
             if result.kind == "quit":
                 return 0
@@ -194,4 +200,5 @@ def _clone_type_env(env: TypeEnv) -> TypeEnv:
     clone.constructors = dict(env.constructors)
     clone.types = dict(env.types)
     clone.records = dict(env.records)
+    clone.warnings = list(env.warnings)
     return clone
