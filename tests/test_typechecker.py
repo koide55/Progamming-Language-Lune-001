@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import unittest
 
-from lune.typechecker import INT, BOOL, FunctionType, LuneTypeError, Type, check_source
+from lune.typechecker import FLOAT, INT, BOOL, FunctionType, LuneTypeError, Type, check_source
 
 
 class TypeCheckerTests(unittest.TestCase):
     def test_checks_let_annotation(self) -> None:
         env = check_source("let answer: Int = 42\n")
         self.assertEqual(env.lookup_value("answer"), INT)
+
+    def test_int_division_result_type_is_double(self) -> None:
+        env = check_source("let ratio: Double = 7 / 2\n")
+        self.assertEqual(env.lookup_value("ratio"), FLOAT)
+
+    def test_int_division_result_cannot_be_used_as_int(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let ratio: Int = 7 / 2\n")
 
     def test_rejects_let_annotation_mismatch(self) -> None:
         with self.assertRaises(LuneTypeError):
