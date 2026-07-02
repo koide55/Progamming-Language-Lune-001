@@ -95,6 +95,8 @@ v0.1 の標準コード:
 | `TYP0007` | typechecker | non-exhaustive match |
 | `TYP0008` | typechecker | refutable pattern in let/for binding |
 | `TYP0009` | typechecker | unreachable match case (warning) |
+| `TYP0010` | typechecker | lambda parameter type falls back to Any (warning) |
+| `TYP0011` | typechecker | recursive function requires return type annotation |
 | `RUN0001` | runtime | undefined variable |
 | `RUN0002` | runtime | value is not callable |
 | `RUN0003` | runtime | wrong number of arguments |

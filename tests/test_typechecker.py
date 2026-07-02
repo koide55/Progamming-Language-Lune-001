@@ -741,5 +741,107 @@ def f(): Int =
         )
 
 
+class LocalTypeInferenceTests(unittest.TestCase):
+    def test_annotation_propagates_into_lambda(self) -> None:
+        env = check_source("let inc: Int -> Int = fn x -> x + 1\n")
+        self.assertEqual(env.lookup_value("inc"), FunctionType((INT,), INT))
+        self.assertEqual(env.warnings, [])
+
+    def test_annotation_checks_lambda_body(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let bad: Int -> Int = fn x -> x && true\n")
+
+    def test_map_resolves_type_variable(self) -> None:
+        env = check_source(
+            """
+let numbers = [1, 2, 3]
+let doubled = map(numbers, fn x -> x * 2)
+"""
+        )
+        self.assertEqual(env.lookup_value("doubled"), Type("List", (INT,)))
+        self.assertEqual(env.warnings, [])
+
+    def test_map_checks_lambda_body(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let bad = map([1, 2, 3], fn x -> x && true)\n")
+
+    def test_filter_and_fold_infer_lambda_params(self) -> None:
+        env = check_source(
+            """
+let numbers = [1, 2, 3]
+let evens = filter(numbers, fn x -> x % 2 == 0)
+let total = fold(numbers, 0, fn acc x -> acc + x)
+"""
+        )
+        self.assertEqual(env.lookup_value("evens"), Type("List", (INT,)))
+        self.assertEqual(env.lookup_value("total"), INT)
+        self.assertEqual(env.warnings, [])
+
+    def test_empty_list_takes_expected_type(self) -> None:
+        env = check_source("let empty: List[Int] = []\n")
+        self.assertEqual(env.lookup_value("empty"), Type("List", (INT,)))
+
+    def test_list_of_lambdas_with_annotation(self) -> None:
+        env = check_source("let fs: List[Int -> Int] = [fn x -> x + 1]\n")
+        self.assertEqual(env.lookup_value("fs"), Type("List", (FunctionType((INT,), INT),)))
+        self.assertEqual(env.warnings, [])
+
+    def test_expected_type_distributes_into_if_branches(self) -> None:
+        env = check_source("let f: Int -> Int = if true then (fn x -> x) else (fn x -> x + 1)\n")
+        self.assertEqual(env.lookup_value("f"), FunctionType((INT,), INT))
+        self.assertEqual(env.warnings, [])
+
+    def test_curried_annotation_propagates(self) -> None:
+        env = check_source("let add: Int -> Int -> Int = fn x -> fn y -> x + y\n")
+        self.assertEqual(env.warnings, [])
+
+    def test_annotated_lambda_param_checked_against_expected(self) -> None:
+        check_source("let f: Int -> Int = fn x: Int -> x\n")
+        with self.assertRaises(LuneTypeError):
+            check_source("let f: Int -> Int = fn x: Bool -> 1\n")
+
+    def test_rejects_lambda_with_too_many_params(self) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source("let f: Int -> Int = fn x y -> x\n")
+        self.assertEqual(ctx.exception.diagnostic.code, "TYP0005")
+
+    def test_return_annotation_propagates_into_body_lambda(self) -> None:
+        env = check_source(
+            """
+def makeAdder(n: Int): Int -> Int =
+    fn x -> x + n
+"""
+        )
+        self.assertEqual(env.warnings, [])
+
+    def test_warns_lambda_without_context(self) -> None:
+        env = check_source("let f = fn x -> x\n")
+        codes = [warning.code for warning in env.warnings]
+        self.assertIn("TYP0010", codes)
+
+    def test_no_warning_with_call_context(self) -> None:
+        env = check_source("let xs = map([1, 2, 3], fn x -> x)\n")
+        self.assertEqual(env.warnings, [])
+
+    def test_recursive_def_without_return_annotation(self) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(
+                """
+def fact(n: Int) =
+    if n <= 1 then 1 else n * fact(n - 1)
+"""
+            )
+        self.assertEqual(ctx.exception.diagnostic.code, "TYP0011")
+
+    def test_recursive_def_with_return_annotation(self) -> None:
+        env = check_source(
+            """
+def fact(n: Int): Int =
+    if n <= 1 then 1 else n * fact(n - 1)
+"""
+        )
+        self.assertEqual(env.lookup_value("fact"), FunctionType((INT,), INT))
+
+
 if __name__ == "__main__":
     unittest.main()

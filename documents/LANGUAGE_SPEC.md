@@ -259,7 +259,14 @@ let f = fn x ->
     y * 2
 ```
 
-未注釈ラムダ引数の型は `Any` になりうる。
+未注釈ラムダ引数の型は文脈から推論される。`let` / `var` の型注釈、`def` の戻り値注釈、関数呼び出しの引数位置に現れるラムダは、期待される関数型から引数型を受け取り、body はその型で検査される。
+
+```lune
+let inc: Int -> Int = fn x -> x + 1      # x : Int
+let doubled = map([1, 2, 3], fn x -> x * 2)  # x : Int、doubled : List[Int]
+```
+
+文脈がない場合、未注釈ラムダ引数は `Any` にフォールバックし、warning `TYP0010` が報告される。詳細は `LOCAL_TYPE_INFERENCE_SPEC.md` を参照する。
 
 ### 8.4 部分適用
 
@@ -707,7 +714,7 @@ v0.1 typechecker は、完全な型推論ではなく小さな単一化ベース
 
 制限:
 
-- 完全なローカル型推論は未実装。
+- 期待型伝播によるローカル型推論あり (`LOCAL_TYPE_INFERENCE_SPEC.md`)。body 制約からの単一化推論と let 多相は未実装。
 - 関数型注釈の本格検査は未実装。
 - Java 型解決は未実装。
 - class/interface の型検査は未実装。
