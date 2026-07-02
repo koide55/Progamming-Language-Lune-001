@@ -637,5 +637,109 @@ let (Some(x), y) = pair
         )
 
 
+class UnreachableCaseTests(unittest.TestCase):
+    def assert_unreachable(self, source: str, rendered: str) -> None:
+        env = check_source(source)
+        codes = [warning.code for warning in env.warnings]
+        self.assertIn("TYP0009", codes)
+        messages = [warning.message for warning in env.warnings]
+        self.assertIn(f"unreachable match case: {rendered}", messages)
+
+    def assert_no_warnings(self, source: str) -> None:
+        env = check_source(source)
+        self.assertEqual(env.warnings, [])
+
+    def test_warns_duplicate_constructor_case(self) -> None:
+        self.assert_unreachable(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) -> x
+        | None -> 0
+        | Some(y) -> y + 1
+""",
+            "Some(y)",
+        )
+
+    def test_warns_case_after_wildcard(self) -> None:
+        self.assert_unreachable(
+            """
+def f(n: Int): Int =
+    match n:
+        | 0 -> 0
+        | _ -> 1
+        | 5 -> 5
+""",
+            "5",
+        )
+
+    def test_warns_wildcard_after_complete_bool_coverage(self) -> None:
+        self.assert_unreachable(
+            """
+def f(b: Bool): Int =
+    match b:
+        | true -> 1
+        | false -> 0
+        | _ -> 2
+""",
+            "_",
+        )
+
+    def test_warns_guarded_case_shadowed_by_unguarded(self) -> None:
+        self.assert_unreachable(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) -> x
+        | None -> 0
+        | Some(y) if y > 0 -> y
+""",
+            "Some(y)",
+        )
+
+    def test_no_warning_for_case_after_guarded_pattern(self) -> None:
+        self.assert_no_warnings(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) if x > 0 -> x
+        | Some(y) -> 0 - y
+        | None -> 0
+"""
+        )
+
+    def test_no_warning_for_or_case_with_reachable_branch(self) -> None:
+        self.assert_no_warnings(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(1) -> 1
+        | (Some(_) | None) -> 0
+"""
+        )
+
+    def test_no_warning_for_exhaustive_match(self) -> None:
+        self.assert_no_warnings(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) -> x
+        | None -> 0
+"""
+        )
+
+    def test_no_warning_for_any_scrutinee(self) -> None:
+        self.assert_no_warnings(
+            """
+import java.time.LocalDate
+
+def f(): Int =
+    match LocalDate:
+        | 1 -> 1
+        | 1 -> 2
+"""
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

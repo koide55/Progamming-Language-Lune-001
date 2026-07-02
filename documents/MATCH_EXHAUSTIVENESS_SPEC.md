@@ -15,7 +15,7 @@ Related: `TYPE_CHECKER_SPEC.md`, `ERROR_DIAGNOSTICS_SPEC.md`, `LANGUAGE_SPEC.md`
 - ケース漏れのある `match` を型チェック時にエラーとして報告する。
 - 欠落しているパターンの具体例 (witness) をエラーメッセージに含める。
 - 実行時に失敗しうるパターン (反駁可能パターン) の `let` / `for` での使用をエラーとして報告する。
-- 到達不能なケースの検出は Phase 2 (warning) とし、本仕様では設計のみ定義する。
+- 先行ケースに完全に覆われた到達不能ケースを warning として報告する (Phase 2、実装済み)。
 
 ## 2. 用語
 
@@ -141,7 +141,7 @@ witness の表示規則:
 | --- | --- | --- | --- |
 | `TYP0007` | typechecker | non-exhaustive match | error |
 | `TYP0008` | typechecker | refutable pattern in let/for binding | error |
-| `TYP0009` | typechecker | unreachable match case | warning (Phase 2) |
+| `TYP0009` | typechecker | unreachable match case | warning |
 
 表示例 (非網羅 match):
 
@@ -180,9 +180,10 @@ error[TYP0008]: refutable pattern in let binding: Some(value)
 5. scrutinee 型が `Any` または型変数の場合は網羅性チェックをスキップする (常に網羅とみなす)。`Any` は v0.1 の逃げ道であるという既存方針に従う。
 6. evaluator の照合失敗時の実行時エラーは defense-in-depth として残す。
 
-Phase 2 (本仕様では実装しない):
+Phase 2 (実装済み):
 
-- 到達不能ケース検出: ケース i のパターンが行列 `P[0..i-1]` に対して有用でなければ `TYP0009`。warning を収集して継続する仕組み (checker に diagnostics リストを持たせ、CLI が最後にまとめて表示する) が前提となる。
+- 到達不能ケース検出: ケース i のパターン (OR 展開後の全行) が、先行する guard なしケースの行列 `P[0..i-1]` に対して有用でなければ `TYP0009` を warning として報告する。guard 付きケースも検査対象になるが、行列には追加されない。
+- warning 収集: `TypeEnv` が root に `warnings: list[Diagnostic]` を持ち、`report_warning` で親を辿って追加する。warning は型チェックを中断しない。CLI の `--check` は完了後に stderr へまとめて表示し、REPL は入力ごとに表示する。
 
 ## 10. 既存コード・文書への影響
 

@@ -12,6 +12,7 @@ Implemented:
 - type checker for basic types, functions, ADTs, generic constructor/function calls, `if`, `match`, `lazy`, and `force`
 - match exhaustiveness checking with missing-pattern witnesses (`TYP0007`)
 - refutable pattern rejection in `let` / `for` bindings (`TYP0008`)
+- unreachable match case warnings (`TYP0009`)
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`

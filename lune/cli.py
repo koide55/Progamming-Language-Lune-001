@@ -4,7 +4,7 @@ import argparse
 import pprint
 import sys
 
-from .diagnostics import SourceMap, format_exception
+from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import force_value, format_value
 from .lexer import lex
 from .layout import apply_layout
@@ -33,7 +33,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.check:
-            check_file(args.file, args.module_path, source_map)
+            env = check_file(args.file, args.module_path, source_map)
+            for warning in env.warnings:
+                print(format_diagnostic(warning, source_map), file=sys.stderr)
             print("type check OK")
             return 0
 
