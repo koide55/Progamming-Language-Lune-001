@@ -308,5 +308,234 @@ def today(): IO[String] =
         check_source(source)
 
 
+class MatchExhaustivenessTests(unittest.TestCase):
+    def assert_missing(self, source: str, witness: str) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(source)
+        diagnostic = ctx.exception.diagnostic
+        self.assertEqual(diagnostic.code, "TYP0007")
+        self.assertIn(f"missing case {witness}", diagnostic.message)
+
+    def test_accepts_full_option_match(self) -> None:
+        check_source(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) -> x
+        | None -> 0
+"""
+        )
+
+    def test_accepts_wildcard_case(self) -> None:
+        check_source(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) -> x
+        | _ -> 0
+"""
+        )
+
+    def test_accepts_name_case(self) -> None:
+        check_source(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | other -> 0
+"""
+        )
+
+    def test_accepts_bool_literal_match(self) -> None:
+        check_source(
+            """
+def f(b: Bool): Int =
+    match b:
+        | true -> 1
+        | false -> 0
+"""
+        )
+
+    def test_accepts_guarded_case_with_unguarded_fallbacks(self) -> None:
+        check_source(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) if x > 0 -> x
+        | Some(x) -> 0 - x
+        | None -> 0
+"""
+        )
+
+    def test_accepts_or_pattern_covering_all_constructors(self) -> None:
+        check_source(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | (Some(_) | None) -> 0
+"""
+        )
+
+    def test_accepts_tuple_of_bools(self) -> None:
+        check_source(
+            """
+def f(p: Tuple[Bool, Bool]): Int =
+    match p:
+        | (true, true) -> 3
+        | (true, false) -> 2
+        | (false, true) -> 1
+        | (false, false) -> 0
+"""
+        )
+
+    def test_accepts_int_literals_with_wildcard(self) -> None:
+        check_source(
+            """
+def f(n: Int): Int =
+    match n:
+        | 0 -> 0
+        | _ -> 1
+"""
+        )
+
+    def test_accepts_nested_option_match(self) -> None:
+        check_source(
+            """
+def f(o: Option[Option[Int]]): Int =
+    match o:
+        | Some(Some(x)) -> x
+        | Some(None) -> 0
+        | None -> 0
+"""
+        )
+
+    def test_accepts_any_scrutinee(self) -> None:
+        check_source(
+            """
+import java.time.LocalDate
+
+def f(): Int =
+    match LocalDate:
+        | 1 -> 1
+"""
+        )
+
+    def test_accepts_user_defined_adt_match(self) -> None:
+        check_source(
+            """
+type Color =
+    | Red
+    | Green
+    | Blue
+
+def f(c: Color): Int =
+    match c:
+        | Red -> 0
+        | Green -> 1
+        | Blue -> 2
+"""
+        )
+
+    def test_rejects_missing_none_case(self) -> None:
+        self.assert_missing(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) -> x
+""",
+            "None",
+        )
+
+    def test_rejects_missing_some_case(self) -> None:
+        self.assert_missing(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | None -> 0
+""",
+            "Some(_)",
+        )
+
+    def test_rejects_missing_bool_literal(self) -> None:
+        self.assert_missing(
+            """
+def f(b: Bool): Int =
+    match b:
+        | true -> 1
+""",
+            "false",
+        )
+
+    def test_rejects_int_literals_without_wildcard(self) -> None:
+        self.assert_missing(
+            """
+def f(n: Int): Int =
+    match n:
+        | 0 -> 0
+        | 1 -> 1
+""",
+            "_",
+        )
+
+    def test_rejects_guard_only_coverage(self) -> None:
+        self.assert_missing(
+            """
+def f(o: Option[Int]): Int =
+    match o:
+        | Some(x) if x > 0 -> x
+        | None -> 0
+""",
+            "Some(_)",
+        )
+
+    def test_rejects_missing_nested_list_case(self) -> None:
+        self.assert_missing(
+            """
+def f(xs: List[Int]): Int =
+    match xs:
+        | Nil -> 0
+        | Cons(x, Nil) -> x
+""",
+            "Cons(_, Cons(_, _))",
+        )
+
+    def test_rejects_missing_tuple_combination(self) -> None:
+        self.assert_missing(
+            """
+def f(p: Tuple[Bool, Bool]): Int =
+    match p:
+        | (true, true) -> 2
+        | (true, false) -> 1
+        | (false, true) -> 0
+""",
+            "(false, false)",
+        )
+
+    def test_rejects_missing_user_defined_constructor(self) -> None:
+        self.assert_missing(
+            """
+type Color =
+    | Red
+    | Green
+    | Blue
+
+def f(c: Color): Int =
+    match c:
+        | Red -> 0
+        | Blue -> 2
+""",
+            "Green",
+        )
+
+    def test_rejects_missing_result_case(self) -> None:
+        self.assert_missing(
+            """
+def f(r: Result[Int, String]): Int =
+    match r:
+        | Ok(value) -> value
+""",
+            "Err(_)",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

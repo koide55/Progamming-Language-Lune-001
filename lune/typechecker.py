@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import product
 
 from . import nodes as ast
 from .diagnostics import Diagnostic, DiagnosticError, Label, SourceSpan
@@ -171,6 +172,13 @@ class TypeEnv:
         if self.parent is not None:
             return self.parent.lookup_record(name)
         raise LuneTypeError(f"undefined record type: {name}")
+
+    def lookup_type(self, name: str) -> TypeInfo | None:
+        if name in self.types:
+            return self.types[name]
+        if self.parent is not None:
+            return self.parent.lookup_type(name)
+        return None
 
 
 def check_source(source: str, filename: str = "<input>") -> TypeEnv:
@@ -428,6 +436,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
             if case.guard is not None:
                 require_assignable(ensure_type(infer_expr(case.guard, local)), BOOL, "match guard")
             result_types.append(ensure_type(infer_expr(case.body, local)))
+        check_match_exhaustiveness(expr, scrutinee_type, env)
         return common_type(result_types) if result_types else BOTTOM
     if isinstance(expr, ast.LazyExpr):
         return Type("Lazy", (ensure_type(infer_expr(expr.body, env)),))
@@ -611,6 +620,157 @@ def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> 
         bind_pattern_types(pattern.pattern, expected, env)
         return
     raise LuneTypeError(f"unsupported pattern: {type(pattern).__name__}")
+
+
+# --- match exhaustiveness (TYP0007), see documents/MATCH_EXHAUSTIVENESS_SPEC.md ---
+
+
+@dataclass(frozen=True)
+class PatternHead:
+    kind: str  # "ctor" | "lit" | "tuple"
+    key: object
+    arity: int
+
+
+@dataclass(frozen=True)
+class NormalPattern:
+    head: PatternHead | None  # None means wildcard
+    args: tuple[NormalPattern, ...] = ()
+
+
+WILDCARD_PATTERN = NormalPattern(None)
+
+
+def normalize_pattern(pattern: ast.Pattern) -> list[NormalPattern]:
+    """Reduce a pattern to wildcard/constructor form, expanding OR patterns."""
+    if isinstance(pattern, ast.WildcardPattern | ast.NamePattern):
+        return [WILDCARD_PATTERN]
+    if isinstance(pattern, ast.TypedPattern):
+        return normalize_pattern(pattern.pattern)
+    if isinstance(pattern, ast.OrPattern):
+        expanded: list[NormalPattern] = []
+        for item in pattern.patterns:
+            expanded.extend(normalize_pattern(item))
+        return expanded
+    if isinstance(pattern, ast.LiteralPattern):
+        key = (type(pattern.value).__name__, pattern.value)
+        return [NormalPattern(PatternHead("lit", key, 0))]
+    if isinstance(pattern, ast.ConstructorPattern):
+        head = PatternHead("ctor", pattern.name, len(pattern.args))
+        return [NormalPattern(head, args) for args in _normalize_product(pattern.args)]
+    if isinstance(pattern, ast.TuplePattern):
+        head = PatternHead("tuple", len(pattern.items), len(pattern.items))
+        return [NormalPattern(head, args) for args in _normalize_product(pattern.items)]
+    return [WILDCARD_PATTERN]
+
+
+def _normalize_product(patterns: list[ast.Pattern]) -> list[tuple[NormalPattern, ...]]:
+    normalized = [normalize_pattern(item) for item in patterns]
+    return [tuple(combo) for combo in product(*normalized)]
+
+
+def _type_signature(typ: Type, env: TypeEnv) -> list[tuple[PatternHead, tuple[Type, ...], str]] | None:
+    """Complete constructor signature of a type as (head, field types, display) triples.
+
+    Returns None for open types, which only a wildcard can exhaust.
+    """
+    if typ in {ANY, BOTTOM} or is_type_var(typ):
+        return None
+    if typ == BOOL:
+        return [
+            (PatternHead("lit", ("bool", True), 0), (), "true"),
+            (PatternHead("lit", ("bool", False), 0), (), "false"),
+        ]
+    if typ.name == "Tuple" and typ.args:
+        head = PatternHead("tuple", len(typ.args), len(typ.args))
+        return [(head, typ.args, "")]
+    info = env.lookup_type(typ.name)
+    if info is None or not info.constructors:
+        return None
+    signature: list[tuple[PatternHead, tuple[Type, ...], str]] = []
+    for ctor_name in info.constructors:
+        try:
+            ctor = env.lookup_constructor(ctor_name)
+        except LuneTypeError:
+            return None
+        substitutions: dict[str, Type] = {}
+        try:
+            unify(ctor.result, typ, substitutions)
+            fields = tuple(substitute(field_type, substitutions) for field_type in ctor.fields)
+        except LuneTypeError:
+            fields = tuple(ANY for _ in ctor.fields)
+        signature.append((PatternHead("ctor", ctor_name, len(ctor.fields)), fields, ctor_name))
+    return signature
+
+
+def _specialize(rows: list[list[NormalPattern]], head: PatternHead) -> list[list[NormalPattern]]:
+    specialized: list[list[NormalPattern]] = []
+    for row in rows:
+        first = row[0]
+        if first.head is None:
+            specialized.append([WILDCARD_PATTERN] * head.arity + row[1:])
+        elif first.head == head:
+            specialized.append(list(first.args) + row[1:])
+    return specialized
+
+
+def _render_head(head: PatternHead, display: str, args: list[str]) -> str:
+    if head.kind == "tuple":
+        return "(" + ", ".join(args) + ")"
+    if head.kind == "lit" or head.arity == 0:
+        return display
+    return f"{display}({', '.join(args)})"
+
+
+def find_missing_pattern(rows: list[list[NormalPattern]], column_types: list[Type], env: TypeEnv) -> list[str] | None:
+    """Return a witness (one rendered pattern per column) not covered by rows, or None."""
+    if not column_types:
+        return None if rows else []
+    column_type = column_types[0]
+    rest_types = column_types[1:]
+    signature = _type_signature(column_type, env)
+    present = {row[0].head for row in rows if row[0].head is not None}
+    if signature is not None and all(head in present for head, _fields, _display in signature):
+        for head, field_types, display in signature:
+            witness = find_missing_pattern(_specialize(rows, head), list(field_types) + rest_types, env)
+            if witness is not None:
+                rendered = _render_head(head, display, witness[: head.arity])
+                return [rendered] + witness[head.arity :]
+        return None
+    default_rows = [row[1:] for row in rows if row[0].head is None]
+    witness = find_missing_pattern(default_rows, rest_types, env)
+    if witness is None:
+        return None
+    if signature is not None:
+        for head, _field_types, display in signature:
+            if head not in present:
+                return [_render_head(head, display, ["_"] * head.arity)] + witness
+    return ["_"] + witness
+
+
+def check_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: TypeEnv) -> None:
+    if scrutinee_type in {ANY, BOTTOM} or is_type_var(scrutinee_type):
+        return
+    rows: list[list[NormalPattern]] = []
+    for case in expr.cases:
+        if case.guard is not None:
+            continue
+        for normalized in normalize_pattern(case.pattern):
+            rows.append([normalized])
+    witness = find_missing_pattern(rows, [scrutinee_type], env)
+    if witness is None:
+        return
+    missing = witness[0]
+    hints = [f"add a case for {missing}, or a wildcard case `| _ -> ...`"]
+    if any(case.guard is not None for case in expr.cases):
+        hints.append("guarded cases do not count toward exhaustiveness")
+    raise LuneTypeError(
+        f"non-exhaustive match: missing case {missing}",
+        "TYP0007",
+        expr.span,
+        f"pattern {missing} is not covered",
+        hints,
+    )
 
 
 def type_from_ast(node: ast.TypeNode | None, type_params: list[str] | tuple[str, ...] = ()) -> ValueType:

@@ -501,7 +501,7 @@ match n:
 - OR パターン
 - 型付きパターン
 
-網羅性チェックは未実装である。
+`match` は網羅的でなければならない。ケース漏れは型エラー `TYP0007` として報告され、欠落パターンの例が表示される。guard 付きケースは網羅性に寄与しない。scrutinee 型が `Any` または型変数の場合は検査しない。詳細は `MATCH_EXHAUSTIVENESS_SPEC.md` を参照する。
 
 ## 12. タプル
 
@@ -696,6 +696,7 @@ v0.1 typechecker は、完全な型推論ではなく小さな単一化ベース
 - ADT コンストラクタ呼び出し。
 - record construction と field access。
 - `match` パターンと分岐型。
+- `match` 網羅性 (`MATCH_EXHAUSTIVENESS_SPEC.md`)。
 - `lazy` / `force`。
 - 関数・コンストラクタ部分適用。
 - 標準ライブラリ関数の型。
@@ -706,7 +707,6 @@ v0.1 typechecker は、完全な型推論ではなく小さな単一化ベース
 
 - 完全なローカル型推論は未実装。
 - 関数型注釈の本格検査は未実装。
-- `match` 網羅性チェックは未実装。
 - Java 型解決は未実装。
 - class/interface の型検査は未実装。
 

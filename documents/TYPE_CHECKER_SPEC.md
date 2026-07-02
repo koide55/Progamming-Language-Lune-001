@@ -163,6 +163,8 @@ match option:
 
 各分岐の結果型は一致する必要がある。`Nothing` は任意の分岐型に合流できる。
 
+`match` は網羅的でなければならない。ケース漏れは `TYP0007` として報告する。判定アルゴリズムと対象型は `MATCH_EXHAUSTIVENESS_SPEC.md` に定義する。
+
 ## 9. Lazy
 
 ```lune
@@ -247,7 +249,6 @@ let bad = [1, true]
 
 - 完全なローカル型推論は未実装。
 - 関数型注釈の本格検査は未実装。
-- exhaustiveness check は未実装。
 - Java 型の実解決は未実装。
 - class/interface の型検査は未実装。
 - record update / record pattern / mutable record field は未実装。record の追加仕様は `RECORD_FIELD_SPEC.md` に定義する。

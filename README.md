@@ -10,6 +10,7 @@ Implemented:
 - recursive descent parser with a Pratt expression parser
 - parsing for `module`, `import`, `let`, `var`, `def`, `type`, `if`, `match`, `fn`, `IO:`, calls, member access, and basic types
 - type checker for basic types, functions, ADTs, generic constructor/function calls, `if`, `match`, `lazy`, and `force`
+- match exhaustiveness checking with missing-pattern witnesses (`TYP0007`)
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
