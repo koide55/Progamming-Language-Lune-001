@@ -317,6 +317,8 @@ cond && other
 
 `+` は数値加算と `String + String` に対応する。
 
+`/` は常に実数除算（true division）を行い、結果型は `Int / Int` の場合も含めて常に `Double` になる。
+
 `++` と `::` は parser にあるが、現状の runtime/typechecker では実用対象外である。
 
 ### 9.2 if

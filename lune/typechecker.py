@@ -717,6 +717,10 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> Type:
             return STRING
         require_numeric(left, expr.op)
         require_assignable(right, left, expr.op)
+        if expr.op == "/":
+            # runtime "/" always performs true division (evaluator.py eval_binary),
+            # so the result is Double even for Int / Int.
+            return FLOAT
         return left
     if expr.op in {"==", "!="}:
         require_comparable(left, right, expr.op)
