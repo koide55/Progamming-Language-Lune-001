@@ -12,6 +12,6 @@ def today(): IO[String] =
     IO:
         LocalDate.now().toString()
 
-let inc = fn x -> x + 1
+let inc: Int -> Int = fn x -> x + 1
 let result = if true then inc(41) else 0
 

@@ -312,8 +312,8 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         check_function_decl(decl, env)
         return
     if isinstance(decl, ast.LetDecl):
-        value_type = infer_expr(decl.value, env)
         expected = type_from_ast(decl.type) if decl.type is not None else None
+        value_type = infer_expr(decl.value, env, expected)
         if expected is not None:
             require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), f"this expression has type {value_type!r}")
             value_type = expected
@@ -321,8 +321,9 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         check_pattern_irrefutable(decl.pattern, value_type, env, "let")
         return
     if isinstance(decl, ast.VarDecl):
-        value_type = infer_expr(decl.value, env)
-        expected = type_from_ast(decl.type) if decl.type is not None else value_type
+        annotated = type_from_ast(decl.type) if decl.type is not None else None
+        value_type = infer_expr(decl.value, env, annotated)
+        expected = annotated if annotated is not None else value_type
         require_value_assignable(value_type, expected, "var annotation")
         env.define_value(decl.name, expected)
         return
@@ -333,15 +334,34 @@ def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
     local = env.child()
     for param in decl.params:
         local.define_value(param.name, required_type(param.type, f"parameter {param.name}"))
-    body_type = infer_expr(decl.body, local)
     if decl.return_type is None:
+        try:
+            body_type = infer_expr(decl.body, local)
+        except LuneTypeError as exc:
+            if exc.diagnostic.message == f"undefined name: {decl.name}":
+                raise LuneTypeError(
+                    f"recursive function requires a return type annotation: {decl.name}",
+                    "TYP0011",
+                    decl.span,
+                    "the function calls itself before its type is known",
+                    [f"add a return type, e.g. `def {decl.name}(...): T = ...`"],
+                ) from exc
+            raise
         env.define_value(decl.name, FunctionType(tuple(required_type(param.type, f"parameter {param.name}") for param in decl.params), body_type, tuple(decl.type_params)))
         return
     expected = type_from_ast(decl.return_type, decl.type_params)
+    body_type = infer_expr(decl.body, local, expected)
     require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), f"function body has type {body_type!r}")
 
 
-def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
+def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) -> ValueType:
+    """Infer the type of an expression.
+
+    When `expected` is given, it is distributed structurally into lambdas,
+    list literals, tuples, branches, and blocks (LOCAL_TYPE_INFERENCE_SPEC.md
+    section 5). Expression forms that do not consume the expected type ignore
+    it; assignability remains the caller's responsibility.
+    """
     if isinstance(expr, ast.BlockExpr):
         local = env.child()
         for item in expr.statements:
@@ -349,7 +369,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
                 check_decl(item, local)
             else:
                 infer_expr(item, local)
-        return infer_expr(expr.result, local) if expr.result is not None else UNIT
+        return infer_expr(expr.result, local, expected) if expr.result is not None else UNIT
     if isinstance(expr, ast.LiteralExpr):
         value = expr.value
         if isinstance(value, bool):
@@ -372,16 +392,51 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
         return NULL
     if isinstance(expr, ast.CallExpr):
         if isinstance(expr.callee, ast.NameExpr) and expr.callee.name == "__tuple__":
+            if isinstance(expected, Type) and expected.name == "Tuple" and len(expected.args) == len(expr.args):
+                return Type(
+                    "Tuple",
+                    tuple(
+                        ensure_type(infer_expr(arg.value, env, element))
+                        for arg, element in zip(expr.args, expected.args, strict=True)
+                    ),
+                )
             return Type("Tuple", tuple(ensure_type(infer_expr(arg.value, env)) for arg in expr.args))
         callee_type = infer_expr(expr.callee, env)
         return infer_call(callee_type, expr.args, env, expr.span)
     if isinstance(expr, ast.ListExpr):
+        if isinstance(expected, Type) and expected.name == "List" and len(expected.args) == 1:
+            element = expected.args[0]
+            if not expr.items:
+                return expected
+            item_types = [infer_expr(item, env, element) for item in expr.items]
+            if contains_type_var(element):
+                return Type("List", (common_type([ensure_type(item_type) for item_type in item_types]),))
+            for item, item_type in zip(expr.items, item_types, strict=True):
+                require_value_assignable(item_type, element, "list element", getattr(item, "span", None), f"this element has type {item_type!r}")
+            return expected
         if not expr.items:
             return Type("List", (ANY,))
         item_types = [ensure_type(infer_expr(item, env)) for item in expr.items]
         return Type("List", (common_type(item_types),))
     if isinstance(expr, ast.LambdaExpr):
-        params = tuple(type_from_ast(param.type) if param.type is not None else ANY for param in expr.params)
+        if isinstance(expected, FunctionType):
+            return check_lambda(expr, expected, env)
+        params_list: list[ValueType] = []
+        for param in expr.params:
+            if param.type is not None:
+                params_list.append(type_from_ast(param.type))
+            else:
+                params_list.append(ANY)
+                env.report_warning(
+                    Diagnostic(
+                        code="TYP0010",
+                        severity="warning",
+                        message=f"cannot infer type of parameter {param.name}",
+                        primary=Label(param.span, "parameter type falls back to Any") if param.span is not None else None,
+                        hints=[f"add a type annotation, e.g. `fn {param.name}: Int -> ...`"],
+                    )
+                )
+        params = tuple(params_list)
         local = env.child()
         for param, param_type in zip(expr.params, params, strict=True):
             local.define_value(param.name, param_type)
@@ -398,13 +453,22 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
         return infer_binary(expr, env)
     if isinstance(expr, ast.IfExpr):
         require_assignable(ensure_type(infer_expr(expr.condition, env)), BOOL, "if condition")
-        then_type = ensure_type(infer_expr(expr.then_branch, env))
-        branch_types = [then_type]
+        if isinstance(expected, FunctionType):
+            # branches produce function values; ensure_type/common_type do not
+            # apply, so each branch is checked against the expected type instead
+            branch_value = infer_expr(expr.then_branch, env, expected)
+            for condition, branch in expr.elif_branches:
+                require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
+                infer_expr(branch, env, expected)
+            if expr.else_branch is not None:
+                infer_expr(expr.else_branch, env, expected)
+            return branch_value
+        branch_types = [ensure_type(infer_expr(expr.then_branch, env, expected))]
         for condition, branch in expr.elif_branches:
             require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
-            branch_types.append(ensure_type(infer_expr(branch, env)))
+            branch_types.append(ensure_type(infer_expr(branch, env, expected)))
         if expr.else_branch is not None:
-            branch_types.append(ensure_type(infer_expr(expr.else_branch, env)))
+            branch_types.append(ensure_type(infer_expr(expr.else_branch, env, expected)))
         else:
             branch_types.append(UNIT)
         return common_type(branch_types)
@@ -444,11 +508,14 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
             bind_pattern_types(case.pattern, scrutinee_type, local)
             if case.guard is not None:
                 require_assignable(ensure_type(infer_expr(case.guard, local)), BOOL, "match guard")
-            result_types.append(ensure_type(infer_expr(case.body, local)))
+            result_types.append(ensure_type(infer_expr(case.body, local, expected)))
         check_match_exhaustiveness(expr, scrutinee_type, env)
         return common_type(result_types) if result_types else BOTTOM
     if isinstance(expr, ast.LazyExpr):
-        return Type("Lazy", (ensure_type(infer_expr(expr.body, env)),))
+        body_expected = None
+        if isinstance(expected, Type) and expected.name == "Lazy" and len(expected.args) == 1:
+            body_expected = expected.args[0]
+        return Type("Lazy", (ensure_type(infer_expr(expr.body, env, body_expected)),))
     if isinstance(expr, ast.ForceExpr):
         value_type = ensure_type(infer_expr(expr.expr, env))
         if value_type.name == "Lazy" and len(value_type.args) == 1:
@@ -460,7 +527,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
     if isinstance(expr, ast.DeepForceExpr):
         return infer_expr(expr.expr, env)
     if isinstance(expr, ast.IOBlockExpr):
-        return infer_expr(expr.body, env)
+        return infer_expr(expr.body, env, expected)
     if isinstance(expr, ast.RaiseExpr):
         return BOTTOM
     if isinstance(expr, ast.AssignExpr):
@@ -483,6 +550,61 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
     raise LuneTypeError(f"unsupported expression: {type(expr).__name__}")
 
 
+def contains_type_var(typ: ValueType) -> bool:
+    if isinstance(typ, FunctionType):
+        return any(contains_type_var(param) for param in typ.params) or contains_type_var(typ.result)
+    if isinstance(typ, RecordConstructorType):
+        return bool(typ.type_params)
+    if is_type_var(typ):
+        return True
+    return any(contains_type_var(arg) for arg in typ.args)
+
+
+def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> FunctionType:
+    """Check a lambda against an expected function type (LOCAL_TYPE_INFERENCE_SPEC.md section 5.1)."""
+    expected = flatten_function_type(expected)
+    if len(expr.params) > len(expected.params):
+        raise LuneTypeError(
+            f"lambda takes {len(expr.params)} parameters, but expected type has {len(expected.params)}",
+            "TYP0005",
+            expr.span,
+            "too many lambda parameters",
+        )
+    local = env.child()
+    param_types: list[ValueType] = []
+    for param, expected_param in zip(expr.params, expected.params, strict=False):
+        if param.type is not None:
+            annotated = type_from_ast(param.type)
+            if not contains_type_var(expected_param):
+                require_value_assignable(
+                    expected_param,
+                    annotated,
+                    f"parameter {param.name}",
+                    param.span,
+                    f"annotation {annotated!r} does not accept expected {expected_param!r}",
+                )
+            param_type: ValueType = annotated
+        else:
+            param_type = expected_param
+        param_types.append(param_type)
+        local.define_value(param.name, param_type)
+    remaining = expected.params[len(expr.params) :]
+    body_expected: ValueType = FunctionType(remaining, expected.result) if remaining else expected.result
+    body_type = infer_expr(expr.body, local, body_expected)
+    if not contains_type_var(body_expected):
+        require_value_assignable(
+            body_type,
+            body_expected,
+            "lambda body",
+            getattr(expr.body, "span", None),
+            f"lambda body has type {body_type!r}",
+        )
+        result: ValueType = body_expected
+    else:
+        result = body_type
+    return FunctionType(tuple(param_types), result)
+
+
 def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, span: SourceSpan | None = None) -> ValueType:
     if isinstance(callee_type, RecordConstructorType):
         return infer_record_constructor_call(callee_type, args, env, span)
@@ -501,8 +623,19 @@ def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, s
     if len(args) < len(callee_type.params) and not callee_type.partial:
         raise LuneTypeError(f"expected {len(callee_type.params)} arguments, got {len(args)}", "TYP0005", span, "wrong number of arguments")
     substitutions: dict[str, Type] = {}
+    # two-pass checking (LOCAL_TYPE_INFERENCE_SPEC.md section 6): non-lambda
+    # arguments resolve type variables first, then lambdas are checked against
+    # the substituted parameter types.
+    deferred: list[tuple[ValueType, ast.Argument]] = []
     for expected, arg in zip(callee_type.params, args):
+        if isinstance(arg.value, ast.LambdaExpr):
+            deferred.append((expected, arg))
+            continue
         actual = infer_expr(arg.value, env)
+        unify_value(expected, actual, substitutions)
+    for expected, arg in deferred:
+        resolved = substitute_value(expected, substitutions)
+        actual = infer_expr(arg.value, env, resolved if isinstance(resolved, FunctionType) else None)
         unify_value(expected, actual, substitutions)
     params = tuple(substitute_value(param, substitutions) for param in callee_type.params)
     result = substitute_value(callee_type.result, substitutions)
@@ -950,6 +1083,9 @@ def literal_type(value: object) -> Type:
 
 
 def unify(expected: Type, actual: Type, substitutions: dict[str, Type]) -> None:
+    if isinstance(expected, FunctionType) or isinstance(actual, FunctionType):
+        unify_value(expected, actual, substitutions)
+        return
     if expected == ANY or actual == ANY or expected == BOTTOM or actual == BOTTOM:
         return
     if is_type_var(expected):
@@ -1003,6 +1139,8 @@ def flatten_function_type(function: FunctionType) -> FunctionType:
 
 
 def substitute(typ: Type, substitutions: dict[str, Type]) -> Type:
+    if isinstance(typ, FunctionType | RecordConstructorType):
+        return substitute_value(typ, substitutions)
     if typ.name in substitutions and not typ.args:
         return substitutions[typ.name]
     if not typ.args:
