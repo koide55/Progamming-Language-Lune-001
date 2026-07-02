@@ -198,14 +198,14 @@ count = count + 1
 
 ### 7.4 パターン束縛
 
-`let` はパターン束縛をサポートする。
+`let` はパターン束縛をサポートする。パターンは反駁不能でなければならない。つまり、あらゆる値に照合するパターンのみ利用できる。
 
 ```lune
-let Some(value) = Some(42)
 let (x, y) = (1, 2)
+let Wrap(inner) = w   # Wrap が唯一のコンストラクタの場合
 ```
 
-パターンが合わない場合は実行時エラーになる。
+`Some(value)` のような照合に失敗しうるパターンは型エラー `TYP0008` になる。その場合は `match` を使う。詳細は `MATCH_EXHAUSTIVENESS_SPEC.md` §7 を参照する。
 
 ## 8. 関数
 
@@ -420,7 +420,7 @@ let answer =
     total
 ```
 
-`for pattern in iterable:` の `iterable` は `List[T]` でなければならない。`pattern` は各要素に対して照合され、body 内で利用できる。
+`for pattern in iterable:` の `iterable` は `List[T]` でなければならない。`pattern` は各要素に対して照合され、body 内で利用できる。`let` と同様に、パターンは反駁不能でなければならない。照合に失敗しうるパターンは型エラー `TYP0008` になる。
 
 ```lune
 for (left, right) in pairs:
@@ -501,7 +501,7 @@ match n:
 - OR パターン
 - 型付きパターン
 
-網羅性チェックは未実装である。
+`match` は網羅的でなければならない。ケース漏れは型エラー `TYP0007` として報告され、欠落パターンの例が表示される。guard 付きケースは網羅性に寄与しない。scrutinee 型が `Any` または型変数の場合は検査しない。詳細は `MATCH_EXHAUSTIVENESS_SPEC.md` を参照する。
 
 ## 12. タプル
 
@@ -696,6 +696,7 @@ v0.1 typechecker は、完全な型推論ではなく小さな単一化ベース
 - ADT コンストラクタ呼び出し。
 - record construction と field access。
 - `match` パターンと分岐型。
+- `match` 網羅性 (`MATCH_EXHAUSTIVENESS_SPEC.md`)。
 - `lazy` / `force`。
 - 関数・コンストラクタ部分適用。
 - 標準ライブラリ関数の型。
@@ -706,7 +707,6 @@ v0.1 typechecker は、完全な型推論ではなく小さな単一化ベース
 
 - 完全なローカル型推論は未実装。
 - 関数型注釈の本格検査は未実装。
-- `match` 網羅性チェックは未実装。
 - Java 型解決は未実装。
 - class/interface の型検査は未実装。
 

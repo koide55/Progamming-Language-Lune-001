@@ -88,10 +88,13 @@ strict let x = expensive()
 パターン束縛は外側のパターン照合に必要な分だけ評価する。
 
 ```lune
-let Some(x) = Some(expensive())
+type Wrap[T] =
+    | Wrap(value: T)
+
+let Wrap(x) = Wrap(expensive())
 ```
 
-この例では外側の `Some` は確認するが、`x` の中身は参照されるまで評価しない。
+この例では外側の `Wrap` は確認するが、`x` の中身は参照されるまで評価しない。なお `let` のパターンは反駁不能でなければならない (`MATCH_EXHAUSTIVENESS_SPEC.md` §7、`TYP0008`)。
 
 ## 5. 関数呼び出し
 
