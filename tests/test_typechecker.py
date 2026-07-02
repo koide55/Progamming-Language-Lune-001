@@ -537,5 +537,105 @@ def f(r: Result[Int, String]): Int =
         )
 
 
+class RefutablePatternTests(unittest.TestCase):
+    def assert_refutable(self, source: str, context: str, rendered: str) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(source)
+        diagnostic = ctx.exception.diagnostic
+        self.assertEqual(diagnostic.code, "TYP0008")
+        self.assertIn(f"refutable pattern in {context} binding: {rendered}", diagnostic.message)
+
+    def test_accepts_name_and_wildcard_let(self) -> None:
+        check_source("let x = 42\nlet _ = 43\n")
+
+    def test_accepts_tuple_let(self) -> None:
+        check_source(
+            """
+let pair = (1, "one")
+let (x, name) = pair
+"""
+        )
+
+    def test_accepts_single_constructor_let(self) -> None:
+        check_source(
+            """
+type Wrap[T] =
+    | Wrap(value: T)
+
+let w = Wrap(42)
+let Wrap(inner) = w
+"""
+        )
+
+    def test_accepts_tuple_for_pattern(self) -> None:
+        check_source(
+            """
+def f(pairs: List[Tuple[Int, Int]]): Unit =
+    for (left, right) in pairs:
+        println(left + right)
+"""
+        )
+
+    def test_accepts_let_with_any_value(self) -> None:
+        check_source(
+            """
+import java.time.LocalDate
+
+let Some(x) = LocalDate.now()
+"""
+        )
+
+    def test_rejects_option_let(self) -> None:
+        self.assert_refutable(
+            """
+let opt = Some(42)
+let Some(value) = opt
+""",
+            "let",
+            "Some(value)",
+        )
+
+    def test_rejects_literal_in_tuple_let(self) -> None:
+        self.assert_refutable(
+            """
+let pair = (1, 2)
+let (1, y) = pair
+""",
+            "let",
+            "(1, y)",
+        )
+
+    def test_rejects_refutable_let_in_expression(self) -> None:
+        self.assert_refutable(
+            """
+let opt = Some(42)
+let answer = let Some(x) = opt in x
+""",
+            "let",
+            "Some(x)",
+        )
+
+    def test_rejects_refutable_for_pattern(self) -> None:
+        self.assert_refutable(
+            """
+def f(xs: List[Option[Int]]): Unit =
+    for Some(x) in xs:
+        println(x)
+""",
+            "for",
+            "Some(x)",
+        )
+
+    def test_rejects_multi_constructor_nested_in_tuple(self) -> None:
+        self.assert_refutable(
+            """
+let pair = (Some(1), 2)
+let (Some(x), y) = pair
+""",
+            "let",
+            "(Some(x), y)",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

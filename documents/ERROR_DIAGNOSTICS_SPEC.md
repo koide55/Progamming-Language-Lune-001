@@ -93,7 +93,7 @@ v0.1 の標準コード:
 | `TYP0005` | typechecker | wrong number of arguments |
 | `TYP0006` | typechecker | unsupported syntax in v0.1 |
 | `TYP0007` | typechecker | non-exhaustive match |
-| `TYP0008` | typechecker | refutable pattern in let/for binding (予約、未実装) |
+| `TYP0008` | typechecker | refutable pattern in let/for binding |
 | `TYP0009` | typechecker | unreachable match case (warning、予約、未実装) |
 | `RUN0001` | runtime | undefined variable |
 | `RUN0002` | runtime | value is not callable |

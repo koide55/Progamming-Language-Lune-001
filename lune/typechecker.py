@@ -311,6 +311,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
             require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), f"this expression has type {value_type!r}")
             value_type = expected
         bind_pattern_types(decl.pattern, value_type, env)
+        check_pattern_irrefutable(decl.pattern, value_type, env, "let")
         return
     if isinstance(decl, ast.VarDecl):
         value_type = infer_expr(decl.value, env)
@@ -425,6 +426,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv) -> ValueType:
             )
         local = env.child()
         bind_pattern_types(expr.pattern, item_type, local)
+        check_pattern_irrefutable(expr.pattern, item_type, env, "for")
         infer_expr(expr.body, local)
         return UNIT
     if isinstance(expr, ast.MatchExpr):
@@ -770,6 +772,56 @@ def check_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: T
         expr.span,
         f"pattern {missing} is not covered",
         hints,
+    )
+
+
+def render_pattern(pattern: ast.Pattern) -> str:
+    if isinstance(pattern, ast.WildcardPattern):
+        return "_"
+    if isinstance(pattern, ast.NamePattern):
+        return pattern.name
+    if isinstance(pattern, ast.LiteralPattern):
+        value = pattern.value
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, str):
+            return f'"{value}"'
+        return repr(value)
+    if isinstance(pattern, ast.TuplePattern):
+        return "(" + ", ".join(render_pattern(item) for item in pattern.items) + ")"
+    if isinstance(pattern, ast.ConstructorPattern):
+        if not pattern.args:
+            return pattern.name
+        return f"{pattern.name}({', '.join(render_pattern(arg) for arg in pattern.args)})"
+    if isinstance(pattern, ast.OrPattern):
+        return " | ".join(render_pattern(item) for item in pattern.patterns)
+    if isinstance(pattern, ast.TypedPattern):
+        return render_pattern(pattern.pattern)
+    return type(pattern).__name__
+
+
+def check_pattern_irrefutable(pattern: ast.Pattern, value_type: ValueType, env: TypeEnv, context: str) -> None:
+    """Reject refutable patterns in let/for bindings (TYP0008)."""
+    if isinstance(pattern, ast.WildcardPattern | ast.NamePattern):
+        return
+    if not isinstance(value_type, Type):
+        return
+    if value_type in {ANY, BOTTOM} or is_type_var(value_type):
+        return
+    rows = [[normalized] for normalized in normalize_pattern(pattern)]
+    witness = find_missing_pattern(rows, [value_type], env)
+    if witness is None:
+        return
+    rendered = render_pattern(pattern)
+    raise LuneTypeError(
+        f"refutable pattern in {context} binding: {rendered}",
+        "TYP0008",
+        getattr(pattern, "span", None),
+        "this pattern can fail to match",
+        [
+            f"the pattern does not cover {witness[0]}",
+            f"use `match` to handle all cases of {value_type!r}",
+        ],
     )
 
 

@@ -198,14 +198,14 @@ count = count + 1
 
 ### 7.4 パターン束縛
 
-`let` はパターン束縛をサポートする。
+`let` はパターン束縛をサポートする。パターンは反駁不能でなければならない。つまり、あらゆる値に照合するパターンのみ利用できる。
 
 ```lune
-let Some(value) = Some(42)
 let (x, y) = (1, 2)
+let Wrap(inner) = w   # Wrap が唯一のコンストラクタの場合
 ```
 
-パターンが合わない場合は実行時エラーになる。
+`Some(value)` のような照合に失敗しうるパターンは型エラー `TYP0008` になる。その場合は `match` を使う。詳細は `MATCH_EXHAUSTIVENESS_SPEC.md` §7 を参照する。
 
 ## 8. 関数
 
@@ -420,7 +420,7 @@ let answer =
     total
 ```
 
-`for pattern in iterable:` の `iterable` は `List[T]` でなければならない。`pattern` は各要素に対して照合され、body 内で利用できる。
+`for pattern in iterable:` の `iterable` は `List[T]` でなければならない。`pattern` は各要素に対して照合され、body 内で利用できる。`let` と同様に、パターンは反駁不能でなければならない。照合に失敗しうるパターンは型エラー `TYP0008` になる。
 
 ```lune
 for (left, right) in pairs:
