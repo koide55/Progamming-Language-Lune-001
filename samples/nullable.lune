@@ -1,0 +1,13 @@
+module sample.nullable
+
+# A non-null value and `null` are both assignable to a nullable type `T?`.
+let present: Int? = 42
+let absent: Int? = null
+
+# `T?` parameters accept both a value and `null`; the reverse (using a `T?`
+# where a plain `T` is expected) is rejected until it is unwrapped.
+def identity(value: Int?): Int? =
+    value
+
+let echoed = identity(present)
+let nothing = identity(null)

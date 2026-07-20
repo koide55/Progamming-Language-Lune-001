@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from lune.typechecker import FLOAT, INT, BOOL, FunctionType, LuneTypeError, Type, check_source
+from lune.typechecker import FLOAT, INT, BOOL, STRING, FunctionType, LuneTypeError, Type, check_source
 
 
 class TypeCheckerTests(unittest.TestCase):
@@ -849,6 +849,73 @@ def fact(n: Int): Int =
 """
         )
         self.assertEqual(env.lookup_value("fact"), FunctionType((INT,), INT))
+
+    # --- nullable types (T?) ---
+
+    def test_allows_null_for_nullable_annotation(self) -> None:
+        env = check_source("let x: String? = null\n")
+        self.assertEqual(env.lookup_value("x"), Type("Nullable", (STRING,)))
+
+    def test_allows_non_null_value_for_nullable_annotation(self) -> None:
+        env = check_source('let x: String? = "hi"\n')
+        self.assertEqual(env.lookup_value("x"), Type("Nullable", (STRING,)))
+
+    def test_rejects_null_for_non_nullable_annotation(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let x: String = null\n")
+
+    def test_rejects_nullable_where_non_null_expected(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let x: String? = null\nlet y: String = x\n")
+
+    def test_nullable_argument_accepts_both_value_and_null(self) -> None:
+        source = """
+def f(x: Int?): Int? =
+    x
+let a = f(3)
+let b = f(null)
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("a"), Type("Nullable", (INT,)))
+        self.assertEqual(env.lookup_value("b"), Type("Nullable", (INT,)))
+
+    # --- pipeline operator (|>) ---
+
+    def test_pipeline_operator_type_checks(self) -> None:
+        source = """
+def inc(n: Int): Int =
+    n + 1
+let r: Int = 5 |> inc
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("r"), INT)
+
+    def test_pipeline_operator_chains(self) -> None:
+        source = """
+def inc(n: Int): Int =
+    n + 1
+let r = 5 |> inc |> inc
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("r"), INT)
+
+    def test_pipeline_operator_supports_partial_application(self) -> None:
+        source = """
+def add(x: Int, y: Int): Int =
+    x + y
+let g = 5 |> add
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("g"), FunctionType((INT,), INT))
+
+    def test_pipeline_operator_rejects_argument_mismatch(self) -> None:
+        source = """
+def inc(n: Int): Int =
+    n + 1
+let r = "s" |> inc
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
 
 
 if __name__ == "__main__":

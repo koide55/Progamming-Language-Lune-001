@@ -705,7 +705,15 @@ def lookup_record_field_type(receiver_type: Type, field_name: str, env: TypeEnv,
     raise LuneTypeError(f"unknown record field: {receiver_type.name}.{field_name}", "REC0002", span, "field is not declared by this record")
 
 
-def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> Type:
+def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
+    if expr.op == "|>":
+        # `x |> f` is sugar for `f(x)` (LANGUAGE_FUTURE_SPEC.md section 4).
+        # The evaluator applies the right operand to the left (evaluator.py
+        # eval_binary), so we type it exactly like the equivalent call. The
+        # right operand is a function value, so it must not go through
+        # ensure_type (which rejects function types).
+        callee_type = infer_expr(expr.right, env)
+        return infer_call(callee_type, [ast.Argument(value=expr.left)], env, expr.span)
     if expr.op in {"&&", "||"}:
         require_assignable(ensure_type(infer_expr(expr.left, env)), BOOL, expr.op)
         require_assignable(ensure_type(infer_expr(expr.right, env)), BOOL, expr.op)
@@ -1092,6 +1100,14 @@ def unify(expected: Type, actual: Type, substitutions: dict[str, Type]) -> None:
         return
     if expected == ANY or actual == ANY or expected == BOTTOM or actual == BOTTOM:
         return
+    if expected.name == "Nullable" and expected.args:
+        # `null` and a non-null `T` both satisfy `T?` (see require_assignable).
+        # This is the path used by let/var annotations and call arguments.
+        if actual == NULL:
+            return
+        source = actual.args[0] if actual.name == "Nullable" and actual.args else actual
+        unify(expected.args[0], source, substitutions)
+        return
     if is_type_var(expected):
         if expected == actual:
             return
@@ -1184,7 +1200,15 @@ def require_assignable(
 ) -> None:
     if expected == ANY or actual == ANY or actual == BOTTOM:
         return
-    if actual == NULL and expected.name == "Nullable":
+    if expected.name == "Nullable" and expected.args:
+        # `null` and a non-null `T` are both assignable to `T?`; `T?` is
+        # covariant in its element. The reverse (`T?` where `T` is expected)
+        # is intentionally rejected, so this branch only fires when the
+        # *expected* type is nullable.
+        if actual == NULL:
+            return
+        source = actual.args[0] if actual.name == "Nullable" and actual.args else actual
+        require_assignable(source, expected.args[0], context, span, label)
         return
     if actual == expected:
         return
