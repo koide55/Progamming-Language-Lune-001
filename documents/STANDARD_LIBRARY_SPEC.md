@@ -158,6 +158,9 @@ def fold[T, U](list: List[T], initial: U, f: (U, T) -> U): U
 def take[T](list: List[T], count: Int): List[T]
 def drop[T](list: List[T], count: Int): List[T]
 def range(start: Int, end: Int): List[Int]
+def iterate[T](f: T -> T, x: T): List[T]
+def repeat[T](x: T): List[T]
+def naturalsFrom(n: Int): List[Int]
 ```
 
 意味:
@@ -175,6 +178,9 @@ def range(start: Int, end: Int): List[Int]
 - `take(list, count)` は先頭から最大 `count` 個を返す。`count <= 0` なら `Nil`。
 - `drop(list, count)` は先頭から最大 `count` 個を捨てた残りを返す。`count <= 0` なら元のリストを返す。
 - `range(start, end)` は `start <= x < end` の整数リストを返す。
+- `iterate(f, x)` は無限リスト `[x, f(x), f(f(x)), ...]` を返す。
+- `repeat(x)` は無限リスト `[x, x, x, ...]` を返す。
+- `naturalsFrom(n)` は無限リスト `[n, n+1, n+2, ...]` を返す。
 - REPL / `show` / `repr` では有限リストを Lisp 風に表示する。例: `[1, 2]` と `range(1, 3)` は `(1 2)`、`Nil` は `()`。
 
 遅延評価:
@@ -186,6 +192,12 @@ def range(start: Int, end: Int): List[Int]
 - `take(list, 0)` は `list` を評価しない。
 - `take` は返したリストの tail を遅延する。
 - `drop` は捨てる範囲の spine を評価するが、残りの要素値は評価しない。
+
+無限リスト:
+
+- `Cons` の tail が遅延であるため、`List` はそのまま無限列（Stream）として使える。専用の `Stream` 型は設けない。
+- `iterate` / `repeat` / `naturalsFrom` は無限リストを返す。`take` / `map` / `filter` は遅延して消費するため、無限リストに対しても終了する（例: `take(naturalsFrom(1), 5)` は `(1 2 3 4 5)`）。
+- `fold` / `drop` / `length` はリストを消費し切るため、無限リストに使うと停止しない。
 
 ## 7. Console / IO
 
@@ -230,6 +242,16 @@ def not(value: Bool): Bool
 - `id(x)` は `x`。
 - `const(x, y)` は `x`。
 - `not(x)` は真偽値を反転する。
+
+### 8.1 デバッグ/観察用ビルトイン
+
+遅延評価やメモ化の挙動を観察・テストするための補助関数を初期環境へ登録する。安定した標準 API ではなく、チュートリアルやテストでの動作確認用である。
+
+```lune
+def crash(): Nothing        # 評価されると実行時エラー（遅延の観察用）
+def tick(): Int             # 呼ばれるたび内部カウンタを +1 して返す
+def tickCount(): Int        # 現在のカウンタ値（カウンタは増やさない）
+```
 
 ## 9. 型チェッカ登録
 

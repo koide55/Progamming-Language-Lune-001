@@ -78,45 +78,46 @@ note
 LXL0001  lexer
 LAY0001  layout processor
 PRS0001  parser
+MOD0001  module loader
 TYP0001  typechecker
+REC0001  record
 RUN0001  runtime/evaluator
-RPL0001  REPL
 ```
 
-v0.1 の標準コード:
+v0.1 で実際に発行されるコード（正は `lune/explanations.py` のカタログ）:
 
 | Code | Category | Meaning |
 | --- | --- | --- |
-| `LXL0001` | lexer | unexpected character |
-| `LXL0002` | lexer | unterminated string literal |
-| `LXL0003` | lexer | unterminated block comment |
-| `LXL0004` | lexer | invalid indentation character |
-| `LAY0001` | layout | indentation does not match an outer level |
+| `LAY0001` | layout | inconsistent indentation |
 | `LAY0002` | layout | unmatched closing delimiter |
+| `LXL0001` | lexer | unexpected character |
+| `LXL0002` | lexer | unterminated string or character literal |
+| `LXL0003` | lexer | unterminated block comment |
+| `LXL0004` | lexer | tabs are not allowed in indentation |
 | `PRS0001` | parser | unexpected token |
-| `PRS0002` | parser | expected token |
-| `PRS0003` | parser | invalid declaration |
+| `PRS0002` | parser | expected a specific token |
+| `MOD0001` | module | module not found or unreadable |
+| `MOD0002` | module | cyclic module import |
+| `MOD0003` | module | module declaration mismatch |
 | `TYP0001` | typechecker | undefined name |
-| `TYP0002` | typechecker | undefined constructor |
 | `TYP0003` | typechecker | type mismatch |
 | `TYP0004` | typechecker | value is not callable |
 | `TYP0005` | typechecker | wrong number of arguments |
-| `TYP0006` | typechecker | unsupported syntax in v0.1 |
+| `TYP0006` | typechecker | for-loop iterable must be a List |
 | `TYP0007` | typechecker | non-exhaustive match |
 | `TYP0008` | typechecker | refutable pattern in let/for binding |
 | `TYP0009` | typechecker | unreachable match case (warning) |
-| `TYP0010` | typechecker | lambda parameter type falls back to Any (warning) |
-| `TYP0011` | typechecker | recursive function requires return type annotation |
-| `RUN0001` | runtime | undefined variable |
-| `RUN0002` | runtime | value is not callable |
-| `RUN0003` | runtime | wrong number of arguments |
-| `RUN0004` | runtime | non-exhaustive match |
-| `RUN0005` | runtime | recursive thunk evaluation |
-| `RUN0006` | runtime | user-raised runtime error |
-| `RPL0001` | REPL | unknown command |
-| `RPL0002` | REPL | invalid command usage |
+| `TYP0010` | typechecker | cannot infer parameter type (warning) |
+| `TYP0011` | typechecker | recursive function requires return type |
+| `REC0001` | record | duplicate record field |
+| `REC0002` | record | unknown record field |
+| `REC0003` | record | missing record field |
+| `REC0004` | record | duplicate initializer field |
+| `REC0005` | record | unexpected record field |
+| `REC0006` | record | record fields must be named |
+| `RUN0006` | runtime | runtime error (generic) |
 
-上表は初期の想定コード表であり、実装との差分がある（例: 実際には `REC0001`–`REC0006` のレコード系コードも発行される。`RUN` 系は多くが汎用の `RUN0006` に集約される）。**実際に発行されるコードとその詳解の正は `lune/explanations.py` のカタログ**であり、後述の `lune explain` から参照できる。テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
+runtime エラーは現状ほぼすべて汎用の `RUN0006` に集約される（未定義変数、失敗/再帰サンクの force、標準ライブラリの型不一致、実行時の非網羅 match など）。`TYP0002` は欠番。REPL コマンドのエラーは診断コードではなくプレーンな文字列で返す。各コードの詳解は `lune explain <CODE>` で読め、テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
 
 ### 4.1 コード詳解（`lune explain`）
 

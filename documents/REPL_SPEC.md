@@ -81,12 +81,14 @@ v0.1 でサポートするコマンド:
 :q
 :env
 :type NAME
+:explain CODE
 ```
 
 - `:help`: コマンド一覧を表示する。
 - `:quit` / `:q`: REPL を終了する。
 - `:env`: 現在のトップレベル名と型を表示する。
 - `:type NAME`: 指定名の型を表示する。
+- `:explain CODE`: 診断コードの詳解を表示する（`lune explain CODE` と同じ内容、`ERROR_DIAGNOSTICS_SPEC.md` §4.1）。
 
 ## 6. 複数行入力
 

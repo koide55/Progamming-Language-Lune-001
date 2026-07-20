@@ -1,0 +1,19 @@
+module sample.stream
+
+# Lune's List has a lazy tail, so a List can be infinite. These prelude
+# constructors build infinite lists; take/map/filter consume them lazily.
+def double(n: Int): Int =
+    n * 2
+
+# naturalsFrom(n) = [n, n+1, n+2, ...]
+let firstFive = take(naturalsFrom(1), 5)  # (1 2 3 4 5)
+
+# iterate(f, x) = [x, f(x), f(f(x)), ...]
+let powersOfTwo = take(iterate(double, 1), 6)  # (1 2 4 8 16 32)
+
+# repeat(x) = [x, x, x, ...]
+let threeSevens = take(repeat(7), 3)  # (7 7 7)
+
+# Combinators work on infinite lists because they are lazy.
+let firstEvens = take(filter(naturalsFrom(1), fn x: Int -> x % 2 == 0), 5)  # (2 4 6 8 10)
+let doubledNats = take(map(naturalsFrom(1), double), 5)  # (2 4 6 8 10)

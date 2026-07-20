@@ -13,6 +13,9 @@ Lune is still an experimental language in its early stages. Even so, it already 
 - Small imperative loops with `while`.
 - Natural list traversal with `for`.
 - A small type checker included.
+- `T?` (nullable) for safely handling "maybe-missing" values.
+- `|>` to chain steps left to right.
+- Tools that teach: `lune explain` / `lune fmt` / `lune fix`.
 
 This tutorial walks through the "fun parts of writing Lune" with actual working code.
 
@@ -213,7 +216,19 @@ let add10 = fn x -> x + 10
 let answer = add10(double(16))
 ```
 
-In the future, combining these with `|>` could make the style even more expressive.
+Small functions like these can be chained with `|>` (the pipeline operator). `x |> f` is the same as `f(x)`, so you can read a computation left to right.
+
+```lune
+def inc(n: Int): Int =
+    n + 1
+
+def double(n: Int): Int =
+    n * 2
+
+let result = 5 |> inc |> double
+```
+
+`5 |> inc |> double` is the same as `double(inc(5))`, which is `12`. You can also pipe into a multi-argument function as a partial application (`5 |> add` is `add(5)`).
 
 ## 8. Algebraic Data Types for Modeling Shapes
 
@@ -269,6 +284,16 @@ let answer = area(Rect(6, 7))
 
 Instead of using `if` to check the kind, you write directly "if this shape, then this." Algebraic data types and `match` are where Lune's functional nature shines.
 
+`match` also checks exhaustiveness. If you forget a shape, the type checker tells you which one is missing, with an example.
+
+```lune
+def area(shape: Shape): Int =
+    match shape:
+        | Circle(radius) -> radius * radius * 3
+```
+
+This is a `TYP0007` error because `Rect` is not covered. Write every shape, or add a wildcard `| _ -> ...`. Conversely, a case that is fully covered by earlier cases and can never be reached is reported as a warning (`TYP0009`).
+
 ## 10. Records for Named Data
 
 When you just want to group multiple values together, `record` is handy.
@@ -319,7 +344,71 @@ let answer = ada.age
 
 Since `name` is never accessed, `crash()` is never evaluated.
 
-## 11. Small Tools from the Standard Library
+## 11. Living Safely with `null`
+
+A value that "might not be there" is expressed with `T?` (a nullable type).
+
+```lune
+let name: String? = "Ada"
+let missing: String? = null
+```
+
+Both a non-null value and `null` can go into a `T?`. But you cannot put `null` into a non-null type (like `String`). This is where Lune keeps you safe: if you accidentally mix in a null, the type checker stops you.
+
+To use what is inside a `T?`, you first check whether it is null and unwrap it. There are a few ways.
+
+### Destructure with `match`
+
+`match` handles both `null` and the inner value. If you handle `null` first, the following name is narrowed to the non-null type.
+
+```lune
+def orZero(value: Int?): Int =
+    match value:
+        | null -> 0
+        | v -> v
+```
+
+In the `v` branch, `value` is known to be non-null, so `v` can be used as an `Int`. If you forget the `null` branch, the match is not exhaustive and is a type error.
+
+### Provide a default with `??`
+
+`a ?? b` returns `b` when `a` is `null` (and does not evaluate `b` when `a` is non-null).
+
+```lune
+let shown = missing ?? "anon"
+```
+
+### Narrow with `if`
+
+In the then-branch of `if x != null then ...`, `x` is narrowed to non-null.
+
+```lune
+def orOne(x: Int?): Int =
+    if x != null then x else 1
+```
+
+### Navigate safely with `?.`
+
+Record fields can be reached with `?.`. If the receiver is `null`, it short-circuits to `null` instead of navigating.
+
+```lune
+record User:
+    name: String
+    age: Int
+
+def nameOf(user: User?): String? =
+    user?.name
+```
+
+The type of `user?.name` is `String?`. `nameOf(null)` is `null`; otherwise it returns the name.
+
+### Compare against null
+
+Use `x == null` / `x != null` to check.
+
+The sample `samples/nullable.lune` collects all of these features in one place.
+
+## 12. Small Tools from the Standard Library
 
 Lune v0.1 comes with several useful types and functions out of the box.
 
@@ -549,7 +638,7 @@ let answer = getOrElse(value, 0)
 
 The standard library is still small, but just not having to define `Option` or `List` yourself every time makes experimentation much more pleasant.
 
-## 12. Small Loops with `while`
+## 13. Small Loops with `while`
 
 Lune values functional features, but `while` is available for simple iteration too.
 
@@ -605,7 +694,7 @@ The `while` version follows steps with mutable variables, which can be easier fo
 
 Lune lets you choose either. A good heuristic: `while` for small procedures, recursion or `fold` for value transformations and reusable computations.
 
-## 13. Walking a List with `for`
+## 14. Walking a List with `for`
 
 `while` repeats as long as a condition holds. When you simply want to process a list in order, `for` is cleaner.
 
@@ -648,7 +737,7 @@ let answer =
 
 `for` is well-suited for readable aggregation and side-effectful processing. For building a new list from a list, `map` is great; for filtering, `filter`; for reducing to a value, `fold`.
 
-## 14. Splitting into Modules
+## 15. Splitting into Modules
 
 When your code grows, you can split it into files.
 
@@ -678,7 +767,7 @@ Run:
 
 In v0.1, top-level names from imported modules are brought into the same environment. So you write `add`, not `math.add`.
 
-## 15. Type Checking
+## 16. Type Checking and Tooling
 
 Lune has a small type checker.
 
@@ -692,11 +781,47 @@ This is a type error.
 ./bin/lune --check bad.lune
 ```
 
-Errors are displayed with code locations.
+Errors are displayed with code locations, a diagnostic code (like `TYP0003`), and a fix hint. The type checker is not yet complete, but it catches many basic mistakes.
 
-The type checker is not yet complete, but it catches many basic mistakes.
+Beyond *finding* errors, Lune ships small tools to explain, fix, and format your code.
 
-## 16. Writing a Small Program
+### Learn more about an error: `lune explain`
+
+Read the meaning of a diagnostic code, a minimal example that triggers it, and how to fix it.
+
+```sh
+./bin/lune explain TYP0007
+```
+
+In the REPL, use `:explain CODE`.
+
+### Fix typos: did you mean, and `lune fix`
+
+When an undefined name is close to a known one, a "did you mean" suggestion appears.
+
+```text
+error[TYP0001]: undefined name: totl
+   = hint: did you mean `total`?
+```
+
+`lune fix` applies that suggestion automatically.
+
+```sh
+./bin/lune fix --write myfile.lune   # apply fixes in place
+./bin/lune fix --check myfile.lune   # exit 1 if fixes are available (CI)
+```
+
+### Format: `lune fmt`
+
+Format to a canonical style. Formatting never changes meaning (it re-parses to check).
+
+```sh
+./bin/lune fmt myfile.lune           # print formatted source
+./bin/lune fmt --write myfile.lune   # format in place
+./bin/lune fmt --check myfile.lune   # exit 1 if not formatted (CI)
+```
+
+## 17. Writing a Small Program
 
 Here is an example that brings several features together:
 
@@ -746,7 +871,7 @@ It's starting to take shape. Lune is a language where you "model data shapes wit
 
 `birthdayMessage` is a slightly contrived example, but it shows that `while` works naturally inside a block. Likewise, `for` can be used inside a block wherever list traversal is needed.
 
-## 17. Exercises
+## 18. Exercises
 
 1. Create a `record Book` with fields `title: String` and `pages: Int`.
 2. Write `isLong(book: Book): Bool` that returns `true` for books with 300 or more pages.
@@ -759,7 +884,7 @@ It's starting to take shape. Lune is a language where you "model data shapes wit
 
 The last exercise captures something essential about this language: what you don't use is still sleeping.
 
-## 18. Current Limitations
+## 19. Current Limitations
 
 Lune v0.1 is still an early version.
 
@@ -772,7 +897,9 @@ Notable missing features:
 - Mutable record fields.
 - `try` / `catch`.
 - `break` / `continue`.
-- LSP / formatter / package manager.
+- LSP / package manager (formatting is available as `lune fmt`).
+
+Meanwhile, several things that used to be "not yet" now work: `for`, `T?` (null safety), `|>`, and `lune explain` / `lune fmt` / `lune fix`.
 
 But the core feeling is already there:
 

@@ -267,6 +267,9 @@ def register_standard_library(env: Env) -> None:
     env.define("take", BuiltinFunction("take", _builtin_take, force_args=False))
     env.define("drop", BuiltinFunction("drop", _builtin_drop, force_args=False))
     env.define("range", BuiltinFunction("range", _builtin_range))
+    env.define("iterate", BuiltinFunction("iterate", _builtin_iterate, force_args=False))
+    env.define("repeat", BuiltinFunction("repeat", _builtin_repeat, force_args=False))
+    env.define("naturalsFrom", BuiltinFunction("naturalsFrom", _builtin_naturals_from))
 
 
 def _param(name: str, is_strict: bool = False) -> ast.Param:
@@ -425,6 +428,28 @@ def _builtin_range(args: list[Value]) -> Value:
     for value in reversed(range(start, end)):
         result = DataValue("Cons", [value, result])
     return result
+
+
+def _builtin_iterate(args: list[Value]) -> Value:
+    # iterate(f, x) = [x, f(x), f(f(x)), ...] — infinite, with a lazy tail.
+    function = force_value(args[0])
+    x = args[1]
+    return DataValue(
+        "Cons",
+        [x, LazyValue(lambda: _builtin_iterate([function, LazyValue(lambda: apply_value(function, [x]))]))],
+    )
+
+
+def _builtin_repeat(args: list[Value]) -> Value:
+    # repeat(x) = [x, x, x, ...] — infinite, with a lazy tail.
+    x = args[0]
+    return DataValue("Cons", [x, LazyValue(lambda: _builtin_repeat([x]))])
+
+
+def _builtin_naturals_from(args: list[Value]) -> Value:
+    # naturalsFrom(n) = [n, n+1, n+2, ...] — infinite, with a lazy tail.
+    n = int(force_value(args[0]))
+    return DataValue("Cons", [n, LazyValue(lambda: _builtin_naturals_from([n + 1]))])
 
 
 def eval_decl(decl: ast.Decl, env: Env) -> Value:
