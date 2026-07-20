@@ -81,6 +81,7 @@ v0.1 でサポートするコマンド:
 :q
 :env
 :type NAME
+:thunks [NAME]
 :explain CODE
 ```
 
@@ -88,7 +89,30 @@ v0.1 でサポートするコマンド:
 - `:quit` / `:q`: REPL を終了する。
 - `:env`: 現在のトップレベル名と型を表示する。
 - `:type NAME`: 指定名の型を表示する。
+- `:thunks [NAME]`: 遅延束縛（thunk）の評価状態を、**評価を一切起こさずに**表示する。NAME を省略すると全 thunk を定義順に一覧する。
 - `:explain CODE`: 診断コードの詳解を表示する（`lune explain CODE` と同じ内容、`ERROR_DIAGNOSTICS_SPEC.md` §4.1）。
+
+### 5.1 `:thunks` の表示
+
+各束縛は次のいずれかの状態で表示される（`LAZY_EVALUATION_SPEC.md` の thunk 状態に対応）。
+
+```text
+x   : unevaluated                    # まだ一度も force されていない
+x   : evaluated = 2                  # メモ化済み（値を表示）
+x   : failed = division by zero      # 失敗もメモ化される
+v   : value = 7                      # thunk ではない（:thunks NAME 指定時のみ）
+```
+
+値の表示は専用の非強制プレビューを使う。値の中の未評価部分は `<thunk>` と表示されるため、無限ストリームでも安全で、**どこまで評価が進んだか**がそのまま見える。
+
+```text
+lune> let nat = naturalsFrom(1)
+ok
+lune> head(nat)
+Some(1) : Option[Int]
+lune> :thunks nat
+nat : evaluated = Cons(1, <thunk>)
+```
 
 ## 6. 複数行入力
 

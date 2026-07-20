@@ -68,6 +68,51 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
         self.assertIn(":help", session.submit(":help").message)
         self.assertEqual(session.submit(":q").kind, "quit")
 
+    def test_thunks_reports_states_without_forcing(self) -> None:
+        session = ReplSession()
+        session.submit("let x = 1 + 1")
+        self.assertEqual(session.submit(":thunks").message, "x : unevaluated")
+        # listing must not evaluate anything
+        self.assertEqual(session.submit(":thunks").message, "x : unevaluated")
+        session.submit("x")
+        self.assertEqual(session.submit(":thunks").message, "x : evaluated = 2")
+
+    def test_thunks_previews_infinite_stream_without_hanging(self) -> None:
+        session = ReplSession()
+        session.submit("let nat = naturalsFrom(1)")
+        self.assertEqual(session.submit(":thunks nat").message, "nat : unevaluated")
+        session.submit("head(nat)")
+        self.assertEqual(session.submit(":thunks nat").message, "nat : evaluated = Cons(1, <thunk>)")
+
+    def test_thunks_shows_memoized_failure(self) -> None:
+        session = ReplSession()
+        session.submit("let bad = 1 / 0")
+        with self.assertRaises(Exception):
+            session.submit("bad")
+        message = session.submit(":thunks bad").message
+        self.assertTrue(message.startswith("bad : failed = "), message)
+        self.assertIn("division by zero", message)
+
+    def test_thunks_failed_diagnostic_shows_its_code(self) -> None:
+        from lune.evaluator import LuneRuntimeError, Thunk, ThunkState
+        from lune.repl import _describe_binding
+
+        thunk = Thunk(expr=None, env=None, state=ThunkState.FAILED, error=LuneRuntimeError("boom", code="RUN0005"))
+        self.assertEqual(_describe_binding("z", thunk), "z : failed = error[RUN0005] boom")
+
+    def test_thunks_name_lookup_and_edge_cases(self) -> None:
+        session = ReplSession()
+        self.assertIn("no thunks", session.submit(":thunks").message)
+        session.submit("var v = 7")
+        self.assertEqual(session.submit(":thunks v").message, "v : value = 7")
+        self.assertIn("no thunks", session.submit(":thunks").message)
+        self.assertEqual(session.submit(":thunks nosuch").kind, "error")
+        self.assertEqual(session.submit(":thunks a b").message, "usage: :thunks [NAME]")
+
+    def test_help_mentions_thunks(self) -> None:
+        session = ReplSession()
+        self.assertIn(":thunks", session.submit(":help").message)
+
     def test_interactive_loop_smoke(self) -> None:
         stdin = io.StringIO("1 + 2\n:q\n")
         stdout = io.StringIO()
