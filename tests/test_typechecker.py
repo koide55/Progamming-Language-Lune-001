@@ -917,6 +917,103 @@ let r = "s" |> inc
         with self.assertRaises(LuneTypeError):
             check_source(source)
 
+    # --- null pattern & match narrowing ---
+
+    def test_match_null_pattern_narrows_binding(self) -> None:
+        source = """
+let x: Int? = null
+let r = match x:
+    | null -> 0
+    | v -> v + 1
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("r"), INT)
+
+    def test_match_bare_name_is_nullable_when_null_unhandled(self) -> None:
+        # `v` is still Int? here, so arithmetic on it must fail.
+        source = """
+let x: Int? = null
+let r = match x:
+    | v -> v + 1
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
+
+    def test_match_nullable_requires_null_case(self) -> None:
+        source = """
+def f(b: Bool?): Int =
+    match b:
+        | true -> 1
+        | false -> 0
+"""
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(source)
+        self.assertEqual(ctx.exception.diagnostic.code, "TYP0007")
+
+    def test_match_nullable_requires_inner_exhaustive(self) -> None:
+        source = """
+def f(b: Bool?): Int =
+    match b:
+        | null -> -1
+        | true -> 1
+"""
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(source)
+        self.assertEqual(ctx.exception.diagnostic.code, "TYP0007")
+
+    def test_match_nullable_exhaustive_ok(self) -> None:
+        source = """
+def f(b: Bool?): Int =
+    match b:
+        | null -> -1
+        | true -> 1
+        | false -> 0
+"""
+        self.assertEqual(check_source(source).lookup_value("f"), FunctionType((Type("Nullable", (BOOL,)),), INT))
+
+    def test_match_nullable_unreachable_after_catch_all(self) -> None:
+        source = """
+def f(x: Int?): Int =
+    match x:
+        | null -> 0
+        | v -> v
+        | 0 -> 9
+"""
+        codes = [warning.code for warning in check_source(source).warnings]
+        self.assertIn("TYP0009", codes)
+
+    # --- ?? null-coalescing ---
+
+    def test_null_coalescing_returns_non_null(self) -> None:
+        env = check_source("let x: Int? = null\nlet r = x ?? 0\n")
+        self.assertEqual(env.lookup_value("r"), INT)
+
+    def test_null_coalescing_both_nullable_stays_nullable(self) -> None:
+        env = check_source("let x: Int? = null\nlet y: Int? = null\nlet r = x ?? y\n")
+        self.assertEqual(env.lookup_value("r"), Type("Nullable", (INT,)))
+
+    def test_null_coalescing_rejects_non_nullable_left(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let x: Int = 1\nlet r = x ?? 0\n")
+
+    def test_null_coalescing_rejects_type_mismatch(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source('let x: Int? = null\nlet r = x ?? "s"\n')
+
+    # --- null comparison ---
+
+    def test_compare_nullable_with_null(self) -> None:
+        env = check_source("let x: Int? = null\nlet r = x == null\n")
+        self.assertEqual(env.lookup_value("r"), BOOL)
+
+    def test_compare_nullable_with_inner_value(self) -> None:
+        env = check_source("let x: Int? = null\nlet r = x != 5\n")
+        self.assertEqual(env.lookup_value("r"), BOOL)
+
+    def test_compare_nullable_with_wrong_type_rejected(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source('let x: Int? = null\nlet r = x == "s"\n')
+
 
 if __name__ == "__main__":
     unittest.main()

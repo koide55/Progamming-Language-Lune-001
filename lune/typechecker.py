@@ -502,10 +502,24 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return UNIT
     if isinstance(expr, ast.MatchExpr):
         scrutinee_type = ensure_type(infer_expr(expr.scrutinee, env))
+        nullable = scrutinee_type.name == "Nullable" and bool(scrutinee_type.args)
+        inner_type = scrutinee_type.args[0] if nullable else scrutinee_type
+        null_live = nullable
         result_types: list[Type] = []
         for case in expr.cases:
             local = env.child()
-            bind_pattern_types(case.pattern, scrutinee_type, local)
+            if nullable:
+                # Non-null patterns match the inner `T`; a top-level catch-all
+                # binding narrows to `T` once a previous case has handled null.
+                if isinstance(case.pattern, ast.NamePattern | ast.WildcardPattern):
+                    arm_type = scrutinee_type if null_live else inner_type
+                else:
+                    arm_type = inner_type
+                bind_pattern_types(case.pattern, arm_type, local)
+                if case.guard is None and pattern_matches_null(case.pattern):
+                    null_live = False
+            else:
+                bind_pattern_types(case.pattern, scrutinee_type, local)
             if case.guard is not None:
                 require_assignable(ensure_type(infer_expr(case.guard, local)), BOOL, "match guard")
             result_types.append(ensure_type(infer_expr(case.body, local, expected)))
@@ -714,6 +728,26 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
         # ensure_type (which rejects function types).
         callee_type = infer_expr(expr.right, env)
         return infer_call(callee_type, [ast.Argument(value=expr.left)], env, expr.span)
+    if expr.op == "??":
+        # `a ?? b`: if the nullable `a` is null, fall back to `b`. The result is
+        # non-null when the fallback is non-null.
+        left = ensure_type(infer_expr(expr.left, env))
+        right = ensure_type(infer_expr(expr.right, env))
+        if left in {ANY, BOTTOM}:
+            return left
+        if left.name != "Nullable" or not left.args:
+            raise LuneTypeError(
+                f"?? expects a nullable left operand, got {left!r}",
+                "TYP0003",
+                expr.span,
+                "this expression is not nullable",
+            )
+        inner = left.args[0]
+        right_nullable = right.name == "Nullable" or right == NULL
+        right_inner = right.args[0] if (right.name == "Nullable" and right.args) else right
+        if right != NULL:
+            require_assignable(right_inner, inner, "??", expr.span)
+        return Type("Nullable", (inner,)) if right_nullable else inner
     if expr.op in {"&&", "||"}:
         require_assignable(ensure_type(infer_expr(expr.left, env)), BOOL, expr.op)
         require_assignable(ensure_type(infer_expr(expr.right, env)), BOOL, expr.op)
@@ -742,6 +776,9 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
 
 def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> None:
     if isinstance(pattern, ast.WildcardPattern):
+        return
+    if isinstance(pattern, ast.NullPattern):
+        # `null` matches only the null value and binds nothing.
         return
     if isinstance(pattern, ast.NamePattern):
         env.define_value(pattern.name, value_type)
@@ -794,11 +831,18 @@ class NormalPattern:
 
 WILDCARD_PATTERN = NormalPattern(None)
 
+# The `null` value is modelled as a distinguished nullary head. Exhaustiveness
+# for `T?` is checked by splitting the match into "does it cover null?" and
+# "does it cover the inner T?" (see check_match_exhaustiveness).
+NULL_HEAD = PatternHead("lit", ("null", None), 0)
+
 
 def normalize_pattern(pattern: ast.Pattern) -> list[NormalPattern]:
     """Reduce a pattern to wildcard/constructor form, expanding OR patterns."""
     if isinstance(pattern, ast.WildcardPattern | ast.NamePattern):
         return [WILDCARD_PATTERN]
+    if isinstance(pattern, ast.NullPattern):
+        return [NormalPattern(NULL_HEAD)]
     if isinstance(pattern, ast.TypedPattern):
         return normalize_pattern(pattern.pattern)
     if isinstance(pattern, ast.OrPattern):
@@ -943,29 +987,29 @@ def is_useful(rows: list[list[NormalPattern]], q: list[NormalPattern], column_ty
     return is_useful(default_rows, q[1:], rest_types, env)
 
 
-def check_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: TypeEnv) -> None:
-    if scrutinee_type in {ANY, BOTTOM} or is_type_var(scrutinee_type):
-        return
-    rows: list[list[NormalPattern]] = []
-    for case in expr.cases:
-        case_rows = [[normalized] for normalized in normalize_pattern(case.pattern)]
-        if rows and not any(is_useful(rows, case_row, [scrutinee_type], env) for case_row in case_rows):
-            rendered = render_pattern(case.pattern)
-            env.report_warning(
-                Diagnostic(
-                    code="TYP0009",
-                    severity="warning",
-                    message=f"unreachable match case: {rendered}",
-                    primary=Label(case.span, "this case can never match") if case.span is not None else None,
-                    hints=["remove this case, or move it before the cases that cover it"],
-                )
-            )
-        if case.guard is None:
-            rows.extend(case_rows)
-    witness = find_missing_pattern(rows, [scrutinee_type], env)
-    if witness is None:
-        return
-    missing = witness[0]
+def pattern_matches_null(pattern: ast.Pattern) -> bool:
+    """True if the pattern can match the null value (a null head or a wildcard)."""
+    return any(row.head == NULL_HEAD or row.head is None for row in normalize_pattern(pattern))
+
+
+def project_nonnull_rows(pattern: ast.Pattern) -> list[list[NormalPattern]]:
+    """Rows of a pattern restricted to the non-null (inner `T`) values of `T?`."""
+    return [[row] for row in normalize_pattern(pattern) if row.head != NULL_HEAD]
+
+
+def _report_unreachable(case: ast.MatchCase, env: TypeEnv) -> None:
+    env.report_warning(
+        Diagnostic(
+            code="TYP0009",
+            severity="warning",
+            message=f"unreachable match case: {render_pattern(case.pattern)}",
+            primary=Label(case.span, "this case can never match") if case.span is not None else None,
+            hints=["remove this case, or move it before the cases that cover it"],
+        )
+    )
+
+
+def _report_non_exhaustive(expr: ast.MatchExpr, missing: str) -> None:
     hints = [f"add a case for {missing}, or a wildcard case `| _ -> ...`"]
     if any(case.guard is not None for case in expr.cases):
         hints.append("guarded cases do not count toward exhaustiveness")
@@ -978,9 +1022,56 @@ def check_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: T
     )
 
 
+def check_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: TypeEnv) -> None:
+    if scrutinee_type in {ANY, BOTTOM} or is_type_var(scrutinee_type):
+        return
+    if scrutinee_type.name == "Nullable" and scrutinee_type.args:
+        check_nullable_match_exhaustiveness(expr, scrutinee_type, env)
+        return
+    rows: list[list[NormalPattern]] = []
+    for case in expr.cases:
+        case_rows = [[normalized] for normalized in normalize_pattern(case.pattern)]
+        if rows and not any(is_useful(rows, case_row, [scrutinee_type], env) for case_row in case_rows):
+            _report_unreachable(case, env)
+        if case.guard is None:
+            rows.extend(case_rows)
+    witness = find_missing_pattern(rows, [scrutinee_type], env)
+    if witness is not None:
+        _report_non_exhaustive(expr, witness[0])
+
+
+def check_nullable_match_exhaustiveness(expr: ast.MatchExpr, scrutinee_type: Type, env: TypeEnv) -> None:
+    """Exhaustiveness for `T?`: null must be covered, and so must the inner `T`.
+
+    The match is split because non-null patterns are written un-wrapped (`0`,
+    `v`) rather than through a constructor, so they are checked against the
+    inner type `T` while `null` is tracked separately.
+    """
+    inner_type = scrutinee_type.args[0]
+    null_covered = False
+    inner_rows: list[list[NormalPattern]] = []
+    for case in expr.cases:
+        matches_null = pattern_matches_null(case.pattern)
+        nonnull_rows = project_nonnull_rows(case.pattern)
+        useful_null = matches_null and not null_covered
+        useful_inner = any(is_useful(inner_rows, row, [inner_type], env) for row in nonnull_rows)
+        if (null_covered or inner_rows) and not useful_null and not useful_inner:
+            _report_unreachable(case, env)
+        if case.guard is None:
+            null_covered = null_covered or matches_null
+            inner_rows.extend(nonnull_rows)
+    if not null_covered:
+        _report_non_exhaustive(expr, "null")
+    witness = find_missing_pattern(inner_rows, [inner_type], env)
+    if witness is not None:
+        _report_non_exhaustive(expr, witness[0])
+
+
 def render_pattern(pattern: ast.Pattern) -> str:
     if isinstance(pattern, ast.WildcardPattern):
         return "_"
+    if isinstance(pattern, ast.NullPattern):
+        return "null"
     if isinstance(pattern, ast.NamePattern):
         return pattern.name
     if isinstance(pattern, ast.LiteralPattern):
@@ -1239,6 +1330,14 @@ def require_numeric(typ: Type, context: str) -> None:
 
 def require_comparable(left: Type, right: Type, context: str) -> None:
     if left in {ANY, BOTTOM} or right in {ANY, BOTTOM}:
+        return
+    # `null` compares with anything, and a nullable `T?` compares with `T` (or
+    # another `T?`) — this is how null checks like `x == null` are written.
+    if left == NULL or right == NULL:
+        return
+    left_inner = left.args[0] if left.name == "Nullable" and left.args else left
+    right_inner = right.args[0] if right.name == "Nullable" and right.args else right
+    if left_inner == right_inner:
         return
     if left != right:
         raise LuneTypeError(f"{context}: cannot compare {left!r} and {right!r}")

@@ -37,6 +37,7 @@ MULTI_CHAR_TOKENS = {
     ">=": TokenKind.GTEQ,
     "&&": TokenKind.ANDAND,
     "||": TokenKind.OROR,
+    "??": TokenKind.QQ,
     "|>": TokenKind.PIPE_FORWARD,
     "::": TokenKind.COLON_COLON,
     "++": TokenKind.PLUS_PLUS,

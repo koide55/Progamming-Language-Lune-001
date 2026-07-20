@@ -17,6 +17,7 @@ ASSIGNMENT_OPS = {
 
 INFIX = {
     TokenKind.PIPE_FORWARD: (20, "left"),
+    TokenKind.QQ: (25, "right"),
     TokenKind.OROR: (30, "left"),
     TokenKind.ANDAND: (40, "left"),
     TokenKind.EQEQ: (50, "none"),
@@ -569,6 +570,9 @@ class Parser:
         if token.kind == TokenKind.UNDERSCORE:
             actual = self.advance()
             return ast.WildcardPattern(span=token_span(actual))
+        if token.kind == TokenKind.NULL:
+            actual = self.advance()
+            return ast.NullPattern(span=token_span(actual))
         if token.kind in {TokenKind.INT_LITERAL, TokenKind.FLOAT_LITERAL, TokenKind.STRING_LITERAL, TokenKind.CHAR_LITERAL}:
             actual = self.advance()
             return ast.LiteralPattern(actual.value, span=token_span(actual))

@@ -327,6 +327,11 @@ class WildcardPattern(Pattern):
 
 
 @dataclass(frozen=True)
+class NullPattern(Pattern):
+    span: SourceSpan | None = None
+
+
+@dataclass(frozen=True)
 class NamePattern(Pattern):
     name: str
     span: SourceSpan | None = None
