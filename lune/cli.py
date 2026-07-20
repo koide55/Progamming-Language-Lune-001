@@ -6,7 +6,7 @@ import sys
 
 from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import force_value, format_value, set_trace_hook
-from .explanations import available_codes, render_explanation
+from .explanations import available_codes, render_error_index, render_explanation
 from .fixer import FixError, apply_fixes
 from .formatter import FormatError, format_source
 from .lexer import lex
@@ -133,8 +133,11 @@ def fix_command(args: list[str]) -> int:
 
 
 def explain_command(args: list[str]) -> int:
+    if args == ["--index"]:
+        sys.stdout.write(render_error_index())
+        return 0
     if len(args) != 1:
-        print("usage: lune explain <CODE>", file=sys.stderr)
+        print("usage: lune explain <CODE> | lune explain --index", file=sys.stderr)
         print(f"available codes: {', '.join(available_codes())}", file=sys.stderr)
         return 2
     text = render_explanation(args[0])
