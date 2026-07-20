@@ -102,6 +102,7 @@ class TokenKind(Enum):
     ANDAND = auto()
     OROR = auto()
     QQ = auto()
+    QUESTION_DOT = auto()
     PIPE_FORWARD = auto()
     COLON_COLON = auto()
     PLUS_PLUS = auto()

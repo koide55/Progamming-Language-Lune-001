@@ -1014,6 +1014,73 @@ def f(x: Int?): Int =
         with self.assertRaises(LuneTypeError):
             check_source('let x: Int? = null\nlet r = x == "s"\n')
 
+    # --- ?. safe navigation ---
+
+    def test_safe_navigation_returns_nullable_member(self) -> None:
+        source = """
+record User:
+    name: String
+    age: Int
+let u: User? = null
+let r = u?.name
+"""
+        self.assertEqual(check_source(source).lookup_value("r"), Type("Nullable", (STRING,)))
+
+    def test_safe_navigation_rejects_non_nullable_receiver(self) -> None:
+        source = """
+record User:
+    name: String
+def f(u: User): String? =
+    u?.name
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
+
+    def test_plain_navigation_on_nullable_rejected(self) -> None:
+        source = """
+record User:
+    name: String
+def f(u: User?): String =
+    u.name
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
+
+    def test_safe_navigation_chains(self) -> None:
+        source = """
+record Addr:
+    city: String
+record User:
+    addr: Addr
+let u: User? = null
+let r = u?.addr?.city
+"""
+        self.assertEqual(check_source(source).lookup_value("r"), Type("Nullable", (STRING,)))
+
+    # --- if-condition flow narrowing ---
+
+    def test_flow_narrowing_then_branch(self) -> None:
+        source = """
+def f(x: Int?): Int =
+    if x != null then x + 1 else 0
+"""
+        self.assertEqual(check_source(source).lookup_value("f"), FunctionType((Type("Nullable", (INT,)),), INT))
+
+    def test_flow_narrowing_else_branch_on_eq_null(self) -> None:
+        source = """
+def f(x: Int?): Int =
+    if x == null then 0 else x + 1
+"""
+        self.assertEqual(check_source(source).lookup_value("f"), FunctionType((Type("Nullable", (INT,)),), INT))
+
+    def test_flow_narrowing_does_not_leak_to_other_branch(self) -> None:
+        source = """
+def f(x: Int?): Int =
+    if x != null then 0 else x + 1
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
+
 
 if __name__ == "__main__":
     unittest.main()

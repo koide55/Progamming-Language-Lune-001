@@ -499,6 +499,9 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
     if isinstance(expr, ast.MemberExpr):
         receiver = force_value(eval_expr(expr.receiver, env))
         return eval_member(receiver, expr.name)
+    if isinstance(expr, ast.SafeMemberExpr):
+        receiver = force_value(eval_expr(expr.receiver, env))
+        return None if receiver is None else eval_member(receiver, expr.name)
     if isinstance(expr, ast.AssignExpr):
         return eval_assign(expr, env)
     raise LuneRuntimeError(f"unsupported expression: {type(expr).__name__}")
