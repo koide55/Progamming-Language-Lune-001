@@ -873,7 +873,128 @@ error[TYP0001]: undefined name: totl
 ./bin/lune fmt --check myfile.lune   # 未整形なら終了コード 1（CI 向け）
 ```
 
-## 17. 小さなプログラムを書いてみよう
+## 17. エラーを読む、エラーから学ぶ
+
+Lune では、エラーは「怒られ」ではなく教材です。この章では**わざとエラーを起こして**、診断を読み、`explain` で理解し、`fix` で直す、という一周を体験します。この流れが身につくと、初めて見るエラーも怖くなくなります。
+
+### 診断の解剖学
+
+まず、1 つの診断を部品に分解して読めるようになりましょう。次のファイルを `guide.lune` として保存して、`--check` してみます。
+
+```lune
+let count = 10
+let total = cont + 5
+```
+
+```text
+error[TYP0001]: undefined name: cont
+  --> guide.lune:2:13
+  |
+2 | let total = cont + 5
+  |             ^^^^ name is not defined
+   = hint: did you mean `count`?
+   = help: run `lune explain TYP0001` for a detailed explanation
+```
+
+上から順に:
+
+- `error[TYP0001]` — 重大度（error / warning）と**診断コード**。コードはこの後の `explain` の索引になります。
+- `--> guide.lune:2:13` — ファイル・行・列。
+- 引用行と `^^^^` — 問題の場所そのもの。まずここを見ます。
+- `= hint:` — 具体的な次の一手。ここでは正しい候補まで教えてくれています。
+- `= help:` — もっと詳しく知りたいときの入口。
+
+### 一周目: typo → 診断 → explain → fix
+
+hint の意味をもっと知りたければ、コードを `explain` に渡します。
+
+```sh
+./bin/lune explain TYP0001
+```
+
+意味・発生する最小例・直し方、の 3 点セットが表示されます。全コードの詳解を一覧したいときは `documents/ERROR_INDEX.md`（`lune explain --index` で生成される索引）を開いてください。
+
+このエラーは機械的に直せる種類なので、`fix` に任せられます。
+
+```sh
+./bin/lune fix --write guide.lune
+./bin/lune --check guide.lune
+```
+
+```text
+type check OK
+```
+
+これが基本の一周です: **起こす → 読む → explain → fix → 確認**。
+
+### 二周目: 網羅性 — コンパイラが反例をくれる
+
+次は typo より深い、設計に関わるエラーです。
+
+```lune
+type Color =
+    | Red
+    | Green
+    | Blue
+
+def name(c: Color): String =
+    match c:
+        | Red -> "red"
+        | Green -> "green"
+```
+
+```text
+error[TYP0007]: non-exhaustive match: missing case Blue
+  --> guide.lune:7:5
+  |
+7 |     match c:
+  |     ^^^^^ pattern Blue is not covered
+   = hint: add a case for Blue, or a wildcard case `| _ -> ...`
+   = help: run `lune explain TYP0007` for a detailed explanation
+```
+
+注目してほしいのは、「網羅的でない」と言うだけでなく、**どの値が漏れているか（`Blue`）を反例として教えてくれる**ことです。hint の通り `| Blue -> "blue"` を足せば直ります。
+
+ここでワイルドカード `| _ -> ...` を選ぶこともできますが、安易に使うと「後で `Color` にコンストラクタを足したときに、コンパイラが漏れを教えてくれなくなる」という代償があります。実際、全ケースを書いた上に `_` を足すと、今度は警告が出ます。
+
+```text
+warning[TYP0009]: unreachable match case: _
+   = hint: remove this case, or move it before the cases that cover it
+```
+
+エラー（TYP0007）と警告（TYP0009)は対になっていて、「漏れなく、無駄なく」に向かって両側から挟んでくれます。
+
+### 三周目: 実行時エラーも教材
+
+型チェックを通っても、実行時に失敗することはあります。
+
+```lune
+let x = 1 / 0
+```
+
+`--check` は通りますが、`--eval x` すると:
+
+```text
+error[RUN0006]: division by zero
+   = hint: the right operand of `/` evaluated to 0
+   = help: run `lune explain RUN0006` for a detailed explanation
+```
+
+実行時エラーも同じ文法（コード・hint・explain）で報告されます。REPL なら `:thunks x` で「失敗もメモ化される」ことまで観察できます（第 6 章）。
+
+### 演習: エラーを出してみよう
+
+普通の演習は「動くものを書く」ですが、ここでは逆をやります。**指定した診断をわざと出せたら正解**です。答え合わせは `lune explain CODE` と `documents/ERROR_INDEX.md` で。
+
+1. `TYP0003`（type mismatch）を出してみよう。
+2. `REC0002`（unknown record field）を、hint に「did you mean」が出る形で出してみよう。
+3. `LAY0002`（unmatched closing delimiter）を出してみよう。
+4. `TYP0008`（refutable pattern in let）を出してみよう。ヒント: `let Some(x) = ...`
+5. `RUN0005`（recursive thunk evaluation）は REPL でしか出せません。なぜか考えてみよう。ヒント: `--check` が先に何を見つけますか?
+
+エラーを自在に**出せる**ようになると、エラーを自在に**直せる**ようになります。
+
+## 18. 小さなプログラムを書いてみよう
 
 最後に、いくつかの機能をまとめた例です。
 
@@ -923,7 +1044,7 @@ let answer = render(greet(ada))
 
 `birthdayMessage` は少しわざとらしい例ですが、`while` も普通の block の中で使えることが分かります。リストを処理したい場面では、同じように `for` も block の中で使えます。
 
-## 18. 練習問題
+## 19. 練習問題
 
 1. `record Book` を作り、`title: String` と `pages: Int` を持たせてください。
 2. `isLong(book: Book): Bool` を作り、300 ページ以上なら `true` を返してください。
@@ -936,7 +1057,7 @@ let answer = render(greet(ada))
 
 最後の問題が、この言語らしいところです。使わないものは、まだ眠っています。
 
-## 19. いまの制限
+## 20. いまの制限
 
 Lune v0.1 はまだ初期版です。
 

@@ -431,6 +431,35 @@ def available_codes() -> list[str]:
     return sorted(EXPLANATIONS)
 
 
+def render_error_index() -> str:
+    """Render the full diagnostics catalog as one markdown document.
+
+    `documents/ERROR_INDEX.md` is generated from this (and kept in sync by
+    tests/test_explanations.py): ./bin/lune explain --index > documents/ERROR_INDEX.md
+    """
+    codes = sorted(EXPLANATIONS)
+    lines = [
+        "# Lune 診断コード索引 (Error Index)",
+        "",
+        "<!-- 自動生成ファイル。手で編集しない。再生成: ./bin/lune explain --index > documents/ERROR_INDEX.md -->",
+        "",
+        "コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を",
+        "`lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。",
+        f"発行されうる全コードに詳解があることはテストで保証される（現在 {len(codes)} コード）。",
+        "",
+    ]
+    for code in codes:
+        lines.append(f"- [`{code}`](#{code.lower()}) — {EXPLANATIONS[code].title}")
+    for code in codes:
+        entry = EXPLANATIONS[code]
+        lines.extend(["", f"## {code}", "", f"**{entry.title}**", "", entry.summary])
+        if entry.example is not None:
+            lines.extend(["", "Example that triggers it:", "", "```lune", entry.example, "```"])
+        lines.extend(["", "How to fix:", "", entry.fix])
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_explanation(code: str) -> str | None:
     entry = EXPLANATIONS.get(code.upper())
     if entry is None:

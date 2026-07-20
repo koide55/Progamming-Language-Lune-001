@@ -9,7 +9,13 @@ from pathlib import Path
 
 from lune.cli import explain_command, main
 from lune.diagnostics import Diagnostic, format_diagnostic
-from lune.explanations import EXPLANATIONS, available_codes, has_explanation, render_explanation
+from lune.explanations import (
+    EXPLANATIONS,
+    available_codes,
+    has_explanation,
+    render_error_index,
+    render_explanation,
+)
 
 CODE_RE = re.compile(r"\b([A-Z]{2,4}[0-9]{4})\b")
 LUNE_DIR = Path(__file__).resolve().parent.parent / "lune"
@@ -47,6 +53,28 @@ class ExplanationTests(unittest.TestCase):
         codes = available_codes()
         self.assertTrue(codes)
         self.assertEqual(codes, sorted(codes))
+
+    def test_error_index_lists_every_code(self) -> None:
+        text = render_error_index()
+        for code in EXPLANATIONS:
+            self.assertIn(f"## {code}", text)
+            self.assertIn(f"[`{code}`](#{code.lower()})", text)
+
+    def test_error_index_document_is_in_sync(self) -> None:
+        doc_path = LUNE_DIR.parent / "documents" / "ERROR_INDEX.md"
+        self.assertEqual(
+            doc_path.read_text(encoding="utf-8"),
+            render_error_index(),
+            "documents/ERROR_INDEX.md is stale — regenerate with "
+            "`./bin/lune explain --index > documents/ERROR_INDEX.md`",
+        )
+
+    def test_explain_index_flag_prints_catalog(self) -> None:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = explain_command(["--index"])
+        self.assertEqual(code, 0)
+        self.assertIn("## TYP0007", out.getvalue())
 
     def test_explain_command_prints_and_succeeds(self) -> None:
         out = io.StringIO()
