@@ -207,12 +207,15 @@ typechecker は可能な限り、問題の式または宣言の span を primary
 ### 9.1 Undefined name
 
 ```text
-error[TYP0001]: undefined name: total
+error[TYP0001]: undefined name: totl
   --> sample.lune:3:9
    |
- 3 | let x = total + 1
-   |         ^^^^^ name is not defined
+ 3 | let x = totl + 1
+   |         ^^^^ name is not defined
+   = hint: did you mean `total`?
 ```
+
+スコープ内（prelude を含む）に綴りの近い名前があれば、`= hint: did you mean \`x\`?` を付す。近さは編集距離ベース（`difflib.get_close_matches`, cutoff 0.6）で、候補が無ければヒントは付かない。レコードフィールドの未知アクセス (`REC0002`) や構築時の未宣言フィールド (`REC0005`) でも、同様に近いフィールド名を提案する。
 
 ### 9.2 Type mismatch
 

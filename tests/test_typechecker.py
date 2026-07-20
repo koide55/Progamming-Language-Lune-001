@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import unittest
 
-from lune.typechecker import FLOAT, INT, BOOL, STRING, FunctionType, LuneTypeError, Type, check_source
+from lune.typechecker import (
+    FLOAT,
+    INT,
+    BOOL,
+    STRING,
+    FunctionType,
+    LuneTypeError,
+    Type,
+    check_source,
+    suggestion_hints,
+)
 
 
 class TypeCheckerTests(unittest.TestCase):
@@ -1080,6 +1090,49 @@ def f(x: Int?): Int =
 """
         with self.assertRaises(LuneTypeError):
             check_source(source)
+
+    # --- "did you mean" suggestions ---
+
+    def test_suggestion_hints_helper(self) -> None:
+        self.assertEqual(suggestion_hints("filterr", ["filter", "map", "fold"]), ["did you mean `filter`?"])
+        self.assertEqual(suggestion_hints("xyz", ["filter", "map"]), [])
+
+    def test_undefined_name_suggests_local(self) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source("let total = 10\nlet x = totl + 1\n")
+        self.assertIn("did you mean `total`?", ctx.exception.diagnostic.hints)
+
+    def test_undefined_name_suggests_prelude(self) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source("let xs = rang(1, 5)\n")
+        self.assertIn("did you mean `range`?", ctx.exception.diagnostic.hints)
+
+    def test_undefined_name_no_suggestion_when_far(self) -> None:
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source("let x = zzzzz + 1\n")
+        self.assertEqual(ctx.exception.diagnostic.hints, [])
+
+    def test_unknown_field_access_suggests_field(self) -> None:
+        source = """
+record User:
+    name: String
+    age: Int
+let u = User(name = "Ada", age = 1)
+let n = u.naem
+"""
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(source)
+        self.assertIn("did you mean `name`?", ctx.exception.diagnostic.hints)
+
+    def test_unexpected_construction_field_suggests_field(self) -> None:
+        source = """
+record User:
+    name: String
+let u = User(naem = "Ada")
+"""
+        with self.assertRaises(LuneTypeError) as ctx:
+            check_source(source)
+        self.assertIn("did you mean `name`?", ctx.exception.diagnostic.hints)
 
 
 if __name__ == "__main__":
