@@ -17,6 +17,7 @@ Implemented:
 - null safety for `T?`: `null`/`match` patterns with narrowing, `T?`-aware exhaustiveness, the `??` operator, `?.` safe navigation, `if x != null` flow narrowing, and `== null` / `!= null`
 - pipeline operator `|>` (`x |> f` is `f(x)`)
 - teaching-oriented diagnostics: every code has a detailed explanation via `lune explain <CODE>` (and `:explain` in the REPL); diagnostics link to it
+- canonical formatter `lune fmt`: AST-based pretty-printer, idempotent and meaning-preserving (re-parse check), preserves `#` comments, `--write` / `--check` modes
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
@@ -95,6 +96,16 @@ to it, and you can ask for it directly:
 ```
 
 In the REPL, use `:explain CODE`.
+
+Format source to a canonical style:
+
+```sh
+./bin/lune fmt samples/records.lune          # print formatted source to stdout
+./bin/lune fmt --write samples/records.lune  # rewrite the file(s) in place
+./bin/lune fmt --check samples/records.lune  # exit non-zero if not formatted (CI)
+```
+
+`lune fmt` pretty-prints the parsed AST, so output is canonical and idempotent. It re-parses its own output and checks the AST is unchanged, so formatting never alters a program's meaning. `#` comments are preserved; files with `###` block comments are left untouched with an error (not yet supported).
 
 Evaluate a top-level binding:
 
