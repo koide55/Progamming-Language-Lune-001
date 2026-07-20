@@ -380,12 +380,40 @@ User("Ada")        # must be User(name = "Ada")
         ),
         # --- runtime ---
         _e(
+            "RUN0005",
+            "recursive thunk evaluation",
+            """
+A lazy value's definition needs the value itself, so it can never be computed.
+
+Lune evaluates bindings lazily: each `let` builds a thunk that is computed at
+most once, when first forced. Before computing, the thunk is marked as
+"evaluating". If the computation loops back and forces the same thunk again,
+the definition is self-referential — no amount of waiting would produce a
+value — so Lune reports this error immediately instead of running forever.
+
+Recursive *functions* are fine: `def` bodies run only when called, so a call
+like `fact(n - 1)` does not force the function's own definition. It is
+recursive *values* that cannot exist.
+            """,
+            """
+let x = x + 1      # x's value needs x itself
+
+let a = b
+let b = a          # forcing either one loops back to it
+            """,
+            """
+Express the recursion as a function (`def f(n: Int): Int = ... f(...) ...`)
+and call it, or restructure the bindings so no value depends on its own
+result.
+            """,
+        ),
+        _e(
             "RUN0006",
             "runtime error",
             """
 Evaluation failed at run time. Common causes: using an undefined variable,
-forcing a thunk that failed or refers to itself, a standard-library value of
-the wrong shape, or a `match` that no case matched at run time.
+forcing a thunk that previously failed, a standard-library value of the
+wrong shape, or a `match` that no case matched at run time.
             """,
             None,
             "Read the message for the specific cause. Many runtime errors are caught earlier by `lune --check`, so type-check the file first.",

@@ -10,8 +10,16 @@ from .parser import parse_source
 
 
 class LuneRuntimeError(DiagnosticError):
-    def __init__(self, message: str, code: str = "RUN0006"):
-        super().__init__(Diagnostic(code=code, severity="error", message=message))
+    def __init__(self, message: str, code: str = "RUN0006", hints: list[str] | None = None):
+        super().__init__(Diagnostic(code=code, severity="error", message=message, hints=hints or []))
+
+
+def _recursive_thunk_error() -> LuneRuntimeError:
+    return LuneRuntimeError(
+        "recursive thunk evaluation: this value's definition depends on its own result",
+        code="RUN0005",
+        hints=["recursive values cannot be computed; use a recursive function (`def`) instead, or break the reference cycle"],
+    )
 
 
 class Env:
@@ -70,7 +78,7 @@ class Thunk:
             assert self.error is not None
             raise self.error
         if self.state == ThunkState.EVALUATING:
-            raise LuneRuntimeError("recursive thunk evaluation")
+            raise _recursive_thunk_error()
         self.state = ThunkState.EVALUATING
         try:
             self.value = eval_expr(self.expr, self.env)
@@ -96,7 +104,7 @@ class LazyValue:
             assert self.error is not None
             raise self.error
         if self.state == ThunkState.EVALUATING:
-            raise LuneRuntimeError("recursive thunk evaluation")
+            raise _recursive_thunk_error()
         self.state = ThunkState.EVALUATING
         try:
             self.value = self.compute()
