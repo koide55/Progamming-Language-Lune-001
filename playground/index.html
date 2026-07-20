@@ -74,6 +74,10 @@
       <button id="btn-fmt" disabled>整形 (fmt)</button>
       <button id="btn-fix" disabled>自動修正 (fix)</button>
       <input type="text" id="explain-code" placeholder="TYP0007">
+      <select id="explain-lang">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
       <button id="btn-explain" disabled>explain</button>
     </div>
   </div>
@@ -123,8 +127,9 @@ let firstThree = take(evens, 3)
 };
 
 const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
-  "explanations.py","fixer.py","formatter.py","layout.py","lexer.py",
-  "module_loader.py","nodes.py","parser.py","repl.py","tokens.py","typechecker.py"];
+  "explanations.py","explanations_ja.py","fixer.py","formatter.py","layout.py",
+  "lexer.py","module_loader.py","nodes.py","parser.py","repl.py","tokens.py",
+  "typechecker.py"];
 
 const DRIVER = `
 import io, json, sys, contextlib
@@ -204,9 +209,9 @@ def lune_fix(source):
         sm.add("main.lune", source)
         return json.dumps({"ok": False, "text": format_exception(exc, sm, explain_hint=True)})
 
-def lune_explain(code):
+def lune_explain(code, lang="en"):
     code = code.strip()
-    text = render_explanation(code)
+    text = render_explanation(code, lang)
     if text is None:
         return "診断コード %r の解説はありません\\n利用可能: %s" % (code, ", ".join(available_codes()))
     return text
@@ -282,7 +287,7 @@ async function main() {
     if (r.ok) { editor.value = r.text; render(`(自動修正: ${r.applied} 件適用)\n`); } else render(r.text);
   });
   $("btn-explain").onclick = () => timed("explain", async () =>
-    render(call("lune_explain", $("explain-code").value || "TYP0007")));
+    render(call("lune_explain", $("explain-code").value || "TYP0007", $("explain-lang").value)));
 
   for (const id of ["btn-run","btn-check","btn-fmt","btn-fix","btn-explain"])
     $(id).disabled = false;

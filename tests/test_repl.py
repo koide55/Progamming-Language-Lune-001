@@ -68,6 +68,12 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
         self.assertIn(":help", session.submit(":help").message)
         self.assertEqual(session.submit(":q").kind, "quit")
 
+    def test_explain_command_supports_japanese(self) -> None:
+        session = ReplSession()
+        self.assertIn("未定義の名前", session.submit(":explain TYP0001 ja").message)
+        self.assertIn("undefined name", session.submit(":explain TYP0001").message)
+        self.assertEqual(session.submit(":explain TYP0001 de").kind, "error")
+
     def test_thunks_reports_states_without_forcing(self) -> None:
         session = ReplSession()
         session.submit("let x = 1 + 1")

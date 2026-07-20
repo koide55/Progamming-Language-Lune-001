@@ -41,6 +41,11 @@ fetch して Pyodide のファイルシステムに書き込み、`check_file` /
   Pyodide FS に書けば `--module-path` 相当も動くはずだが、本格版で要確認。
 - REPL・thunk 可視化は未実装 (PoC の範囲外)。
 
+## explain の言語切り替え
+
+explain ボタンの隣のセレクタで、診断詳解を**日本語/英語**で切り替えられる
+(`lune explain <CODE> --lang ja` と同じ内容。カタログは `lune/explanations_ja.py`)。
+
 ## トレース(遅延評価の観察)
 
 「トレース」チェックボックスを有効にして実行すると、評価器の trace hook
