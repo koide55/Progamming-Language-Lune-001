@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lune Playground (PoC)</title>
+<style>
+  :root {
+    --bg: #1e1f26; --panel: #26272f; --border: #3a3b45;
+    --fg: #e8e8ee; --dim: #9a9ab0; --accent: #7aa2f7;
+    --err: #f7768e; --warn: #e0af68; --hint: #9ece6a; --help: #7dcfff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font-family: -apple-system, "Hiragino Sans", sans-serif; }
+  header { padding: 10px 16px; border-bottom: 1px solid var(--border);
+           display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .sub { color: var(--dim); font-size: 12px; }
+  #status { margin-left: auto; font-size: 12px; color: var(--dim); }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+         padding: 10px 16px; height: calc(100vh - 46px); }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  button, select, input[type=text] {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: wait; }
+  button.primary { background: var(--accent); color: #14141a; font-weight: 600; }
+  input[type=text] { width: 90px; cursor: text; font-family: ui-monospace, monospace; }
+  textarea, #output {
+    flex: 1; width: 100%; background: var(--panel); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
+    line-height: 1.5; resize: none; white-space: pre; overflow: auto; margin: 0; }
+  textarea:focus { outline: 1px solid var(--accent); }
+  #output .e { color: var(--err); font-weight: 600; }
+  #output .w { color: var(--warn); }
+  #output .h { color: var(--hint); }
+  #output .x { color: var(--help); }
+  label { font-size: 12px; color: var(--dim); }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; height: auto; }
+    textarea, #output { min-height: 40vh; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lune Playground</h1>
+  <span class="sub">技術検証 PoC — Pyodide 上で Lune 処理系(Pure Python)をそのまま実行</span>
+  <span id="status">Pyodide を読み込み中…</span>
+</header>
+<main>
+  <div class="col">
+    <div class="toolbar">
+      <label>サンプル:</label>
+      <select id="preset">
+        <option value="basics">リスト操作(動くプログラム)</option>
+        <option value="exhaustive">網羅性エラー(TYP0007)</option>
+        <option value="typo">typo と自動修正(TYP0001)</option>
+      </select>
+      <label>評価する束縛:</label>
+      <input type="text" id="binding" value="total">
+    </div>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div class="toolbar">
+      <button class="primary" id="btn-run" disabled>▶ 実行</button>
+      <button id="btn-check" disabled>型チェック</button>
+      <button id="btn-fmt" disabled>整形 (fmt)</button>
+      <button id="btn-fix" disabled>自動修正 (fix)</button>
+      <input type="text" id="explain-code" placeholder="TYP0007">
+      <button id="btn-explain" disabled>explain</button>
+    </div>
+  </div>
+  <div class="col">
+    <pre id="output">(処理系を読み込んでいます — 初回のみ数秒かかります)</pre>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+const PRESETS = {
+  basics: {
+    binding: "total",
+    code: `let numbers = range(1, 10)
+let doubled = map(numbers, fn x: Int -> x * 2)
+let evens = filter(doubled, fn x: Int -> x % 4 == 0)
+let total = fold(evens, 0, fn acc: Int x: Int -> acc + x)
+`,
+  },
+  exhaustive: {
+    binding: "",
+    code: `type Color =
+    | Red
+    | Green
+    | Blue
+
+def name(c: Color): String =
+    match c:
+        | Red -> "red"
+        | Green -> "green"
+`,
+  },
+  typo: {
+    binding: "total",
+    code: `let count = 10
+let total = cont + 5
+`,
+  },
+};
+
+const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
+  "explanations.py","fixer.py","formatter.py","layout.py","lexer.py",
+  "module_loader.py","nodes.py","parser.py","repl.py","tokens.py","typechecker.py"];
+
+const DRIVER = `
+import io, json, sys, contextlib
+sys.path.insert(0, "/app")
+
+from lune.diagnostics import SourceMap, format_diagnostic, format_exception
+from lune.module_loader import check_file, eval_file
+from lune.evaluator import format_value
+from lune.explanations import render_explanation, available_codes
+from lune.formatter import format_source
+from lune.fixer import apply_fixes
+
+ENTRY = "/app/main.lune"
+
+def _write(source):
+    with open(ENTRY, "w", encoding="utf-8") as f:
+        f.write(source)
+
+def lune_check(source):
+    _write(source)
+    sm = SourceMap()
+    out = io.StringIO()
+    try:
+        env = check_file(ENTRY, [], sm)
+        for w in env.warnings:
+            out.write(format_diagnostic(w, sm, explain_hint=True) + "\\n")
+        out.write("type check OK\\n")
+    except Exception as exc:
+        out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
+    return out.getvalue()
+
+def lune_run(source, binding):
+    _write(source)
+    sm = SourceMap()
+    out = io.StringIO()
+    try:
+        env = check_file(ENTRY, [], sm)
+        for w in env.warnings:
+            out.write(format_diagnostic(w, sm, explain_hint=True) + "\\n")
+    except Exception as exc:
+        out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
+        return out.getvalue()
+    try:
+        with contextlib.redirect_stdout(out):
+            env = eval_file(ENTRY, [], sm)
+            binding = binding.strip()
+            if binding:
+                out.write(format_value(env.lookup_raw(binding)) + "\\n")
+            else:
+                out.write("(評価完了 — 束縛名を指定すると値を表示します)\\n")
+    except Exception as exc:
+        out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
+    return out.getvalue()
+
+def lune_fmt(source):
+    try:
+        return json.dumps({"ok": True, "text": format_source(source, "main.lune")})
+    except Exception as exc:
+        sm = SourceMap()
+        sm.add("main.lune", source)
+        return json.dumps({"ok": False, "text": format_exception(exc, sm, explain_hint=True)})
+
+def lune_fix(source):
+    try:
+        fixed, applied = apply_fixes(source, "main.lune")
+        return json.dumps({"ok": True, "text": fixed, "applied": applied})
+    except Exception as exc:
+        sm = SourceMap()
+        sm.add("main.lune", source)
+        return json.dumps({"ok": False, "text": format_exception(exc, sm, explain_hint=True)})
+
+def lune_explain(code):
+    code = code.strip()
+    text = render_explanation(code)
+    if text is None:
+        return "診断コード %r の解説はありません\\n利用可能: %s" % (code, ", ".join(available_codes()))
+    return text
+`;
+
+const $ = (id) => document.getElementById(id);
+const editor = $("editor"), output = $("output"), status = $("status");
+let py = null;
+
+function setStatus(msg) { status.textContent = msg; }
+
+function render(text) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  output.innerHTML = text.split("\n").map((line) => {
+    let cls = "";
+    if (/^error\[/.test(line)) cls = "e";
+    else if (/^warning\[/.test(line)) cls = "w";
+    else if (/^\s*= hint:/.test(line)) cls = "h";
+    else if (/^\s*= help:/.test(line)) cls = "x";
+    return cls ? `<span class="${cls}">${esc(line)}</span>` : esc(line);
+  }).join("\n");
+}
+
+function loadPreset(name) {
+  editor.value = PRESETS[name].code;
+  $("binding").value = PRESETS[name].binding;
+}
+
+async function timed(label, fn) {
+  const t0 = performance.now();
+  const result = await fn();
+  setStatus(`${label}: ${Math.round(performance.now() - t0)} ms`);
+  return result;
+}
+
+async function main() {
+  loadPreset("basics");
+  $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
+
+  const t0 = performance.now();
+  py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
+  const tPyodide = Math.round(performance.now() - t0);
+
+  py.FS.mkdirTree("/app/lune");
+  const t1 = performance.now();
+  await Promise.all(LUNE_FILES.map(async (f) => {
+    const res = await fetch(`/lune/${f}`);
+    if (!res.ok) throw new Error(`fetch failed: lune/${f}`);
+    py.FS.writeFile(`/app/lune/${f}`, await res.text());
+  }));
+  py.runPython(DRIVER);
+  const tLune = Math.round(performance.now() - t1);
+
+  setStatus(`起動完了 — Pyodide ${tPyodide} ms + Lune ${tLune} ms (Python ${py.runPython("import sys; sys.version.split()[0]")})`);
+  render("処理系の準備ができました。「▶ 実行」を押してください。\n");
+
+  const call = (name, ...args) => py.globals.get(name)(...args);
+
+  $("btn-run").onclick = () => timed("実行", async () =>
+    render(call("lune_run", editor.value, $("binding").value)));
+  $("btn-check").onclick = () => timed("型チェック", async () =>
+    render(call("lune_check", editor.value)));
+  $("btn-fmt").onclick = () => timed("整形", async () => {
+    const r = JSON.parse(call("lune_fmt", editor.value));
+    if (r.ok) { editor.value = r.text; render("(整形しました)\n"); } else render(r.text);
+  });
+  $("btn-fix").onclick = () => timed("自動修正", async () => {
+    const r = JSON.parse(call("lune_fix", editor.value));
+    if (r.ok) { editor.value = r.text; render(`(自動修正: ${r.applied} 件適用)\n`); } else render(r.text);
+  });
+  $("btn-explain").onclick = () => timed("explain", async () =>
+    render(call("lune_explain", $("explain-code").value || "TYP0007")));
+
+  for (const id of ["btn-run","btn-check","btn-fmt","btn-fix","btn-explain"])
+    $(id).disabled = false;
+}
+
+main().catch((e) => { render(`起動に失敗しました:\n${e}`); setStatus("エラー"); });
+</script>
+</body>
+</html>
