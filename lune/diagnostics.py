@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .explanations import has_explanation
+
 
 @dataclass(frozen=True)
 class SourceSpan:
@@ -55,13 +57,15 @@ class SourceMap:
         return lines[line - 1]
 
 
-def format_exception(exc: Exception, source_map: SourceMap | None = None) -> str:
+def format_exception(exc: Exception, source_map: SourceMap | None = None, *, explain_hint: bool = False) -> str:
     if isinstance(exc, DiagnosticError):
-        return format_diagnostic(exc.diagnostic, source_map)
+        return format_diagnostic(exc.diagnostic, source_map, explain_hint=explain_hint)
     return f"error: {exc}"
 
 
-def format_diagnostic(diagnostic: Diagnostic, source_map: SourceMap | None = None) -> str:
+def format_diagnostic(
+    diagnostic: Diagnostic, source_map: SourceMap | None = None, *, explain_hint: bool = False
+) -> str:
     lines = [f"{diagnostic.severity}[{diagnostic.code}]: {diagnostic.message}"]
     primary = diagnostic.primary
     if primary is not None:
@@ -83,6 +87,8 @@ def format_diagnostic(diagnostic: Diagnostic, source_map: SourceMap | None = Non
         lines.append(f"   = note: {note}")
     for hint in diagnostic.hints:
         lines.append(f"   = hint: {hint}")
+    if explain_hint and has_explanation(diagnostic.code):
+        lines.append(f"   = help: run `lune explain {diagnostic.code}` for a detailed explanation")
     return "\n".join(lines)
 
 
