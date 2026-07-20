@@ -297,8 +297,16 @@ let count = tickCount()
 
     def test_recursive_thunk_is_detected(self) -> None:
         env = eval_source("let x = x\n")
-        with self.assertRaisesRegex(LuneRuntimeError, "recursive thunk evaluation"):
+        with self.assertRaisesRegex(LuneRuntimeError, "recursive thunk evaluation") as ctx:
             force_value(env.lookup_raw("x"))
+        self.assertEqual(ctx.exception.diagnostic.code, "RUN0005")
+        self.assertTrue(ctx.exception.diagnostic.hints)
+
+    def test_mutually_recursive_thunks_are_detected(self) -> None:
+        env = eval_source("let a = b\nlet b = a\n")
+        with self.assertRaisesRegex(LuneRuntimeError, "recursive thunk evaluation") as ctx:
+            force_value(env.lookup_raw("a"))
+        self.assertEqual(ctx.exception.diagnostic.code, "RUN0005")
 
     def test_strict_function_argument_is_evaluated_even_when_unused(self) -> None:
         source = """
