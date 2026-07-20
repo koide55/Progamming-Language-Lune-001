@@ -312,6 +312,11 @@ def register_standard_library_types(env: TypeEnv) -> None:
     env.define_value("take", builtin_function((list_t, INT), list_t, ("T",)))
     env.define_value("drop", builtin_function((list_t, INT), list_t, ("T",)))
     env.define_value("range", builtin_function((INT, INT), Type("List", (INT,))))
+    # Infinite/lazy lists: Lune's List is lazy-tailed, so these produce streams
+    # that the existing take/map/filter consume lazily.
+    env.define_value("iterate", builtin_function((FunctionType((t,), t), t), list_t, ("T",)))
+    env.define_value("repeat", builtin_function((t,), list_t, ("T",)))
+    env.define_value("naturalsFrom", builtin_function((INT,), Type("List", (INT,))))
 
 
 def predeclare_decl(decl: ast.Decl, env: TypeEnv) -> None:
