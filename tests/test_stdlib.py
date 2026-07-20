@@ -143,6 +143,43 @@ let flipped = not(false)
         self.assertEqual(force_value(env.lookup_raw("totalAge")), 176)
         self.assertEqual(format_value(env.lookup_raw("lazySlice")), "(1)")
 
+    # --- infinite / lazy streams ---
+
+    def test_naturals_from_take(self) -> None:
+        env = eval_source("let xs = take(naturalsFrom(1), 5)\n")
+        self.assertEqual(self.list_to_py(env.lookup_raw("xs")), [1, 2, 3, 4, 5])
+
+    def test_iterate_builds_stream(self) -> None:
+        source = "def double(n: Int): Int =\n    n * 2\nlet xs = take(iterate(double, 1), 5)\n"
+        self.assertEqual(self.list_to_py(self.value_of(source, "xs")), [1, 2, 4, 8, 16])
+
+    def test_repeat_is_infinite(self) -> None:
+        self.assertEqual(self.list_to_py(self.value_of("let xs = take(repeat(7), 3)\n", "xs")), [7, 7, 7])
+
+    def test_map_and_filter_on_infinite_stream(self) -> None:
+        evens = "let e = take(filter(naturalsFrom(1), fn x: Int -> x % 2 == 0), 4)\n"
+        self.assertEqual(self.list_to_py(self.value_of(evens, "e")), [2, 4, 6, 8])
+        mapped = "def double(n: Int): Int =\n    n * 2\nlet m = take(map(naturalsFrom(1), double), 4)\n"
+        self.assertEqual(self.list_to_py(self.value_of(mapped, "m")), [2, 4, 6, 8])
+
+    def test_head_of_infinite_stream_terminates(self) -> None:
+        first = self.assert_data(self.value_of("let f = head(naturalsFrom(10))\n", "f"), "Some")
+        self.assertEqual(force_value(first.fields[0]), 10)
+
+    def test_stream_builtins_typecheck(self) -> None:
+        env = check_source(
+            """
+def double(n: Int): Int =
+    n * 2
+let a: List[Int] = take(iterate(double, 1), 3)
+let b: List[Int] = take(naturalsFrom(1), 3)
+let c: List[Int] = take(repeat(5), 3)
+"""
+        )
+        self.assertEqual(env.lookup_value("a"), Type("List", (INT,)))
+        self.assertEqual(env.lookup_value("b"), Type("List", (INT,)))
+        self.assertEqual(env.lookup_value("c"), Type("List", (INT,)))
+
 
 if __name__ == "__main__":
     unittest.main()
