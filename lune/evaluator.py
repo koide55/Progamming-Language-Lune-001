@@ -683,8 +683,12 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
     if expr.op == "*":
         return left * right
     if expr.op == "/":
+        if right == 0:
+            raise LuneRuntimeError("division by zero", hints=["the right operand of `/` evaluated to 0"])
         return left / right
     if expr.op == "%":
+        if right == 0:
+            raise LuneRuntimeError("division by zero", hints=["the right operand of `%` evaluated to 0"])
         return left % right
     if expr.op == "==":
         return left == right
