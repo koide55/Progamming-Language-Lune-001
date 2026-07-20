@@ -38,7 +38,10 @@ Option[Int]
 Lazy[Int]
 IO[String]
 Tuple[Int, String]
+Int?
 ```
+
+`T?` は nullable 型（内部表現 `Nullable[T]`）。null 安全の検査は「§7.2 null 安全」を参照。
 
 関数型は内部表現として持つが、表面構文の関数型注釈は v0.1 では限定対応とする。
 
@@ -149,6 +152,16 @@ let addB: (Int, Int) -> Int = fn x y -> x + y
 Int -> Int -> Int
 ```
 
+## 7.2 null 安全
+
+`T?`（`Nullable[T]`）に対して代入・比較・アンラップを検査する。
+
+- 代入: `null` と非 null の `T` はいずれも `T?` に代入・受け渡しできる。`null` を非 null 型へ代入することはできず、`T?` を `T` が期待される位置でそのまま使うこともできない。
+- `match`: `null` パターンは null に、他のパターンは非 null の内部値にマッチする。`null` 被覆後のトップレベル名束縛は非 null `T` にナローイングされる（網羅性は `MATCH_EXHAUSTIVENESS_SPEC.md`）。
+- `??`: `a ?? b` は左辺が `T?` のとき、`b` が非 null なら `T`、`b` も nullable なら `T?` を返す。
+- `?.`: `x?.m` は receiver が `T?` のとき、メンバ型を nullable にした型（常に `U?`）を返す。
+- `== null` / `!= null`: `T?` と `null`・内部型 `T` の比較を許可する。`if x != null` / `if x == null` の非 null が保証される分岐では、変数 `x` を内部型 `T` にナローイングする（単純な形のみ）。
+
 ## 8. match
 
 `match` は scrutinee 型と各パターンの整合性を検査する。
@@ -163,7 +176,7 @@ match option:
 
 各分岐の結果型は一致する必要がある。`Nothing` は任意の分岐型に合流できる。
 
-`match` は網羅的でなければならない。ケース漏れは `TYP0007` として報告する。先行ケースに覆われた到達不能ケースは warning `TYP0009` として報告する。判定アルゴリズムと対象型は `MATCH_EXHAUSTIVENESS_SPEC.md` に定義する。
+`match` は網羅的でなければならない。ケース漏れは `TYP0007` として報告する。先行ケースに覆われた到達不能ケースは warning `TYP0009` として報告する。判定アルゴリズムと対象型は `MATCH_EXHAUSTIVENESS_SPEC.md` に定義する。scrutinee が nullable `T?` の場合、網羅性は `null` と内部型 `T` の両方の被覆を要求する（`null` パターンは §7.2 を参照）。
 
 `let` と `for` のパターンは反駁不能でなければならない。照合に失敗しうるパターンは `TYP0008` として報告する。束縛値の型が `Any` または型変数の場合は検査しない。
 
@@ -247,11 +260,12 @@ let bad = [1, true]
 
 `Any` は任意の型に代入可能として扱う。これは実用上の暫定措置であり、将来の型チェッカでは段階的に狭める。
 
-## 12. v0.1 の制限
+## 14. v0.1 の制限
 
 - 期待型伝播によるローカル型推論あり (`LOCAL_TYPE_INFERENCE_SPEC.md`)。body 制約からの単一化推論と let 多相は未実装。
 - 関数型注釈の本格検査は未実装。
 - Java 型の実解決は未実装。
 - class/interface の型検査は未実装。
 - record update / record pattern / mutable record field は未実装。record の追加仕様は `RECORD_FIELD_SPEC.md` に定義する。
-- 型エラーのソース位置表示は未実装。
+
+型エラーはソース位置（`--> file:line:col`）とコード抜粋・キャレット付きで表示する（`ERROR_DIAGNOSTICS_SPEC.md`）。
