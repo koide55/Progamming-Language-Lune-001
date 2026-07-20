@@ -5,14 +5,29 @@ from dataclasses import dataclass, field
 from itertools import product
 
 from . import nodes as ast
-from .diagnostics import Diagnostic, DiagnosticError, Label, SourceSpan
+from .diagnostics import Diagnostic, DiagnosticError, Fix, Label, SourceSpan
 from .parser import parse_source
+
+
+def _closest(name: str, candidates) -> str | None:
+    matches = difflib.get_close_matches(name, list(candidates), n=1, cutoff=0.6)
+    return matches[0] if matches else None
 
 
 def suggestion_hints(name: str, candidates) -> list[str]:
     """A `did you mean \\`x\\`?` hint for the closest candidate name, if any."""
-    matches = difflib.get_close_matches(name, list(candidates), n=1, cutoff=0.6)
-    return [f"did you mean `{matches[0]}`?"] if matches else []
+    match = _closest(name, candidates)
+    return [f"did you mean `{match}`?"] if match else []
+
+
+def name_suggestion(name: str, candidates, span: SourceSpan | None) -> tuple[list[str], list[Fix]]:
+    """A hint plus a machine-applicable fix that replaces `name` with the closest candidate."""
+    match = _closest(name, candidates)
+    if match is None:
+        return [], []
+    hints = [f"did you mean `{match}`?"]
+    fixes = [Fix(span, match, f"replace with `{match}`")] if span is not None else []
+    return hints, fixes
 
 
 def visible_value_names(env) -> list[str]:
@@ -33,6 +48,7 @@ class LuneTypeError(DiagnosticError):
         span: SourceSpan | None = None,
         label: str | None = None,
         hints: list[str] | None = None,
+        fixes: list[Fix] | None = None,
     ):
         super().__init__(
             Diagnostic(
@@ -41,6 +57,7 @@ class LuneTypeError(DiagnosticError):
                 message=message,
                 primary=Label(span, label) if span is not None else None,
                 hints=hints or [],
+                fixes=fixes or [],
             )
         )
 
@@ -409,7 +426,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                 "TYP0001",
                 expr.span,
                 "name is not defined",
-                suggestion_hints(expr.name, visible_value_names(env)),
+                *name_suggestion(expr.name, visible_value_names(env), expr.span),
             ) from exc
     if isinstance(expr, ast.NullExpr):
         return NULL

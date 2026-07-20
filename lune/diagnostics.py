@@ -28,6 +28,15 @@ class Label:
 
 
 @dataclass(frozen=True)
+class Fix:
+    """A machine-applicable edit: replace the text at `span` with `replacement`."""
+
+    span: SourceSpan
+    replacement: str
+    description: str
+
+
+@dataclass(frozen=True)
 class Diagnostic:
     code: str
     severity: str
@@ -35,6 +44,7 @@ class Diagnostic:
     primary: Label | None = None
     notes: list[str] = field(default_factory=list)
     hints: list[str] = field(default_factory=list)
+    fixes: list[Fix] = field(default_factory=list)
 
 
 class DiagnosticError(Exception):

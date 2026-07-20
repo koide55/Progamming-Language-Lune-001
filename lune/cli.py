@@ -7,6 +7,7 @@ import sys
 from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import force_value, format_value
 from .explanations import available_codes, render_explanation
+from .fixer import FixError, apply_fixes
 from .formatter import FormatError, format_source
 from .lexer import lex
 from .layout import apply_layout
@@ -73,6 +74,64 @@ def fmt_command(args: list[str]) -> int:
     return exit_code
 
 
+def fix_command(args: list[str]) -> int:
+    write = check = False
+    files: list[str] = []
+    for arg in args:
+        if arg in ("--write", "-w"):
+            write = True
+        elif arg == "--check":
+            check = True
+        elif arg.startswith("-"):
+            print(f"error: unknown flag {arg!r}", file=sys.stderr)
+            return 2
+        else:
+            files.append(arg)
+    if not files:
+        print("usage: lune fix [--write|--check] <file>...", file=sys.stderr)
+        return 2
+    if write and check:
+        print("error: --write and --check are mutually exclusive", file=sys.stderr)
+        return 2
+    if not (write or check) and len(files) != 1:
+        print("error: fixing to stdout requires exactly one file (use --write for multiple)", file=sys.stderr)
+        return 2
+
+    exit_code = 0
+    for path in files:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                source = f.read()
+        except OSError as exc:
+            print(f"error: cannot read {path}: {exc}", file=sys.stderr)
+            exit_code = 1
+            continue
+        try:
+            fixed, applied = apply_fixes(source, path)
+        except FixError as exc:
+            print(f"error: {path}: {exc}", file=sys.stderr)
+            exit_code = 1
+            continue
+        except Exception as exc:
+            source_map = SourceMap()
+            source_map.add(path, source)
+            print(format_exception(exc, source_map, explain_hint=True), file=sys.stderr)
+            exit_code = 1
+            continue
+        if check:
+            if applied:
+                print(f"{path}: {applied} auto-fixable issue(s)", file=sys.stderr)
+                exit_code = 1
+        elif write:
+            if fixed != source:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(fixed)
+                print(f"fixed {applied} issue(s) in {path}", file=sys.stderr)
+        else:
+            sys.stdout.write(fixed)
+    return exit_code
+
+
 def explain_command(args: list[str]) -> int:
     if len(args) != 1:
         print("usage: lune explain <CODE>", file=sys.stderr)
@@ -94,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
         return explain_command(argv[1:])
     if argv and argv[0] == "fmt":
         return fmt_command(argv[1:])
+    if argv and argv[0] == "fix":
+        return fix_command(argv[1:])
 
     parser = argparse.ArgumentParser(prog="lune-v0.1")
     parser.add_argument("file", nargs="?")

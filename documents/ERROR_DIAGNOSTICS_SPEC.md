@@ -31,6 +31,7 @@ Diagnostic:
   primary: Label
   notes: List[String]
   hints: List[String]
+  fixes: List[Fix]
 ```
 
 ```text
@@ -38,6 +39,15 @@ Label:
   span: SourceSpan
   message: String?
 ```
+
+```text
+Fix:
+  span: SourceSpan     # the range to replace
+  replacement: String  # the text to put there
+  description: String
+```
+
+`fixes` は機械的に適用可能な修正候補である。`lune fix` がこれを収集して適用する（§9.5）。span は置換対象を正確に覆う必要がある。
 
 ```text
 SourceSpan:
@@ -246,6 +256,17 @@ error[TYP0003]: branch type mismatch: Int vs Bool
  5 |         | None -> false
    |                   ^^^^^ this branch has type Bool
 ```
+
+### 9.5 自動修正 (`lune fix`)
+
+診断が `fixes`（§2 の `Fix`）を持つ場合、`lune fix` がそれを適用する。実装は `lune/fixer.py`。
+
+- 現状の対象は未定義名の typo (`TYP0001`)。`did you mean` の候補（§9.1）を置換 `Fix` として持たせ、名前の span を置き換える。
+- 反復適用: 型チェッカは最初のエラーで停止するため、1 件適用しては再チェックし、ファイル内の複数 typo を 1 回の実行で直す（無進捗・上限 200 回で停止）。
+- `import` を含むファイルは、輸入名を解決できず誤修正しうるため現状スキップする。
+- CLI: `lune fix <file>`（stdout）/ `--write`（その場書き換え）/ `--check`（修正候補があれば終了コード 1）。
+
+レコードフィールド (`REC0002`/`REC0005`) は、現状 span がフィールド名を正確に覆わないため `Fix` を付けていない（ヒントのみ）。span 改善後に対応予定。
 
 ## 10. Runtime エラー
 
