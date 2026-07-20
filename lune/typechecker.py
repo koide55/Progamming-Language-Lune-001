@@ -317,6 +317,14 @@ def register_standard_library_types(env: TypeEnv) -> None:
     env.define_value("iterate", builtin_function((FunctionType((t,), t), t), list_t, ("T",)))
     env.define_value("repeat", builtin_function((t,), list_t, ("T",)))
     env.define_value("naturalsFrom", builtin_function((INT,), Type("List", (INT,))))
+    env.define_value("takeWhile", builtin_function((list_t, FunctionType((t,), BOOL)), list_t, ("T",)))
+    env.define_value("dropWhile", builtin_function((list_t, FunctionType((t,), BOOL)), list_t, ("T",)))
+    env.define_value("zip", builtin_function((list_t, list_u), Type("List", (Type("Tuple", (t, u)),)), ("T", "U")))
+    env.define_value(
+        "zipWith",
+        builtin_function((list_t, list_u, FunctionType((t, u), Type("V"))), Type("List", (Type("V"),)), ("T", "U", "V")),
+    )
+    env.define_value("cycle", builtin_function((list_t,), list_t, ("T",)))
 
 
 def predeclare_decl(decl: ast.Decl, env: TypeEnv) -> None:
