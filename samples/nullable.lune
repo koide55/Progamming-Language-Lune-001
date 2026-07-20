@@ -4,10 +4,27 @@ module sample.nullable
 let present: Int? = 42
 let absent: Int? = null
 
-# `T?` parameters accept both a value and `null`; the reverse (using a `T?`
-# where a plain `T` is expected) is rejected until it is unwrapped.
+# `T?` parameters accept both a value and `null`.
 def identity(value: Int?): Int? =
     value
 
 let echoed = identity(present)
 let nothing = identity(null)
+
+# `match` unwraps a `T?`: once `null` is handled, `v` is narrowed to `Int`.
+# The match must cover `null` as well as the inner values, or it is rejected.
+def orZero(value: Int?): Int =
+    match value:
+        | null -> 0
+        | v -> v
+
+let unwrapped = orZero(present)   # 42
+let defaulted = orZero(absent)    # 0
+
+# `??` falls back to a default when the left operand is null (short-circuiting).
+let coalesced = absent ?? 7       # 7
+let kept = present ?? 7           # 42
+
+# `== null` / `!= null` test for the null value.
+let missing = absent == null      # true
+let exists = present != null      # true

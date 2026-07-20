@@ -364,6 +364,36 @@ let answer = check(Box(crash()))
         with self.assertRaises(LuneRuntimeError):
             force_value(env.lookup_raw("answer"))
 
+    # --- null safety ---
+
+    def test_match_null_pattern_selects_case(self) -> None:
+        source = """
+def f(x: Int?): Int =
+    match x:
+        | null -> -1
+        | v -> v + 100
+
+let hit = f(5)
+let miss = f(null)
+"""
+        self.assertEqual(self.value_of(source, "hit"), 105)
+        self.assertEqual(self.value_of(source, "miss"), -1)
+
+    def test_null_coalescing_uses_value_when_present(self) -> None:
+        self.assertEqual(self.value_of("let x: Int? = 7\nlet r = x ?? 0\n", "r"), 7)
+
+    def test_null_coalescing_uses_fallback_when_null(self) -> None:
+        self.assertEqual(self.value_of("let x: Int? = null\nlet r = x ?? 0\n", "r"), 0)
+
+    def test_null_coalescing_short_circuits_fallback(self) -> None:
+        # the fallback must not be evaluated when the left operand is non-null
+        self.assertEqual(self.value_of("let x: Int? = 7\nlet r = x ?? crash()\n", "r"), 7)
+
+    def test_null_comparison(self) -> None:
+        source = "let x: Int? = null\nlet a = x == null\nlet b = x != null\n"
+        self.assertIs(self.value_of(source, "a"), True)
+        self.assertIs(self.value_of(source, "b"), False)
+
 
 if __name__ == "__main__":
     unittest.main()

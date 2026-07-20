@@ -634,6 +634,9 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
     if expr.op == "||":
         left = force_value(eval_expr(expr.left, env))
         return True if truthy(left) else eval_expr(expr.right, env)
+    if expr.op == "??":
+        left = force_value(eval_expr(expr.left, env))
+        return left if left is not None else eval_expr(expr.right, env)
 
     left = force_value(eval_expr(expr.left, env))
     right = force_value(eval_expr(expr.right, env))
@@ -716,6 +719,8 @@ def eval_match(expr: ast.MatchExpr, env: Env) -> Value:
 def match_pattern(pattern: ast.Pattern, value: Value) -> dict[str, Value] | None:
     if isinstance(pattern, ast.WildcardPattern):
         return {}
+    if isinstance(pattern, ast.NullPattern):
+        return {} if force_value(value) is None else None
     if isinstance(pattern, ast.NamePattern):
         return {pattern.name: value}
     if isinstance(pattern, ast.LiteralPattern):

@@ -14,6 +14,8 @@ Implemented:
 - refutable pattern rejection in `let` / `for` bindings (`TYP0008`)
 - unreachable match case warnings (`TYP0009`)
 - local type inference via expected-type propagation into lambdas, lists, and branches (`TYP0010`, `TYP0011`)
+- null safety for `T?`: `null`/`match` patterns with narrowing, `T?`-aware exhaustiveness, the `??` operator, and `== null` / `!= null`
+- pipeline operator `|>` (`x |> f` is `f(x)`)
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
