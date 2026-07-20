@@ -1,5 +1,4 @@
 module sample.basics
-
 import java.time.LocalDate
 
 def abs(x: Int): Int =
@@ -14,4 +13,3 @@ def today(): IO[String] =
 
 let inc: Int -> Int = fn x -> x + 1
 let result = if true then inc(41) else 0
-

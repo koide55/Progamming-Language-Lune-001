@@ -10,4 +10,3 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
         | None -> defaultValue
 
 let answer = getOrElse(Some(42), 0)
-

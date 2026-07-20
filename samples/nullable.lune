@@ -18,22 +18,22 @@ def orZero(value: Int?): Int =
         | null -> 0
         | v -> v
 
-let unwrapped = orZero(present)   # 42
-let defaulted = orZero(absent)    # 0
+let unwrapped = orZero(present)  # 42
+let defaulted = orZero(absent)  # 0
 
 # `??` falls back to a default when the left operand is null (short-circuiting).
-let coalesced = absent ?? 7       # 7
-let kept = present ?? 7           # 42
+let coalesced = absent ?? 7  # 7
+let kept = present ?? 7  # 42
 
 # `== null` / `!= null` test for the null value.
-let missing = absent == null      # true
-let exists = present != null      # true
+let missing = absent == null  # true
+let exists = present != null  # true
 
 # `if x != null` narrows `x` to the non-null type in the corresponding branch.
 def orOne(value: Int?): Int =
     if value != null then value else 1
 
-let narrowed = orOne(absent)      # 1
+let narrowed = orOne(absent)  # 1
 
 # `?.` safe navigation: null receiver short-circuits to null, otherwise the
 # member is read and the result is nullable.
@@ -44,5 +44,5 @@ record User:
 def nameOf(user: User?): String? =
     user?.name
 
-let someName = nameOf(User(name = "Ada", age = 36))   # "Ada"
-let noName = nameOf(null)                              # null
+let someName = nameOf(User(name = "Ada", age = 36))  # "Ada"
+let noName = nameOf(null)  # null

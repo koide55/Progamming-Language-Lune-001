@@ -7,11 +7,70 @@ import sys
 from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import force_value, format_value
 from .explanations import available_codes, render_explanation
+from .formatter import FormatError, format_source
 from .lexer import lex
 from .layout import apply_layout
 from .module_loader import check_file, eval_file
 from .parser import parse_source
 from .repl import repl_main
+
+
+def fmt_command(args: list[str]) -> int:
+    write = check = False
+    files: list[str] = []
+    for arg in args:
+        if arg in ("--write", "-w"):
+            write = True
+        elif arg == "--check":
+            check = True
+        elif arg.startswith("-"):
+            print(f"error: unknown flag {arg!r}", file=sys.stderr)
+            return 2
+        else:
+            files.append(arg)
+    if not files:
+        print("usage: lune fmt [--write|--check] <file>...", file=sys.stderr)
+        return 2
+    if write and check:
+        print("error: --write and --check are mutually exclusive", file=sys.stderr)
+        return 2
+    if not (write or check) and len(files) != 1:
+        print("error: formatting to stdout requires exactly one file (use --write for multiple)", file=sys.stderr)
+        return 2
+
+    exit_code = 0
+    for path in files:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                source = f.read()
+        except OSError as exc:
+            print(f"error: cannot read {path}: {exc}", file=sys.stderr)
+            exit_code = 1
+            continue
+        try:
+            formatted = format_source(source, path)
+        except FormatError as exc:
+            print(f"error: {path}: {exc}", file=sys.stderr)
+            exit_code = 1
+            continue
+        except Exception as exc:
+            source_map = SourceMap()
+            source_map.add(path, source)
+            print(format_exception(exc, source_map, explain_hint=True), file=sys.stderr)
+            exit_code = 1
+            continue
+        if check:
+            if formatted != source:
+                print(f"would reformat {path}", file=sys.stderr)
+                exit_code = 1
+        elif write:
+            if formatted != source:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(formatted)
+                print(f"formatted {path}", file=sys.stderr)
+        else:
+            sys.stdout.write(formatted)
+    return exit_code
 
 
 def explain_command(args: list[str]) -> int:
@@ -33,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
         argv = sys.argv[1:]
     if argv and argv[0] == "explain":
         return explain_command(argv[1:])
+    if argv and argv[0] == "fmt":
+        return fmt_command(argv[1:])
 
     parser = argparse.ArgumentParser(prog="lune-v0.1")
     parser.add_argument("file", nargs="?")

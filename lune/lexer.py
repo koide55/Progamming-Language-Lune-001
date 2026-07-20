@@ -1,6 +1,26 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from .tokens import KEYWORDS, LuneSyntaxError, Span, Token, TokenKind
+
+
+@dataclass(frozen=True)
+class Comment:
+    line: int
+    own_line: bool  # True if only whitespace precedes the comment on its line
+    kind: str  # "line" | "block"
+    text: str  # the comment text including its `#` / `###` marker
+
+
+def scan_comments(source: str, filename: str = "<input>") -> list[Comment]:
+    """Collect comments (with positions) from source, for tooling like the formatter."""
+    comments: list[Comment] = []
+    in_block_comment = False
+    for line_number, raw_line in enumerate(source.splitlines(), start=1):
+        line = raw_line.rstrip("\r\n")
+        _, in_block_comment = _strip_comments(line, in_block_comment, filename, line_number, comments)
+    return comments
 
 
 SINGLE_CHAR_TOKENS = {
@@ -78,7 +98,13 @@ def lex(source: str, filename: str = "<input>") -> list[Token]:
     return tokens
 
 
-def _strip_comments(line: str, in_block_comment: bool, filename: str, line_number: int) -> tuple[str, bool]:
+def _strip_comments(
+    line: str,
+    in_block_comment: bool,
+    filename: str,
+    line_number: int,
+    comments: list[Comment] | None = None,
+) -> tuple[str, bool]:
     out: list[str] = []
     i = 0
     in_string: str | None = None
@@ -105,10 +131,14 @@ def _strip_comments(line: str, in_block_comment: bool, filename: str, line_numbe
             continue
 
         if line.startswith("###", i):
+            if comments is not None:
+                comments.append(Comment(line_number, not "".join(out).strip(), "block", line[i:]))
             in_block_comment = True
             i += 3
             continue
         if ch == "#":
+            if comments is not None:
+                comments.append(Comment(line_number, not "".join(out).strip(), "line", line[i:].rstrip()))
             break
         if ch in ('"', "'"):
             in_string = ch
