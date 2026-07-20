@@ -13,6 +13,9 @@ Lune はまだ初期バージョンの実験的な言語です。それでも、
 - `while` で小さな命令的ループも書ける。
 - `for` でリストを自然に走査できる。
 - 小さな型チェッカつき。
+- `T?`（nullable）で「無いかもしれない値」を安全に扱える。
+- `|>` で処理を左から右へつなげる。
+- 教えてくれるツール: `lune explain` / `lune fmt` / `lune fix`。
 
 このチュートリアルでは、Lune の「書いていて楽しいところ」を、実際に動くコードで順番に見ていきます。
 
@@ -215,7 +218,19 @@ let add10 = fn x -> x + 10
 let answer = add10(double(16))
 ```
 
-将来的には、このあたりを `|>` と組み合わせて、もっと気持ちよく書けるようにしていく余地があります。
+こうした小さな関数は `|>`（パイプライン）でつなげます。`x |> f` は `f(x)` と同じで、処理を左から右へ読めます。
+
+```lune
+def inc(n: Int): Int =
+    n + 1
+
+def double(n: Int): Int =
+    n * 2
+
+let result = 5 |> inc |> double
+```
+
+`5 |> inc |> double` は `double(inc(5))` と同じで、結果は `12` です。多引数の関数に部分適用としてつなぐこともできます（`5 |> add` は `add(5)`）。
 
 ## 8. 代数的データ型で「形」を作る
 
@@ -275,6 +290,16 @@ let answer = area(Rect(6, 7))
 
 代数的データ型と `match` は、Lune の関数型らしさがよく出る部分です。
 
+`match` は網羅性もチェックします。ある形を書き忘れると、型チェッカが「どの形が漏れているか」を例つきで教えてくれます。
+
+```lune
+def area(shape: Shape): Int =
+    match shape:
+        | Circle(radius) -> radius * radius * 3
+```
+
+これは `Rect` が漏れているので `TYP0007` エラーになります。すべての形を書くか、`| _ -> ...` のワイルドカードを足すと通ります。逆に、前のケースに完全に覆われて絶対に届かないケースは警告（`TYP0009`）になります。
+
 ## 10. レコードで名前付きデータを作る
 
 複数の値をまとめたいだけなら、`record` が便利です。
@@ -325,7 +350,71 @@ let answer = ada.age
 
 この場合、`name` は参照されないので `crash()` は評価されません。
 
-## 11. 標準ライブラリの小さな道具
+## 11. null と安全に付き合う
+
+「値が無いかもしれない」ことは、`T?`（nullable 型）で表します。
+
+```lune
+let name: String? = "Ada"
+let missing: String? = null
+```
+
+非 null の値も `null` も `T?` に入れられます。でも `null` を非 null の型（`String` など）へ入れることはできません。ここが Lune の安全なところで、うっかり null を混ぜても型チェッカが止めてくれます。
+
+`T?` の中身を使うには、まず「null かどうか」を確かめてアンラップします。方法はいくつかあります。
+
+### `match` で分解する
+
+`match` は `null` と中身の両方を扱えます。`null` を先に処理すると、続く名前は非 null に絞り込まれます（narrowing）。
+
+```lune
+def orZero(value: Int?): Int =
+    match value:
+        | null -> 0
+        | v -> v
+```
+
+`v` の枝では `value` が非 null と分かっているので、`v` は `Int` として使えます。`null` の枝を書き忘れると、網羅していないので型エラーになります。
+
+### `??` でデフォルトを与える
+
+`a ?? b` は、`a` が `null` のとき `b` を返します（`a` が非 null なら `b` は評価しません）。
+
+```lune
+let shown = missing ?? "anon"
+```
+
+### `if` で絞り込む
+
+`if x != null then ...` の then 側では、`x` は非 null に絞り込まれます。
+
+```lune
+def orOne(x: Int?): Int =
+    if x != null then x else 1
+```
+
+### `?.` で安全にたどる
+
+レコードのフィールドは `?.` でたどれます。receiver が `null` なら、たどらずに `null` に短絡します。
+
+```lune
+record User:
+    name: String
+    age: Int
+
+def nameOf(user: User?): String? =
+    user?.name
+```
+
+`user?.name` の型は `String?` です。`nameOf(null)` は `null`、値があれば名前を返します。
+
+### null かどうか比べる
+
+`x == null` / `x != null` で確かめられます。
+
+ここまでの機能は、サンプル `samples/nullable.lune` にまとまっています。
+
+## 12. 標準ライブラリの小さな道具
 
 Lune v0.1 では、いくつかの便利な型と関数が最初から使えます。
 
@@ -555,7 +644,7 @@ let answer = getOrElse(value, 0)
 
 標準ライブラリはまだ小さいですが、「毎回自分で `Option` や `List` を定義しなくてよい」だけでも、試し書きがずいぶん楽になります。
 
-## 12. `while` で小さなループを書く
+## 13. `while` で小さなループを書く
 
 Lune は関数型の機能を大事にしていますが、ちょっとした反復処理には `while` も使えます。
 
@@ -611,7 +700,7 @@ let answer = sumUntil(0, 5, 0)
 
 Lune ではどちらも選べます。ちょっとした手続きは `while`、値の変換や再利用したい計算は再帰や `fold`、という感覚で使い分けるとよいでしょう。
 
-## 13. `for` でリストを歩く
+## 14. `for` でリストを歩く
 
 `while` は条件が続く限り繰り返す構文でした。リストを順番に処理したいだけなら、`for` の方がすっきり書けます。
 
@@ -654,7 +743,7 @@ let answer =
 
 `for` は読みやすい集計や副作用的な処理に向いています。一方で、リストから別のリストを作るなら `map`、条件で絞るなら `filter`、値に畳み込むなら `fold` もよい選択です。
 
-## 14. モジュールに分ける
+## 15. モジュールに分ける
 
 少し大きくなったら、ファイルを分けられます。
 
@@ -684,7 +773,7 @@ let answer = add(20, 22)
 
 v0.1 では import したモジュールのトップレベル名が同じ環境に入ります。そのため `math.add` ではなく `add` と書きます。
 
-## 15. 型チェックしてみる
+## 16. 型チェックとツール
 
 Lune には小さな型チェッカがあります。
 
@@ -698,11 +787,47 @@ let answer: Int = true
 ./bin/lune --check bad.lune
 ```
 
-エラーはコード位置つきで表示されます。
+エラーはコード位置つきで表示され、コード（`TYP0003` など）と修正ヒントが付きます。型チェッカはまだ完全ではありませんが、基本的なミスをかなり見つけてくれます。
 
-型チェッカはまだ完全ではありませんが、基本的なミスをかなり見つけてくれます。
+Lune には、エラーを「見つける」だけでなく「教えて・直して・整える」ための小さなツールがそろっています。
 
-## 16. 小さなプログラムを書いてみよう
+### エラーを詳しく知る: `lune explain`
+
+診断コードの意味・発生する最小例・直し方を読めます。
+
+```sh
+./bin/lune explain TYP0007
+```
+
+REPL では `:explain CODE` でも読めます。
+
+### タイポを直す: did you mean と `lune fix`
+
+未定義の名前が、近い名前に似ていると「did you mean」で候補を出します。
+
+```text
+error[TYP0001]: undefined name: totl
+   = hint: did you mean `total`?
+```
+
+`lune fix` はこの候補を自動で当てます。
+
+```sh
+./bin/lune fix --write myfile.lune   # その場で修正
+./bin/lune fix --check myfile.lune   # 修正候補があれば終了コード 1（CI 向け）
+```
+
+### 整形する: `lune fmt`
+
+正準スタイルに整形します。整形しても意味は変わりません（再パースして確認します）。
+
+```sh
+./bin/lune fmt myfile.lune           # 整形結果を表示
+./bin/lune fmt --write myfile.lune   # その場で整形
+./bin/lune fmt --check myfile.lune   # 未整形なら終了コード 1（CI 向け）
+```
+
+## 17. 小さなプログラムを書いてみよう
 
 最後に、いくつかの機能をまとめた例です。
 
@@ -752,7 +877,7 @@ let answer = render(greet(ada))
 
 `birthdayMessage` は少しわざとらしい例ですが、`while` も普通の block の中で使えることが分かります。リストを処理したい場面では、同じように `for` も block の中で使えます。
 
-## 17. 練習問題
+## 18. 練習問題
 
 1. `record Book` を作り、`title: String` と `pages: Int` を持たせてください。
 2. `isLong(book: Book): Bool` を作り、300 ページ以上なら `true` を返してください。
@@ -765,7 +890,7 @@ let answer = render(greet(ada))
 
 最後の問題が、この言語らしいところです。使わないものは、まだ眠っています。
 
-## 18. いまの制限
+## 19. いまの制限
 
 Lune v0.1 はまだ初期版です。
 
@@ -777,9 +902,10 @@ Lune v0.1 はまだ初期版です。
 - record pattern。
 - mutable record field。
 - `try` / `catch`。
-- `for`。
 - `break` / `continue`。
-- LSP / formatter / package manager。
+- LSP / package manager（整形は `lune fmt` として利用可能）。
+
+一方で、以前は「未対応」だった機能のいくつかは、もう使えます: `for`、`T?`（null 安全）、`|>`、そして `lune explain` / `lune fmt` / `lune fix`。
 
 でも、核になる感触はもうあります。
 
