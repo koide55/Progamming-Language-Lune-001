@@ -42,7 +42,7 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 さらに、**デフォルト遅延がこの空白を広げる**。教育言語 (Racket/Pyret/Hedy) はすべて正格であり、遅延評価の本家 Haskell は教育向けの診断を持たない。「評価戦略そのものを教えられる言語」という象限には競合がいない。デフォルト遅延は初学者への罠と見なされがちだが、Lune はこれを診断と可観測化 (施策 E) で教材に転化する — この設計上の緊張とその解決こそが、研究発表 (施策 D) の中心的な主張になる。
 
-キャッチコピー案: *the functional language whose compiler teaches you* / 「コンパイラが教えてくれる関数型言語」
+キャッチコピー: **Lune — the Lazy and Native programming language**。Lazy = デフォルト遅延 (施策 E)、Native = 母語 (native language) 診断 (施策 B) の掛詞で、名前の L と N にも掛かる。PL の文脈で "native" はネイティブコード生成と読まれがちだが、発表ではその誤読を逆手に取れる — 「native code ではなく **native language**」と種明かしするつかみは PRO の導入に向く。補助案: *the functional language whose compiler teaches you* / 「コンパイラが教えてくれる関数型言語」
 
 ## 4. 施策の優先順位 (インパクト × コスト)
 
