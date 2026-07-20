@@ -19,6 +19,7 @@ Implemented:
 - pipeline operator `|>` (`x |> f` is `f(x)`)
 - teaching-oriented diagnostics: every code has a detailed explanation via `lune explain <CODE>` (and `:explain` in the REPL); diagnostics link to it
 - canonical formatter `lune fmt`: AST-based pretty-printer, idempotent and meaning-preserving (re-parse check), preserves `#` comments, `--write` / `--check` modes
+- auto-fix `lune fix`: applies machine-suggested fixes (currently undefined-name typos via the "did you mean" suggestion), iteratively; `--write` / `--check` modes
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
@@ -107,6 +108,16 @@ Format source to a canonical style:
 ```
 
 `lune fmt` pretty-prints the parsed AST, so output is canonical and idempotent. It re-parses its own output and checks the AST is unchanged, so formatting never alters a program's meaning. `#` comments are preserved; files with `###` block comments are left untouched with an error (not yet supported).
+
+Apply suggested fixes automatically:
+
+```sh
+./bin/lune fix samples/basics.lune          # print fixed source to stdout
+./bin/lune fix --write path/to/file.lune    # apply fixes in place
+./bin/lune fix --check path/to/file.lune    # exit non-zero if fixes are available (CI)
+```
+
+`lune fix` currently corrects undefined-name typos using the "did you mean" suggestion, iteratively (several typos in one run). Files with `import`s are skipped for now, since imported names cannot yet be resolved by the fixer.
 
 Evaluate a top-level binding:
 
