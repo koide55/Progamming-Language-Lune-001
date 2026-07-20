@@ -51,6 +51,8 @@ Type-check a sample:
 ./bin/lune --check samples/modules/main.lune
 ./bin/lune --check samples/records.lune
 ./bin/lune --check samples/while.lune
+./bin/lune --check samples/pipeline.lune
+./bin/lune --check samples/nullable.lune
 ```
 
 Start the REPL:
@@ -89,6 +91,8 @@ Evaluate a top-level binding:
 ./bin/lune --eval answer samples/modules/main.lune
 ./bin/lune --eval answer samples/records.lune
 ./bin/lune --eval answer samples/while.lune
+./bin/lune --eval result samples/pipeline.lune
+./bin/lune --eval present samples/nullable.lune
 ```
 
 Add extra module search roots with repeated `--module-path PATH` flags:
