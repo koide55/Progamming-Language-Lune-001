@@ -115,9 +115,10 @@ v0.1 で実際に発行されるコード（正は `lune/explanations.py` のカ
 | `REC0004` | record | duplicate initializer field |
 | `REC0005` | record | unexpected record field |
 | `REC0006` | record | record fields must be named |
+| `RUN0005` | runtime | recursive thunk evaluation |
 | `RUN0006` | runtime | runtime error (generic) |
 
-runtime エラーは現状ほぼすべて汎用の `RUN0006` に集約される（未定義変数、失敗/再帰サンクの force、標準ライブラリの型不一致、実行時の非網羅 match など）。`TYP0002` は欠番。REPL コマンドのエラーは診断コードではなくプレーンな文字列で返す。各コードの詳解は `lune explain <CODE>` で読め、テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
+runtime エラーは、再帰サンクの force（専用コード `RUN0005`、hint 付き）を除き、現状ほぼすべて汎用の `RUN0006` に集約される（未定義変数、失敗サンクの force、標準ライブラリの型不一致、実行時の非網羅 match など）。`TYP0002` は欠番。REPL コマンドのエラーは診断コードではなくプレーンな文字列で返す。各コードの詳解は `lune explain <CODE>` で読め、テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
 
 ### 4.1 コード詳解（`lune explain`）
 
