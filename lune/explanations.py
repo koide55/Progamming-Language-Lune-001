@@ -412,8 +412,9 @@ result.
             "runtime error",
             """
 Evaluation failed at run time. Common causes: using an undefined variable,
-forcing a thunk that previously failed, a standard-library value of the
-wrong shape, or a `match` that no case matched at run time.
+dividing by zero (`/` or `%`), forcing a thunk that previously failed, a
+standard-library value of the wrong shape, or a `match` that no case matched
+at run time.
             """,
             None,
             "Read the message for the specific cause. Many runtime errors are caught earlier by `lune --check`, so type-check the file first.",

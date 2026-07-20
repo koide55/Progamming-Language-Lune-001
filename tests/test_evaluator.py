@@ -295,6 +295,15 @@ let count = tickCount()
         self.assertEqual(force_value(env.lookup_raw("count")), 1)
         self.assertEqual(delayed.state, ThunkState.FAILED)
 
+    def test_division_by_zero_is_a_lune_diagnostic(self) -> None:
+        env = eval_source("let x = 1 / 0\nlet y = 5 % 0\n")
+        with self.assertRaisesRegex(LuneRuntimeError, "division by zero") as ctx:
+            force_value(env.lookup_raw("x"))
+        self.assertEqual(ctx.exception.diagnostic.code, "RUN0006")
+        self.assertTrue(ctx.exception.diagnostic.hints)
+        with self.assertRaisesRegex(LuneRuntimeError, "division by zero"):
+            force_value(env.lookup_raw("y"))
+
     def test_recursive_thunk_is_detected(self) -> None:
         env = eval_source("let x = x\n")
         with self.assertRaisesRegex(LuneRuntimeError, "recursive thunk evaluation") as ctx:
