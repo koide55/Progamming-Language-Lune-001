@@ -180,6 +180,48 @@ let c: List[Int] = take(repeat(5), 3)
         self.assertEqual(env.lookup_value("b"), Type("List", (INT,)))
         self.assertEqual(env.lookup_value("c"), Type("List", (INT,)))
 
+    # --- stream combinators ---
+
+    def test_take_while(self) -> None:
+        src = "def lt5(n: Int): Bool =\n    n < 5\nlet xs = takeWhile(naturalsFrom(1), lt5)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [1, 2, 3, 4])
+
+    def test_drop_while(self) -> None:
+        src = "def lt5(n: Int): Bool =\n    n < 5\nlet xs = take(dropWhile(naturalsFrom(1), lt5), 3)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [5, 6, 7])
+
+    def test_zip_pairs_and_stops_at_shorter(self) -> None:
+        src = "let xs = zip(naturalsFrom(1), [10, 20])\n"
+        self.assertEqual(format_value(self.value_of(src, "xs")), "((1, 10) (2, 20))")
+
+    def test_zip_with_combines_elementwise(self) -> None:
+        src = "def add(a: Int, b: Int): Int =\n    a + b\nlet xs = take(zipWith(naturalsFrom(1), naturalsFrom(10), add), 3)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [11, 13, 15])
+
+    def test_cycle_repeats_finite_list(self) -> None:
+        src = "let xs = take(cycle([1, 2, 3]), 7)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [1, 2, 3, 1, 2, 3, 1])
+
+    def test_cycle_of_empty_is_empty(self) -> None:
+        self.assertEqual(self.list_to_py(self.value_of("let xs = cycle([])\n", "xs")), [])
+
+    def test_combinators_typecheck(self) -> None:
+        env = check_source(
+            """
+def lt5(n: Int): Bool =
+    n < 5
+def add(a: Int, b: Int): Int =
+    a + b
+let a: List[Int] = takeWhile(naturalsFrom(1), lt5)
+let b: List[Int] = take(dropWhile(naturalsFrom(1), lt5), 2)
+let c: List[Int] = take(zipWith(naturalsFrom(1), naturalsFrom(1), add), 2)
+let d: List[Int] = take(cycle([1, 2]), 3)
+let z = zip(naturalsFrom(1), naturalsFrom(1))
+"""
+        )
+        self.assertEqual(env.lookup_value("a"), Type("List", (INT,)))
+        self.assertEqual(env.lookup_value("z"), Type("List", (Type("Tuple", (INT, INT)),)))
+
 
 if __name__ == "__main__":
     unittest.main()

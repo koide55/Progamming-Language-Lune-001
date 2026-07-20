@@ -22,7 +22,7 @@ Implemented:
 - auto-fix `lune fix`: applies machine-suggested fixes (currently undefined-name typos via the "did you mean" suggestion), iteratively; `--write` / `--check` modes
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
-- lazy/infinite lists (streams): `iterate`, `repeat`, `naturalsFrom` build infinite lists that `take`/`map`/`filter` consume lazily (no separate `Stream` type — `List` is already lazy-tailed)
+- lazy/infinite lists (streams): `iterate`, `repeat`, `naturalsFrom` build infinite lists, with lazy combinators `take`/`map`/`filter`/`takeWhile`/`dropWhile`/`zip`/`zipWith`/`cycle` (no separate `Stream` type — `List` is already lazy-tailed)
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
 - partial application for user-defined functions, lambdas, and data constructors
 - records with named construction, generic fields, strict fields, and field access

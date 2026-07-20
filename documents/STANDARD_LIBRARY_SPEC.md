@@ -161,6 +161,11 @@ def range(start: Int, end: Int): List[Int]
 def iterate[T](f: T -> T, x: T): List[T]
 def repeat[T](x: T): List[T]
 def naturalsFrom(n: Int): List[Int]
+def takeWhile[T](list: List[T], predicate: T -> Bool): List[T]
+def dropWhile[T](list: List[T], predicate: T -> Bool): List[T]
+def zip[T, U](a: List[T], b: List[U]): List[Tuple[T, U]]
+def zipWith[T, U, V](a: List[T], b: List[U], f: (T, U) -> V): List[V]
+def cycle[T](list: List[T]): List[T]
 ```
 
 意味:
@@ -181,6 +186,11 @@ def naturalsFrom(n: Int): List[Int]
 - `iterate(f, x)` は無限リスト `[x, f(x), f(f(x)), ...]` を返す。
 - `repeat(x)` は無限リスト `[x, x, x, ...]` を返す。
 - `naturalsFrom(n)` は無限リスト `[n, n+1, n+2, ...]` を返す。
+- `takeWhile(list, p)` は predicate が true の間だけ先頭から取り、最初に false になった要素で止める。
+- `dropWhile(list, p)` は predicate が true の間だけ先頭を捨て、残りを返す。
+- `zip(a, b)` は 2 つのリストを対 `(a_i, b_i)` のリストにする。短い方で止まる。
+- `zipWith(a, b, f)` は要素ごとに `f(a_i, b_i)` を適用する。短い方で止まる。
+- `cycle(list)` は有限リストを無限に繰り返す（例: `cycle([1, 2])` は `[1, 2, 1, 2, ...]`）。空リストは空のまま。
 - REPL / `show` / `repr` では有限リストを Lisp 風に表示する。例: `[1, 2]` と `range(1, 3)` は `(1 2)`、`Nil` は `()`。
 
 遅延評価:
@@ -196,8 +206,9 @@ def naturalsFrom(n: Int): List[Int]
 無限リスト:
 
 - `Cons` の tail が遅延であるため、`List` はそのまま無限列（Stream）として使える。専用の `Stream` 型は設けない。
-- `iterate` / `repeat` / `naturalsFrom` は無限リストを返す。`take` / `map` / `filter` は遅延して消費するため、無限リストに対しても終了する（例: `take(naturalsFrom(1), 5)` は `(1 2 3 4 5)`）。
-- `fold` / `drop` / `length` はリストを消費し切るため、無限リストに使うと停止しない。
+- `iterate` / `repeat` / `naturalsFrom` は無限リストを返す。`take` / `map` / `filter` / `takeWhile` / `zip` / `zipWith` は遅延して消費するため、無限リストに対しても終了する（例: `take(naturalsFrom(1), 5)` は `(1 2 3 4 5)`）。
+- `cycle` は有限リストを無限リストへ変換する。
+- `fold` / `drop` / `length` はリストを消費し切るため、無限リストに使うと停止しない。`dropWhile` は predicate が無限に真であり続けると停止しない。
 
 ## 7. Console / IO
 

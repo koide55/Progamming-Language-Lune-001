@@ -270,6 +270,11 @@ def register_standard_library(env: Env) -> None:
     env.define("iterate", BuiltinFunction("iterate", _builtin_iterate, force_args=False))
     env.define("repeat", BuiltinFunction("repeat", _builtin_repeat, force_args=False))
     env.define("naturalsFrom", BuiltinFunction("naturalsFrom", _builtin_naturals_from))
+    env.define("takeWhile", BuiltinFunction("takeWhile", _builtin_take_while, force_args=False))
+    env.define("dropWhile", BuiltinFunction("dropWhile", _builtin_drop_while, force_args=False))
+    env.define("zip", BuiltinFunction("zip", _builtin_zip, force_args=False))
+    env.define("zipWith", BuiltinFunction("zipWith", _builtin_zip_with, force_args=False))
+    env.define("cycle", BuiltinFunction("cycle", _builtin_cycle, force_args=False))
 
 
 def _param(name: str, is_strict: bool = False) -> ast.Param:
@@ -450,6 +455,84 @@ def _builtin_naturals_from(args: list[Value]) -> Value:
     # naturalsFrom(n) = [n, n+1, n+2, ...] — infinite, with a lazy tail.
     n = int(force_value(args[0]))
     return DataValue("Cons", [n, LazyValue(lambda: _builtin_naturals_from([n + 1]))])
+
+
+def _builtin_take_while(args: list[Value]) -> Value:
+    # Take elements while the predicate holds; stop at the first that fails.
+    items = force_value(args[0])
+    predicate = force_value(args[1])
+    if _is_constructor(items, "Nil"):
+        return DataValue("Nil", [])
+    if not _is_constructor(items, "Cons"):
+        raise LuneRuntimeError(f"takeWhile expects List, got {items!r}")
+    head = items.fields[0]
+    tail = items.fields[1]
+    if truthy(apply_value(predicate, [head])):
+        return DataValue(
+            "Cons", [head, LazyValue(lambda tail=tail, predicate=predicate: _builtin_take_while([tail, predicate]))]
+        )
+    return DataValue("Nil", [])
+
+
+def _builtin_drop_while(args: list[Value]) -> Value:
+    # Drop elements while the predicate holds; return the rest (lazy tail kept).
+    items = args[0]
+    predicate = force_value(args[1])
+    while True:
+        items = force_value(items)
+        if _is_constructor(items, "Nil"):
+            return DataValue("Nil", [])
+        if not _is_constructor(items, "Cons"):
+            raise LuneRuntimeError(f"dropWhile expects List, got {items!r}")
+        if not truthy(apply_value(predicate, [items.fields[0]])):
+            return items
+        items = items.fields[1]
+
+
+def _builtin_zip(args: list[Value]) -> Value:
+    # Pair up two lists into tuples, stopping at the shorter one.
+    a = force_value(args[0])
+    b = force_value(args[1])
+    if _is_constructor(a, "Nil") or _is_constructor(b, "Nil"):
+        return DataValue("Nil", [])
+    if not (_is_constructor(a, "Cons") and _is_constructor(b, "Cons")):
+        raise LuneRuntimeError("zip expects Lists")
+    at, bt = a.fields[1], b.fields[1]
+    head = TupleValue([a.fields[0], b.fields[0]])
+    return DataValue("Cons", [head, LazyValue(lambda: _builtin_zip([at, bt]))])
+
+
+def _builtin_zip_with(args: list[Value]) -> Value:
+    # Combine two lists element-wise with f, stopping at the shorter one.
+    a = force_value(args[0])
+    b = force_value(args[1])
+    function = force_value(args[2])
+    if _is_constructor(a, "Nil") or _is_constructor(b, "Nil"):
+        return DataValue("Nil", [])
+    if not (_is_constructor(a, "Cons") and _is_constructor(b, "Cons")):
+        raise LuneRuntimeError("zipWith expects Lists")
+    ah, at = a.fields[0], a.fields[1]
+    bh, bt = b.fields[0], b.fields[1]
+    head = LazyValue(lambda: apply_value(function, [ah, bh]))
+    return DataValue("Cons", [head, LazyValue(lambda: _builtin_zip_with([at, bt, function]))])
+
+
+def _builtin_cycle(args: list[Value]) -> Value:
+    # Repeat a finite list forever: [1,2] -> [1,2,1,2,...]. Empty stays empty.
+    original = force_value(args[0])
+    if _is_constructor(original, "Nil"):
+        return DataValue("Nil", [])
+
+    def step(current: Value) -> Value:
+        current = force_value(current)
+        if _is_constructor(current, "Nil"):
+            return step(original)
+        if not _is_constructor(current, "Cons"):
+            raise LuneRuntimeError(f"cycle expects List, got {current!r}")
+        tail = current.fields[1]
+        return DataValue("Cons", [current.fields[0], LazyValue(lambda tail=tail: step(tail))])
+
+    return step(original)
 
 
 def eval_decl(decl: ast.Decl, env: Env) -> Value:
