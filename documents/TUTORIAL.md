@@ -190,6 +190,52 @@ lune> tickCount()
 
 この「必要になるまで待つ」と「一度計算したら覚える」の組み合わせが、Lune の遅延評価の核です。
 
+### 評価を目で見る — `:thunks` と `:trace`
+
+ここまでの章の内容は、REPL の 2 つのコマンドで**直接観察**できます。
+
+`:thunks` は、遅延束縛がいまどの状態かを表示します。表示のために評価が走ることはありません。
+
+```text
+lune> let x = 1 + 1
+ok
+lune> :thunks
+x : unevaluated          # まだ計算されていない
+lune> x
+2 : Int
+lune> :thunks
+x : evaluated = 2        # 一度使ったので、結果が保存された
+```
+
+`:trace on` を有効にすると、式の評価で「いつ・何が force されたか」が入れ子で表示されます。
+
+```text
+lune> :trace on
+trace on
+lune> let y = x + 1
+ok                       # 宣言では何も評価されない
+lune> y * 10
+force y * 10
+  force x + 1            # y が必要になって初めて評価される
+    memo 1 + 1 => 2      # x はメモ化済み。再計算されない
+  => 3
+=> 30
+30 : Int
+```
+
+無限リスト（第 12 章）と組み合わせると、「必要な分だけ計算される」ことが構造で見えます。未評価の部分は `<thunk>` と表示されます。
+
+```text
+lune> let nat = naturalsFrom(1)
+ok
+lune> head(nat)
+Some(1) : Option[Int]
+lune> :thunks nat
+nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きはまだ計算されていない
+```
+
+ファイルに対しては `./bin/lune --eval NAME --trace file.lune` で同じトレースを表示できます。ブラウザ Playground（`playground/`）にも「トレース」チェックボックスがあり、同じ観察をインストールなしで試せます。
+
 ## 7. `fn` と部分適用
 
 ラムダは `fn` で書きます。

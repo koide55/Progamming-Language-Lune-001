@@ -22,6 +22,44 @@ def _recursive_thunk_error() -> LuneRuntimeError:
     )
 
 
+# --- lazy-evaluation tracing -------------------------------------------------
+#
+# When a hook is installed, thunk forcing reports (depth, message) events:
+#   force <expr>     entering evaluation of a thunk
+#   => <value>       that evaluation finished (same depth as its `force`)
+#   memo <expr> => … a force hit an already-memoized result (no evaluation)
+# Messages are only built while a hook is installed, so the hook-off cost is a
+# None check per force.
+
+_trace_hook = None
+_trace_depth = 0
+
+
+def set_trace_hook(hook) -> None:
+    global _trace_hook, _trace_depth
+    _trace_hook = hook
+    _trace_depth = 0
+
+
+def _trace(message: str) -> None:
+    _trace_hook(_trace_depth, message)
+
+
+_SUMMARY_LIMIT = 60
+
+
+def _expr_summary(expr) -> str:
+    try:
+        from .formatter import Formatter
+
+        text = " ".join(Formatter([], []).render(expr).split())
+    except Exception:
+        text = f"<{type(expr).__name__}>"
+    if len(text) > _SUMMARY_LIMIT:
+        text = text[: _SUMMARY_LIMIT - 1] + "…"
+    return text
+
+
 class Env:
     def __init__(self, parent: Env | None = None):
         self.parent = parent
@@ -72,13 +110,21 @@ class Thunk:
     error: Exception | None = None
 
     def force(self) -> Value:
+        global _trace_depth
         if self.state == ThunkState.EVALUATED:
+            if _trace_hook is not None:
+                _trace(f"memo {_expr_summary(self.expr)} => {preview_value(self.value)}")
             return self.value
         if self.state == ThunkState.FAILED:
             assert self.error is not None
+            if _trace_hook is not None:
+                _trace(f"memo {_expr_summary(self.expr)} => <failed>")
             raise self.error
         if self.state == ThunkState.EVALUATING:
             raise _recursive_thunk_error()
+        if _trace_hook is not None:
+            _trace(f"force {_expr_summary(self.expr)}")
+            _trace_depth += 1
         self.state = ThunkState.EVALUATING
         try:
             self.value = eval_expr(self.expr, self.env)
@@ -87,6 +133,11 @@ class Thunk:
             self.error = exc
             self.state = ThunkState.FAILED
             raise
+        finally:
+            if _trace_hook is not None:
+                _trace_depth -= 1
+        if _trace_hook is not None:
+            _trace(f"=> {preview_value(self.value)}")
         return self.value
 
 
@@ -98,13 +149,21 @@ class LazyValue:
     error: Exception | None = None
 
     def force(self) -> Value:
+        global _trace_depth
         if self.state == ThunkState.EVALUATED:
+            if _trace_hook is not None:
+                _trace(f"memo <lazy> => {preview_value(self.value)}")
             return self.value
         if self.state == ThunkState.FAILED:
             assert self.error is not None
+            if _trace_hook is not None:
+                _trace("memo <lazy> => <failed>")
             raise self.error
         if self.state == ThunkState.EVALUATING:
             raise _recursive_thunk_error()
+        if _trace_hook is not None:
+            _trace("force <lazy>")
+            _trace_depth += 1
         self.state = ThunkState.EVALUATING
         try:
             self.value = self.compute()
@@ -113,6 +172,11 @@ class LazyValue:
             self.error = exc
             self.state = ThunkState.FAILED
             raise
+        finally:
+            if _trace_hook is not None:
+                _trace_depth -= 1
+        if _trace_hook is not None:
+            _trace(f"=> {preview_value(self.value)}")
         return self.value
 
 
@@ -997,6 +1061,54 @@ def format_value(value: Value) -> str:
             return f"({items},)"
         return f"({items})"
     return repr(value)
+
+
+_PREVIEW_DEPTH = 3
+
+
+def preview_value(value: Value, depth: int = _PREVIEW_DEPTH) -> str:
+    """Render a value WITHOUT forcing anything.
+
+    Unevaluated parts show as `<thunk>`, so the printed shape is exactly the
+    part that has been computed so far (safe even for infinite streams).
+    """
+    if isinstance(value, (Thunk, LazyValue)):
+        if value.state == ThunkState.EVALUATED:
+            return preview_value(value.value, depth)
+        if value.state == ThunkState.FAILED:
+            return "<failed thunk>"
+        return "<thunk>"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "null"
+    if value == UNIT:
+        return "()"
+    if isinstance(value, DataValue):
+        if not value.fields:
+            return value.constructor
+        if depth <= 0:
+            return f"{value.constructor}(…)"
+        return f"{value.constructor}({', '.join(preview_value(field, depth - 1) for field in value.fields)})"
+    if isinstance(value, RecordValue):
+        if depth <= 0:
+            return "{…}"
+        items = ", ".join(f"{name} = {preview_value(value.fields[name], depth - 1)}" for name in value.field_order)
+        return f"{{ {items} }}" if items else "{}"
+    if isinstance(value, TupleValue):
+        if depth <= 0:
+            return "(…)"
+        items = ", ".join(preview_value(item, depth - 1) for item in value.items)
+        return f"({items},)" if len(value.items) == 1 else f"({items})"
+    if isinstance(value, FunctionValue):
+        return f"<function {value.name or 'fn'}>"
+    if isinstance(value, BuiltinFunction):
+        return f"<builtin {value.name}>"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    return f"<{type(value).__name__}>"
 
 
 def _try_render_list(value: DataValue) -> str | None:

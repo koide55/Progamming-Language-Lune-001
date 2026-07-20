@@ -304,6 +304,25 @@ let count = tickCount()
         with self.assertRaisesRegex(LuneRuntimeError, "division by zero"):
             force_value(env.lookup_raw("y"))
 
+    def test_trace_hook_reports_force_memo_and_nesting(self) -> None:
+        from lune.evaluator import set_trace_hook
+
+        env = eval_source("let x = 1 + 1\nlet y = x + 1\n")
+        events: list[tuple[int, str]] = []
+        set_trace_hook(lambda depth, message: events.append((depth, message)))
+        try:
+            self.assertEqual(force_value(env.lookup_raw("y")), 3)
+            first = list(events)
+            events.clear()
+            self.assertEqual(force_value(env.lookup_raw("x")), 2)
+            second = list(events)
+        finally:
+            set_trace_hook(None)
+        self.assertEqual(first[0], (0, "force x + 1"))
+        self.assertIn((1, "force 1 + 1"), first)
+        self.assertEqual(first[-1], (0, "=> 3"))
+        self.assertEqual(second, [(0, "memo 1 + 1 => 2")])
+
     def test_recursive_thunk_is_detected(self) -> None:
         env = eval_source("let x = x\n")
         with self.assertRaisesRegex(LuneRuntimeError, "recursive thunk evaluation") as ctx:

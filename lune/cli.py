@@ -5,7 +5,7 @@ import pprint
 import sys
 
 from .diagnostics import SourceMap, format_diagnostic, format_exception
-from .evaluator import force_value, format_value
+from .evaluator import force_value, format_value, set_trace_hook
 from .explanations import available_codes, render_explanation
 from .fixer import FixError, apply_fixes
 from .formatter import FormatError, format_source
@@ -162,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tokens", action="store_true", help="print layout-processed tokens")
     parser.add_argument("--check", action="store_true", help="type-check the file")
     parser.add_argument("--eval", metavar="NAME", help="evaluate the file and print a top-level binding")
+    parser.add_argument("--trace", action="store_true", help="with --eval: trace lazy evaluation to stderr")
     parser.add_argument("--module-path", action="append", default=[], help="add a module search root")
     args = parser.parse_args(argv)
 
@@ -182,8 +183,13 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.eval:
-            env = eval_file(args.file, args.module_path, source_map)
-            print(format_value(env.lookup_raw(args.eval)))
+            if args.trace:
+                set_trace_hook(lambda depth, message: print("  " * depth + message, file=sys.stderr))
+            try:
+                env = eval_file(args.file, args.module_path, source_map)
+                print(format_value(env.lookup_raw(args.eval)))
+            finally:
+                set_trace_hook(None)
             return 0
 
         with open(args.file, "r", encoding="utf-8") as f:

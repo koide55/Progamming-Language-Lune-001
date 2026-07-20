@@ -112,6 +112,22 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
     def test_help_mentions_thunks(self) -> None:
         session = ReplSession()
         self.assertIn(":thunks", session.submit(":help").message)
+        self.assertIn(":trace", session.submit(":help").message)
+
+    def test_trace_command_shows_forcing_and_memoization(self) -> None:
+        session = ReplSession()
+        self.assertEqual(session.submit(":trace").message, "trace is off")
+        self.assertEqual(session.submit(":trace on").message, "trace on")
+        # declarations are lazy: nothing is forced, so nothing is traced
+        self.assertEqual(session.submit("let x = 1 + 1").message, "ok")
+        message = session.submit("x + 1").message
+        self.assertTrue(message.startswith("force x + 1"), message)
+        self.assertIn("  force 1 + 1", message)
+        self.assertTrue(message.endswith("3 : Int"), message)
+        self.assertIn("memo 1 + 1 => 2", session.submit("x").message)
+        self.assertEqual(session.submit(":trace off").message, "trace off")
+        self.assertEqual(session.submit("x").message, "2 : Int")
+        self.assertEqual(session.submit(":trace bogus").kind, "error")
 
     def test_interactive_loop_smoke(self) -> None:
         stdin = io.StringIO("1 + 2\n:q\n")

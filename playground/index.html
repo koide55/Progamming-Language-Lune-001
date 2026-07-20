@@ -39,6 +39,9 @@
   #output .w { color: var(--warn); }
   #output .h { color: var(--hint); }
   #output .x { color: var(--help); }
+  #output .tf { color: var(--accent); }
+  #output .tm { color: var(--hint); }
+  #output .tv { color: var(--dim); }
   label { font-size: 12px; color: var(--dim); }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; height: auto; }
     textarea, #output { min-height: 40vh; } }
@@ -58,9 +61,11 @@
         <option value="basics">リスト操作(動くプログラム)</option>
         <option value="exhaustive">網羅性エラー(TYP0007)</option>
         <option value="typo">typo と自動修正(TYP0001)</option>
+        <option value="stream">無限ストリーム(トレースで観察)</option>
       </select>
       <label>評価する束縛:</label>
       <input type="text" id="binding" value="total">
+      <label><input type="checkbox" id="trace"> トレース</label>
     </div>
     <textarea id="editor" spellcheck="false"></textarea>
     <div class="toolbar">
@@ -107,6 +112,14 @@ def name(c: Color): String =
 let total = cont + 5
 `,
   },
+  stream: {
+    binding: "firstThree",
+    trace: true,
+    code: `let nat = naturalsFrom(1)
+let evens = filter(nat, fn x: Int -> x % 2 == 0)
+let firstThree = take(evens, 3)
+`,
+  },
 };
 
 const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
@@ -119,7 +132,7 @@ sys.path.insert(0, "/app")
 
 from lune.diagnostics import SourceMap, format_diagnostic, format_exception
 from lune.module_loader import check_file, eval_file
-from lune.evaluator import format_value
+from lune.evaluator import format_value, set_trace_hook
 from lune.explanations import render_explanation, available_codes
 from lune.formatter import format_source
 from lune.fixer import apply_fixes
@@ -143,7 +156,7 @@ def lune_check(source):
         out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
     return out.getvalue()
 
-def lune_run(source, binding):
+def lune_run(source, binding, trace=False):
     _write(source)
     sm = SourceMap()
     out = io.StringIO()
@@ -154,6 +167,9 @@ def lune_run(source, binding):
     except Exception as exc:
         out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
         return out.getvalue()
+    trace_lines = []
+    if trace:
+        set_trace_hook(lambda depth, message: trace_lines.append("  " * depth + message))
     try:
         with contextlib.redirect_stdout(out):
             env = eval_file(ENTRY, [], sm)
@@ -164,6 +180,11 @@ def lune_run(source, binding):
                 out.write("(評価完了 — 束縛名を指定すると値を表示します)\\n")
     except Exception as exc:
         out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
+    finally:
+        if trace:
+            set_trace_hook(None)
+    if trace_lines:
+        return "\\n".join(trace_lines) + "\\n" + "-" * 40 + "\\n" + out.getvalue()
     return out.getvalue()
 
 def lune_fmt(source):
@@ -205,6 +226,9 @@ function render(text) {
     else if (/^warning\[/.test(line)) cls = "w";
     else if (/^\s*= hint:/.test(line)) cls = "h";
     else if (/^\s*= help:/.test(line)) cls = "x";
+    else if (/^\s*force /.test(line)) cls = "tf";
+    else if (/^\s*memo /.test(line)) cls = "tm";
+    else if (/^\s*=> /.test(line)) cls = "tv";
     return cls ? `<span class="${cls}">${esc(line)}</span>` : esc(line);
   }).join("\n");
 }
@@ -212,6 +236,7 @@ function render(text) {
 function loadPreset(name) {
   editor.value = PRESETS[name].code;
   $("binding").value = PRESETS[name].binding;
+  $("trace").checked = Boolean(PRESETS[name].trace);
 }
 
 async function timed(label, fn) {
@@ -245,7 +270,7 @@ async function main() {
   const call = (name, ...args) => py.globals.get(name)(...args);
 
   $("btn-run").onclick = () => timed("実行", async () =>
-    render(call("lune_run", editor.value, $("binding").value)));
+    render(call("lune_run", editor.value, $("binding").value, $("trace").checked)));
   $("btn-check").onclick = () => timed("型チェック", async () =>
     render(call("lune_check", editor.value)));
   $("btn-fmt").onclick = () => timed("整形", async () => {

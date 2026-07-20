@@ -239,3 +239,14 @@ v0.1 evaluator は以下を実装する。
 - 並行環境でのサンク評価ロック。
 - 例外型の静的検査。
 - strictness analysis による最適化。
+
+## 12. 評価の観察
+
+遅延評価の挙動は次の道具で観察できる（詳細は `REPL_SPEC.md` §5.1–5.2）。
+
+- REPL `:thunks [NAME]`: thunk の状態（unevaluated / evaluated / failed）を評価を起こさずに表示する。
+- REPL `:trace on|off`: force・メモ化ヒットを入れ子の深さ付きでトレースする。
+- CLI `lune --eval NAME --trace FILE`: 同じトレースを stderr に出力する。
+- Playground の「トレース」チェックボックス: ブラウザ上で同じトレースを表示する。
+
+いずれも評価器の trace hook（`lune.evaluator.set_trace_hook`）と非強制プレビュー（`preview_value`、未評価部分を `<thunk>` と表示）の上に実装されている。
