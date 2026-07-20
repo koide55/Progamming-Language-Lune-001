@@ -13,6 +13,7 @@ Implemented:
 - match exhaustiveness checking with missing-pattern witnesses (`TYP0007`)
 - refutable pattern rejection in `let` / `for` bindings (`TYP0008`)
 - unreachable match case warnings (`TYP0009`)
+- "did you mean" suggestions for undefined names (`TYP0001`) and unknown record fields (`REC0002`, `REC0005`)
 - local type inference via expected-type propagation into lambdas, lists, and branches (`TYP0010`, `TYP0011`)
 - null safety for `T?`: `null`/`match` patterns with narrowing, `T?`-aware exhaustiveness, the `??` operator, `?.` safe navigation, `if x != null` flow narrowing, and `== null` / `!= null`
 - pipeline operator `|>` (`x |> f` is `f(x)`)

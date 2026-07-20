@@ -1,11 +1,28 @@
 from __future__ import annotations
 
+import difflib
 from dataclasses import dataclass, field
 from itertools import product
 
 from . import nodes as ast
 from .diagnostics import Diagnostic, DiagnosticError, Label, SourceSpan
 from .parser import parse_source
+
+
+def suggestion_hints(name: str, candidates) -> list[str]:
+    """A `did you mean \\`x\\`?` hint for the closest candidate name, if any."""
+    matches = difflib.get_close_matches(name, list(candidates), n=1, cutoff=0.6)
+    return [f"did you mean `{matches[0]}`?"] if matches else []
+
+
+def visible_value_names(env) -> list[str]:
+    """All value names in scope (walking the parent chain), minus internals."""
+    names: set[str] = set()
+    current = env
+    while current is not None:
+        names.update(key for key in current.values if not key.startswith("__"))
+        current = current.parent
+    return sorted(names)
 
 
 class LuneTypeError(DiagnosticError):
@@ -387,7 +404,13 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         try:
             return env.lookup_value(expr.name)
         except LuneTypeError as exc:
-            raise LuneTypeError(f"undefined name: {expr.name}", "TYP0001", expr.span, "name is not defined") from exc
+            raise LuneTypeError(
+                f"undefined name: {expr.name}",
+                "TYP0001",
+                expr.span,
+                "name is not defined",
+                suggestion_hints(expr.name, visible_value_names(env)),
+            ) from exc
     if isinstance(expr, ast.NullExpr):
         return NULL
     if isinstance(expr, ast.CallExpr):
@@ -742,6 +765,7 @@ def infer_record_constructor_call(
                 "REC0005",
                 arg.span or span,
                 "this field is not declared by the record",
+                suggestion_hints(arg.name, by_name),
             )
         if arg.name in seen:
             raise LuneTypeError(
@@ -775,7 +799,13 @@ def lookup_record_field_type(receiver_type: Type, field_name: str, env: TypeEnv,
     for field in info.fields:
         if field.name == field_name:
             return substitute(field.type, substitutions)
-    raise LuneTypeError(f"unknown record field: {receiver_type.name}.{field_name}", "REC0002", span, "field is not declared by this record")
+    raise LuneTypeError(
+        f"unknown record field: {receiver_type.name}.{field_name}",
+        "REC0002",
+        span,
+        "field is not declared by this record",
+        suggestion_hints(field_name, [field.name for field in info.fields]),
+    )
 
 
 def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
