@@ -7,6 +7,7 @@ from typing import TextIO
 from . import nodes as ast
 from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import Env, eval_module_into, force_value, format_value, initial_env
+from .explanations import render_explanation
 from .parser import parse_source
 from .tokens import LuneSyntaxError
 from .typechecker import TypeEnv, check_module_into, initial_type_env
@@ -73,7 +74,7 @@ class ReplSession:
         if name in {":quit", ":q"}:
             return ReplResult("quit", "bye")
         if name == ":help":
-            return ReplResult("info", "commands: :help, :quit, :q, :env, :type NAME")
+            return ReplResult("info", "commands: :help, :quit, :q, :env, :type NAME, :explain CODE")
         if name == ":env":
             public = sorted(key for key in self.type_env.values if not key.startswith("__"))
             lines = [f"{key} : {self.type_env.values[key]!r}" for key in public]
@@ -83,6 +84,13 @@ class ReplSession:
                 return ReplResult("error", "usage: :type NAME")
             typ = self.type_env.lookup_value(parts[1])
             return ReplResult("info", f"{parts[1]} : {typ!r}")
+        if name == ":explain":
+            if len(parts) != 2:
+                return ReplResult("error", "usage: :explain CODE")
+            text = render_explanation(parts[1])
+            if text is None:
+                return ReplResult("error", f"no explanation for diagnostic code {parts[1]!r}")
+            return ReplResult("info", text)
         return ReplResult("error", f"unknown command: {name}")
 
     def _parse_input(self, source: str, filename: str) -> tuple[ast.ModuleFile, bool]:
@@ -132,12 +140,12 @@ def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
             if result.kind == "empty":
                 continue
             for warning in result.warnings:
-                stderr.write(format_diagnostic(warning, source_map) + "\n")
+                stderr.write(format_diagnostic(warning, source_map, explain_hint=True) + "\n")
             stdout.write(result.message + "\n")
             if result.kind == "quit":
                 return 0
         except Exception as exc:
-            stderr.write(format_exception(exc, source_map) + "\n")
+            stderr.write(format_exception(exc, source_map, explain_hint=True) + "\n")
 
 
 def _ensure_trailing_newline(source: str) -> str:

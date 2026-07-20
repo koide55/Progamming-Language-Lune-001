@@ -16,6 +16,7 @@ Implemented:
 - local type inference via expected-type propagation into lambdas, lists, and branches (`TYP0010`, `TYP0011`)
 - null safety for `T?`: `null`/`match` patterns with narrowing, `T?`-aware exhaustiveness, the `??` operator, `?.` safe navigation, `if x != null` flow narrowing, and `== null` / `!= null`
 - pipeline operator `|>` (`x |> f` is `f(x)`)
+- teaching-oriented diagnostics: every code has a detailed explanation via `lune explain <CODE>` (and `:explain` in the REPL); diagnostics link to it
 - evaluator for `let`, function calls, lazy thunks, constructors, and `match`
 - prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
 - file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
@@ -71,6 +72,7 @@ REPL commands:
 :help
 :env
 :type NAME
+:explain CODE
 :quit
 ```
 
@@ -83,6 +85,16 @@ error[LXL0001]: unexpected character '$'
 1 | let x = $1
   |         ^ unexpected character
 ```
+
+Every diagnostic code has a detailed, teaching-oriented explanation (what it
+means, an example that triggers it, and how to fix it). Diagnostics point you
+to it, and you can ask for it directly:
+
+```sh
+./bin/lune explain TYP0007
+```
+
+In the REPL, use `:explain CODE`.
 
 Evaluate a top-level binding:
 

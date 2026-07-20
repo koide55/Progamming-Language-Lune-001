@@ -106,6 +106,16 @@ v0.1 の標準コード:
 | `RPL0001` | REPL | unknown command |
 | `RPL0002` | REPL | invalid command usage |
 
+上表は初期の想定コード表であり、実装との差分がある（例: 実際には `REC0001`–`REC0006` のレコード系コードも発行される。`RUN` 系は多くが汎用の `RUN0006` に集約される）。**実際に発行されるコードとその詳解の正は `lune/explanations.py` のカタログ**であり、後述の `lune explain` から参照できる。テスト `tests/test_explanations.py` が「発行されうる全コードに詳解が存在すること」を保証する。
+
+### 4.1 コード詳解（`lune explain`）
+
+各診断コードには長文の詳解（意味・発生する最小例・修正方法）を用意する。
+
+- CLI: `lune explain <CODE>`（大文字小文字は無視。未知コードは利用可能コード一覧を表示して終了コード 1、引数欠如は 2）。
+- REPL: `:explain CODE`。
+- 導線: 診断表示（CLI/REPL）は、詳解のあるコードに対し末尾へ `= help: run \`lune explain <CODE>\` for a detailed explanation` を付す。この導線は `format_diagnostic(..., explain_hint=True)` のオプトインで、コアの整形出力自体は変更しない。
+
 ## 5. 表示形式
 
 標準表示:
