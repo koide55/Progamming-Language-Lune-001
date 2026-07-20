@@ -848,6 +848,16 @@ module path:
 ./bin/lune --module-path lib --check src/main.lune
 ```
 
+サブコマンド:
+
+```sh
+./bin/lune explain TYP0007          # 診断コードの詳解を表示（詳細は ERROR_DIAGNOSTICS_SPEC.md §4.1）
+./bin/lune fmt --write src/main.lune   # 正準スタイルに整形（詳細は FORMATTER_SPEC.md）
+./bin/lune fix --write src/main.lune   # 提案された修正を自動適用（詳細は ERROR_DIAGNOSTICS_SPEC.md §9.5）
+```
+
+`fmt` / `fix` は `--write`（その場書き換え）と `--check`（未整形/修正候補があれば終了コード 1）を持つ。引数なしの `./bin/lune` は REPL を起動する（`REPL_SPEC.md`）。
+
 ## 20. エラー表示
 
 lexer/parser/typechecker/runtime/module loader のエラーは diagnostic として表示される。
@@ -870,14 +880,13 @@ error[TYP0001]: undefined name: x
 - `class` / `interface` / `extends` / `implements`。
 - `this` / `super` / `new` の意味処理。
 - `try` / `catch` / `finally`。
-- `while` / `for` / `return`。
+- `return` / `break` / `continue`。
 - `export`。
 - annotation。
 - `use` / resource management。
 - record update / record pattern / mutable record field。
 - `Stream` / `Map` / `Set` / `Promise` / `Iterator`。
 - package manager。
-- formatter。
 - LSP。
 
 一部 token や AST は将来機能用に存在するが、この文書では現行 evaluator/typechecker/CLI で動かせるものを v0.1 の利用可能機能とする。

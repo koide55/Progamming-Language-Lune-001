@@ -147,7 +147,7 @@ true false null
 複合記号:
 
 ```text
--> => == != <= >= && || |> :: ++ += -= *= /= %= ...
+-> => == != <= >= && || ?? ?. |> :: ++ += -= *= /= %= ...
 ```
 
 最長一致で字句解析する。たとえば `->` は `-` と `>` ではなく 1 トークン。
@@ -207,6 +207,8 @@ LTEQ
 GTEQ
 ANDAND
 OROR
+QQ
+QUESTION_DOT
 PIPE_FORWARD
 COLON_COLON
 PLUS_PLUS
@@ -329,6 +331,7 @@ NullExpr
 
 CallExpr(callee, args)
 MemberExpr(receiver, name)
+SafeMemberExpr(receiver, name)
 IndexExpr(receiver, args)
 ListExpr(items)
 UnaryExpr(op, expr)
@@ -354,6 +357,7 @@ RaiseExpr(expr)
 
 ```text
 WildcardPattern
+NullPattern
 NamePattern(name)
 LiteralPattern(value)
 TuplePattern(items)
@@ -673,6 +677,7 @@ binding power:
 
 assignment      10   right  = += -= *= /= %=
 pipeline        20   left   |>
+coalesce        25   right  ??
 or              30   left   ||
 and             40   left   &&
 comparison      50   none   == != < <= > >=
@@ -680,7 +685,7 @@ cons_concat     60   right  :: ++
 additive        70   left   + -
 multiplicative  80   left   * / %
 prefix          90   right  ! -
-postfix        100   left   . () [] record_update
+postfix        100   left   . ?. () [] record_update
 primary        110
 ```
 
@@ -757,6 +762,7 @@ postfix
 
 postfix_part
   ::= DOT IDENT
+   |  QUESTION_DOT IDENT
    |  argument_list_parens
    |  LBRACKET argument_list? RBRACKET
    |  record_update
@@ -796,6 +802,7 @@ typed_pattern
 
 pattern_atom
   ::= UNDERSCORE
+   |  NULL
    |  literal
    |  IDENT
    |  constructor_pattern
