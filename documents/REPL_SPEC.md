@@ -82,6 +82,7 @@ v0.1 でサポートするコマンド:
 :env
 :type NAME
 :thunks [NAME]
+:trace [on|off]
 :explain CODE
 ```
 
@@ -90,6 +91,7 @@ v0.1 でサポートするコマンド:
 - `:env`: 現在のトップレベル名と型を表示する。
 - `:type NAME`: 指定名の型を表示する。
 - `:thunks [NAME]`: 遅延束縛（thunk）の評価状態を、**評価を一切起こさずに**表示する。NAME を省略すると全 thunk を定義順に一覧する。
+- `:trace [on|off]`: 遅延評価トレースの有効/無効を切り替える（引数なしで現在の状態を表示）。有効な間、式の評価で**いつ・どの thunk が force されたか**を入れ子の深さ付きで表示する（§5.2）。
 - `:explain CODE`: 診断コードの詳解を表示する（`lune explain CODE` と同じ内容、`ERROR_DIAGNOSTICS_SPEC.md` §4.1）。
 
 ### 5.1 `:thunks` の表示
@@ -113,6 +115,38 @@ Some(1) : Option[Int]
 lune> :thunks nat
 nat : evaluated = Cons(1, <thunk>)
 ```
+
+### 5.2 `:trace` の表示
+
+トレースが有効な間、式の評価は次のイベントを入れ子の深さ付きで表示する。
+
+```text
+force <式>       # thunk の評価に入った
+=> <値>          # その評価が完了した（対応する force と同じ深さ）
+memo <式> => <値> # force がメモ化済みの結果に当たった（再評価なし）
+```
+
+式は正準フォーマッタで一行に整形し、値は §5.1 と同じ非強制プレビューで表示する。宣言（`let` など）は遅延されるため、トレースには何も現れない — それ自体が遅延評価の教材になる。
+
+```text
+lune> :trace on
+trace on
+lune> let x = 1 + 1
+ok                       # 宣言では何も評価されない
+lune> x + 1
+force x + 1
+  force 1 + 1
+  => 2
+=> 3
+3 : Int
+lune> x
+force x
+  memo 1 + 1 => 2        # 2 回目はメモ化された値を再利用
+=> 2
+2 : Int
+```
+
+CLI では `lune --eval NAME --trace FILE` で同じトレースを stderr に出力する。
 
 ## 6. 複数行入力
 

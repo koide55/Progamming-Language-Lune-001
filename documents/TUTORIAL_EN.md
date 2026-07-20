@@ -190,6 +190,52 @@ lune> tickCount()
 
 This combination of "wait until needed" and "remember once computed" is the core of Lune's lazy evaluation.
 
+### Watching Evaluation Happen — `:thunks` and `:trace`
+
+Everything in the chapters above can be **observed directly** with two REPL commands.
+
+`:thunks` shows the current state of each lazy binding. Displaying it never triggers evaluation.
+
+```text
+lune> let x = 1 + 1
+ok
+lune> :thunks
+x : unevaluated          # not computed yet
+lune> x
+2 : Int
+lune> :thunks
+x : evaluated = 2        # used once, so the result is now remembered
+```
+
+Turn on `:trace on` and every evaluation shows *when and what* was forced, with nesting.
+
+```text
+lune> :trace on
+trace on
+lune> let y = x + 1
+ok                       # declarations evaluate nothing
+lune> y * 10
+force y * 10
+  force x + 1            # y is evaluated only now that it is needed
+    memo 1 + 1 => 2      # x was memoized; it is not recomputed
+  => 3
+=> 30
+30 : Int
+```
+
+Combined with infinite lists (chapter 12), you can see "only as much as needed" in the structure itself. Unevaluated parts print as `<thunk>`.
+
+```text
+lune> let nat = naturalsFrom(1)
+ok
+lune> head(nat)
+Some(1) : Option[Int]
+lune> :thunks nat
+nat : evaluated = Cons(1, <thunk>)   # only the head is computed; the rest is untouched
+```
+
+For files, `./bin/lune --eval NAME --trace file.lune` prints the same trace. The browser playground (`playground/`) has a "trace" checkbox too, so you can try all of this without installing anything.
+
 ## 7. `fn` and Partial Application
 
 Lambdas are written with `fn`.

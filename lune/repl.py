@@ -1,27 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 import sys
 from typing import TextIO
 
 from . import nodes as ast
 from .diagnostics import DiagnosticError, SourceMap, format_diagnostic, format_exception
 from .evaluator import (
-    UNIT,
-    BuiltinFunction,
-    DataValue,
     Env,
-    FunctionValue,
     LazyValue,
-    RecordValue,
     Thunk,
     ThunkState,
-    TupleValue,
     eval_module_into,
     force_value,
     format_value,
     initial_env,
+    preview_value,
+    set_trace_hook,
 )
 from .explanations import render_explanation
 from .parser import parse_source
@@ -57,6 +52,7 @@ class ReplSession:
     def __init__(self):
         self.type_env = initial_type_env()
         self.eval_env = initial_env()
+        self.trace_enabled = False
 
     def submit(self, source: str, filename: str = "<repl>") -> ReplResult:
         source = source.strip("\n")
@@ -75,14 +71,24 @@ class ReplSession:
             raise
         warnings = tuple(self.type_env.warnings[warning_start:])
         del self.type_env.warnings[warning_start:]
-        eval_module_into(module, self.eval_env)
+
+        trace_lines: list[str] = []
+        if self.trace_enabled:
+            set_trace_hook(lambda depth, message: trace_lines.append("  " * depth + message))
+        try:
+            eval_module_into(module, self.eval_env)
+            if is_expr:
+                value = force_value(self.eval_env.lookup_raw(REPL_VALUE))
+                typ = self.type_env.lookup_value(REPL_VALUE)
+                rendered = format_value(value)
+        finally:
+            if self.trace_enabled:
+                set_trace_hook(None)
 
         if is_expr:
-            value = force_value(self.eval_env.lookup_raw(REPL_VALUE))
-            typ = self.type_env.lookup_value(REPL_VALUE)
-            message = f"{format_value(value)} : {typ!r}"
+            message = "\n".join([*trace_lines, f"{rendered} : {typ!r}"])
             return ReplResult("value", message, value, repr(typ), warnings)
-        return ReplResult("ok", "ok", warnings=warnings)
+        return ReplResult("ok", "\n".join([*trace_lines, "ok"]), warnings=warnings)
 
     def run_command(self, command: str) -> ReplResult:
         parts = command.split()
@@ -90,7 +96,10 @@ class ReplSession:
         if name in {":quit", ":q"}:
             return ReplResult("quit", "bye")
         if name == ":help":
-            return ReplResult("info", "commands: :help, :quit, :q, :env, :type NAME, :thunks [NAME], :explain CODE")
+            return ReplResult(
+                "info",
+                "commands: :help, :quit, :q, :env, :type NAME, :thunks [NAME], :trace [on|off], :explain CODE",
+            )
         if name == ":env":
             public = sorted(key for key in self.type_env.values if not key.startswith("__"))
             lines = [f"{key} : {self.type_env.values[key]!r}" for key in public]
@@ -116,6 +125,13 @@ class ReplSession:
             if not lines:
                 return ReplResult("info", "no thunks: nothing is bound lazily yet (try `let x = 1 + 1`)")
             return ReplResult("info", "\n".join(lines))
+        if name == ":trace":
+            if len(parts) == 1:
+                return ReplResult("info", f"trace is {'on' if self.trace_enabled else 'off'}")
+            if len(parts) == 2 and parts[1] in {"on", "off"}:
+                self.trace_enabled = parts[1] == "on"
+                return ReplResult("info", f"trace {parts[1]}")
+            return ReplResult("error", "usage: :trace [on|off]")
         if name == ":explain":
             if len(parts) != 2:
                 return ReplResult("error", "usage: :explain CODE")
@@ -182,9 +198,9 @@ def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
 
 def _describe_binding(name: str, value: object) -> str:
     if not isinstance(value, (Thunk, LazyValue)):
-        return f"{name} : value = {_preview_value(value)}"
+        return f"{name} : value = {preview_value(value)}"
     if value.state == ThunkState.EVALUATED:
-        return f"{name} : evaluated = {_preview_value(value.value)}"
+        return f"{name} : evaluated = {preview_value(value.value)}"
     if value.state == ThunkState.FAILED:
         error = value.error
         if isinstance(error, DiagnosticError):
@@ -193,54 +209,6 @@ def _describe_binding(name: str, value: object) -> str:
     if value.state == ThunkState.EVALUATING:
         return f"{name} : evaluating"
     return f"{name} : unevaluated"
-
-
-_PREVIEW_DEPTH = 3
-
-
-def _preview_value(value: object, depth: int = _PREVIEW_DEPTH) -> str:
-    """Render a value WITHOUT forcing anything.
-
-    Unevaluated parts show as `<thunk>`, so the printed shape is exactly the
-    part that has been computed so far (safe even for infinite streams).
-    """
-    if isinstance(value, (Thunk, LazyValue)):
-        if value.state == ThunkState.EVALUATED:
-            return _preview_value(value.value, depth)
-        if value.state == ThunkState.FAILED:
-            return "<failed thunk>"
-        return "<thunk>"
-    if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if value is None:
-        return "null"
-    if value == UNIT:
-        return "()"
-    if isinstance(value, DataValue):
-        if not value.fields:
-            return value.constructor
-        if depth <= 0:
-            return f"{value.constructor}(…)"
-        return f"{value.constructor}({', '.join(_preview_value(field, depth - 1) for field in value.fields)})"
-    if isinstance(value, RecordValue):
-        if depth <= 0:
-            return "{…}"
-        items = ", ".join(f"{name} = {_preview_value(value.fields[name], depth - 1)}" for name in value.field_order)
-        return f"{{ {items} }}" if items else "{}"
-    if isinstance(value, TupleValue):
-        if depth <= 0:
-            return "(…)"
-        items = ", ".join(_preview_value(item, depth - 1) for item in value.items)
-        return f"({items},)" if len(value.items) == 1 else f"({items})"
-    if isinstance(value, FunctionValue):
-        return f"<function {value.name or 'fn'}>"
-    if isinstance(value, BuiltinFunction):
-        return f"<builtin {value.name}>"
-    if isinstance(value, (int, float)):
-        return repr(value)
-    return f"<{type(value).__name__}>"
 
 
 def _ensure_trailing_newline(source: str) -> str:
