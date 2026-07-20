@@ -260,6 +260,12 @@ class Parser:
                 left = ast.MemberExpr(left, name, span=getattr(left, "span", None) or token_span(dot))
                 continue
 
+            if token.kind == TokenKind.QUESTION_DOT:
+                dot = self.advance()
+                name = self.expect(TokenKind.IDENT).lexeme
+                left = ast.SafeMemberExpr(left, name, span=getattr(left, "span", None) or token_span(dot))
+                continue
+
             if token.kind == TokenKind.LPAREN:
                 if not self.is_adjacent_to_previous(token):
                     break

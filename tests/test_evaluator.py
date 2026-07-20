@@ -394,6 +394,39 @@ let miss = f(null)
         self.assertIs(self.value_of(source, "a"), True)
         self.assertIs(self.value_of(source, "b"), False)
 
+    def test_safe_navigation_reads_field_when_present(self) -> None:
+        source = """
+record User:
+    name: String
+    age: Int
+
+let u: User? = User(name = "Ada", age = 36)
+let r = u?.name
+"""
+        self.assertEqual(self.value_of(source, "r"), "Ada")
+
+    def test_safe_navigation_returns_null_when_receiver_null(self) -> None:
+        source = """
+record User:
+    name: String
+    age: Int
+
+let u: User? = null
+let r = u?.name
+"""
+        self.assertIsNone(self.value_of(source, "r"))
+
+    def test_flow_narrowing_runtime(self) -> None:
+        source = """
+def f(x: Int?): Int =
+    if x != null then x + 1 else 0
+
+let a = f(41)
+let b = f(null)
+"""
+        self.assertEqual(self.value_of(source, "a"), 42)
+        self.assertEqual(self.value_of(source, "b"), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -453,22 +453,24 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return infer_binary(expr, env)
     if isinstance(expr, ast.IfExpr):
         require_assignable(ensure_type(infer_expr(expr.condition, env)), BOOL, "if condition")
+        # Flow-narrow a nullable `x` in the branches of `if x != null` / `x == null`.
+        then_env, else_env = narrow_if_branches(expr.condition, env)
         if isinstance(expected, FunctionType):
             # branches produce function values; ensure_type/common_type do not
             # apply, so each branch is checked against the expected type instead
-            branch_value = infer_expr(expr.then_branch, env, expected)
+            branch_value = infer_expr(expr.then_branch, then_env, expected)
             for condition, branch in expr.elif_branches:
                 require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
                 infer_expr(branch, env, expected)
             if expr.else_branch is not None:
-                infer_expr(expr.else_branch, env, expected)
+                infer_expr(expr.else_branch, else_env, expected)
             return branch_value
-        branch_types = [ensure_type(infer_expr(expr.then_branch, env, expected))]
+        branch_types = [ensure_type(infer_expr(expr.then_branch, then_env, expected))]
         for condition, branch in expr.elif_branches:
             require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
             branch_types.append(ensure_type(infer_expr(branch, env, expected)))
         if expr.else_branch is not None:
-            branch_types.append(ensure_type(infer_expr(expr.else_branch, env, expected)))
+            branch_types.append(ensure_type(infer_expr(expr.else_branch, else_env, expected)))
         else:
             branch_types.append(UNIT)
         return common_type(branch_types)
@@ -553,15 +555,72 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return target_type
     if isinstance(expr, ast.MemberExpr):
         receiver_type = ensure_type(infer_expr(expr.receiver, env))
+        return infer_member_type(receiver_type, expr.name, env, expr.span)
+    if isinstance(expr, ast.SafeMemberExpr):
+        # `receiver?.name`: the receiver must be nullable; the result is the
+        # member's type made nullable (null when the receiver is null).
+        receiver_type = ensure_type(infer_expr(expr.receiver, env))
         if receiver_type == ANY:
-            return FunctionType((), ANY)
-        if receiver_type == STRING and expr.name == "length":
-            return FunctionType((), INT)
-        field_type = lookup_record_field_type(receiver_type, expr.name, env, expr.span)
-        if field_type is not None:
-            return field_type
-        raise LuneTypeError(f"unsupported member access on {receiver_type!r}: {expr.name}")
+            return ANY
+        if receiver_type.name != "Nullable" or not receiver_type.args:
+            raise LuneTypeError(
+                f"?. expects a nullable receiver, got {receiver_type!r}",
+                "TYP0003",
+                expr.span,
+                "this expression is not nullable",
+            )
+        member_type = infer_member_type(receiver_type.args[0], expr.name, env, expr.span)
+        if isinstance(member_type, Type):
+            if member_type.name == "Nullable":
+                return member_type
+            return Type("Nullable", (member_type,))
+        return member_type
     raise LuneTypeError(f"unsupported expression: {type(expr).__name__}")
+
+
+def infer_member_type(receiver_type: Type, name: str, env: TypeEnv, span: SourceSpan | None) -> ValueType:
+    if receiver_type == ANY:
+        return FunctionType((), ANY)
+    if receiver_type == STRING and name == "length":
+        return FunctionType((), INT)
+    field_type = lookup_record_field_type(receiver_type, name, env, span)
+    if field_type is not None:
+        return field_type
+    raise LuneTypeError(f"unsupported member access on {receiver_type!r}: {name}")
+
+
+def _null_check_target(condition: ast.Expr, env: TypeEnv) -> tuple[str, Type, bool] | None:
+    """If `condition` is `x == null` / `x != null` on a nullable name `x`,
+    return (name, inner type, narrow_then), else None. `narrow_then` is True
+    when the then-branch is the non-null one (i.e. for `x != null`)."""
+    if not isinstance(condition, ast.BinaryExpr) or condition.op not in {"==", "!="}:
+        return None
+    left, right = condition.left, condition.right
+    if isinstance(left, ast.NameExpr) and isinstance(right, ast.NullExpr):
+        name = left.name
+    elif isinstance(right, ast.NameExpr) and isinstance(left, ast.NullExpr):
+        name = right.name
+    else:
+        return None
+    try:
+        typ = env.lookup_value(name)
+    except LuneTypeError:
+        return None
+    if not isinstance(typ, Type) or typ.name != "Nullable" or not typ.args:
+        return None
+    return name, typ.args[0], condition.op == "!="
+
+
+def narrow_if_branches(condition: ast.Expr, env: TypeEnv) -> tuple[TypeEnv, TypeEnv]:
+    """Return (then_env, else_env), narrowing a nullable name to its inner type
+    in the branch where the null check guarantees it is non-null."""
+    check = _null_check_target(condition, env)
+    if check is None:
+        return env, env
+    name, inner, narrow_then = check
+    narrowed = env.child()
+    narrowed.define_value(name, inner)
+    return (narrowed, env) if narrow_then else (env, narrowed)
 
 
 def contains_type_var(typ: ValueType) -> bool:

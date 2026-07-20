@@ -192,6 +192,15 @@ class MemberExpr(Expr):
 
 
 @dataclass(frozen=True)
+class SafeMemberExpr(Expr):
+    """`receiver?.name` — safe navigation; yields null when the receiver is null."""
+
+    receiver: Expr
+    name: str
+    span: SourceSpan | None = None
+
+
+@dataclass(frozen=True)
 class IndexExpr(Expr):
     receiver: Expr
     args: list[Expr]
