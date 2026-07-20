@@ -18,7 +18,7 @@ from .evaluator import (
     preview_value,
     set_trace_hook,
 )
-from .explanations import render_explanation
+from .explanations import LANGUAGES, render_explanation
 from .parser import parse_source
 from .tokens import LuneSyntaxError
 from .typechecker import TypeEnv, check_module_into, initial_type_env
@@ -133,9 +133,10 @@ class ReplSession:
                 return ReplResult("info", f"trace {parts[1]}")
             return ReplResult("error", "usage: :trace [on|off]")
         if name == ":explain":
-            if len(parts) != 2:
-                return ReplResult("error", "usage: :explain CODE")
-            text = render_explanation(parts[1])
+            if len(parts) not in {2, 3} or (len(parts) == 3 and parts[2] not in LANGUAGES):
+                return ReplResult("error", "usage: :explain CODE [en|ja]")
+            lang = parts[2] if len(parts) == 3 else "en"
+            text = render_explanation(parts[1], lang)
             if text is None:
                 return ReplResult("error", f"no explanation for diagnostic code {parts[1]!r}")
             return ReplResult("info", text)

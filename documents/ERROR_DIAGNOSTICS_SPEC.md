@@ -122,10 +122,11 @@ runtime エラーは、再帰サンクの force（専用コード `RUN0005`、hi
 
 ### 4.1 コード詳解（`lune explain`）
 
-各診断コードには長文の詳解（意味・発生する最小例・修正方法）を用意する。
+各診断コードには長文の詳解（意味・発生する最小例・修正方法）を用意する。詳解は**英語と日本語の 2 言語**で提供する（英語: `lune/explanations.py`、日本語: `lune/explanations_ja.py`。両カタログのコード集合が一致することはテストで強制する）。
 
-- CLI: `lune explain <CODE>`（大文字小文字は無視。未知コードは利用可能コード一覧を表示して終了コード 1、引数欠如は 2）。
-- REPL: `:explain CODE`。
+- CLI: `lune explain <CODE> [--lang en|ja]`（大文字小文字は無視。未知コードは利用可能コード一覧を表示して終了コード 1、引数欠如・未対応言語は 2。既定は英語）。
+- CLI: `lune explain --index [--lang en|ja]` — 全コードの詳解を 1 つの Markdown として出力する。生成結果は `documents/ERROR_INDEX.md`（英語）/ `documents/ERROR_INDEX_JA.md`（日本語）としてコミットし、テストで同期を強制する。
+- REPL: `:explain CODE [en|ja]`。
 - 導線: 診断表示（CLI/REPL）は、詳解のあるコードに対し末尾へ `= help: run \`lune explain <CODE>\` for a detailed explanation` を付す。この導線は `format_diagnostic(..., explain_hint=True)` のオプトインで、コアの整形出力自体は変更しない。
 
 ## 5. 表示形式

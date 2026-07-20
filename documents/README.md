@@ -21,6 +21,7 @@
 - `REPL_SPEC.md`: 対話 REPL の仕様。
 - `ERROR_DIAGNOSTICS_SPEC.md`: エラー診断表示・`lune explain`・`lune fix` の仕様。
 - `ERROR_INDEX.md`: 全診断コードの詳解カタログ（`lune explain --index` で自動生成）。
+- `ERROR_INDEX_JA.md`: 詳解カタログの日本語版（`lune explain --index --lang ja` で自動生成）。
 - `FORMATTER_SPEC.md`: 正準フォーマッタ `lune fmt` の仕様。
 - `VALUE_DISPLAY_SPEC.md`: REPL / show / print の値表示仕様。
 - `STANDARD_LIBRARY_SPEC.md`: prelude 標準ライブラリ最小セットの仕様。

@@ -912,7 +912,7 @@ hint の意味をもっと知りたければ、コードを `explain` に渡し�
 ./bin/lune explain TYP0001
 ```
 
-意味・発生する最小例・直し方、の 3 点セットが表示されます。全コードの詳解を一覧したいときは `documents/ERROR_INDEX.md`（`lune explain --index` で生成される索引）を開いてください。
+意味・発生する最小例・直し方、の 3 点セットが表示されます。`--lang ja` を付けると**日本語で**読めます（REPL では `:explain TYP0001 ja`）。全コードの詳解を一覧したいときは `documents/ERROR_INDEX_JA.md`（英語版は `ERROR_INDEX.md`）を開いてください。
 
 このエラーは機械的に直せる種類なので、`fix` に任せられます。
 
