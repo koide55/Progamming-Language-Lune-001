@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lune 診断カタログ (Error Index)</title>
+<style>
+  :root {
+    --bg: #1e1f26; --panel: #26272f; --border: #3a3b45;
+    --fg: #e8e8ee; --dim: #9a9ab0; --accent: #7aa2f7; --hint: #9ece6a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font-family: -apple-system, "Hiragino Sans", sans-serif; line-height: 1.7; }
+  header { padding: 10px 16px; border-bottom: 1px solid var(--border);
+           display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+           position: sticky; top: 0; background: var(--bg); }
+  header h1 { font-size: 16px; margin: 0; }
+  header .nav { font-size: 12px; }
+  header .nav a { color: var(--accent); text-decoration: none; }
+  header select { background: var(--panel); color: var(--fg); border: 1px solid var(--border);
+                  border-radius: 6px; padding: 4px 10px; font-size: 13px; margin-left: auto; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  main h1 { font-size: 22px; }
+  main h2 { font-size: 17px; margin-top: 2.2em; padding-top: 0.6em;
+            border-top: 1px solid var(--border); color: var(--accent); }
+  code { background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+         padding: 1px 5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; }
+  pre { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+        padding: 12px; overflow-x: auto; }
+  pre code { background: none; border: none; padding: 0; }
+  ul { padding-left: 1.4em; }
+  a { color: var(--accent); }
+  .dim { color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lune 診断カタログ</h1>
+  <span class="nav"><a href="../">トップ</a> · <a href="./">Playground</a></span>
+  <select id="lang">
+    <option value="ja">日本語</option>
+    <option value="en">English</option>
+  </select>
+</header>
+<main id="content"><p class="dim">読み込み中…</p></main>
+
+<script>
+const FILES = { ja: "../documents/ERROR_INDEX_JA.md", en: "../documents/ERROR_INDEX.md" };
+
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Renders the subset of markdown that `lune explain --index` generates:
+// headings, list items, fenced code blocks, inline code, and anchor links.
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((#[\w-]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+function render(md) {
+  const out = [];
+  let inCode = false, inList = false;
+  const closeList = () => { if (inList) { out.push("</ul>"); inList = false; } };
+  for (const line of md.split("\n")) {
+    if (line.startsWith("```")) {
+      closeList();
+      out.push(inCode ? "</code></pre>" : "<pre><code>");
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) { out.push(esc(line)); continue; }
+    if (line.startsWith("<!--")) continue;
+    if (line.startsWith("# ")) { closeList(); out.push(`<h1>${inline(line.slice(2))}</h1>`); continue; }
+    if (line.startsWith("## ")) {
+      closeList();
+      const title = line.slice(3);
+      out.push(`<h2 id="${title.toLowerCase()}">${inline(title)}</h2>`);
+      continue;
+    }
+    if (line.startsWith("- ")) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push(`<li>${inline(line.slice(2))}</li>`);
+      continue;
+    }
+    closeList();
+    if (line.trim() === "") continue;
+    out.push(`<p>${inline(line)}</p>`);
+  }
+  closeList();
+  return out.join("\n");
+}
+
+async function load(lang) {
+  const res = await fetch(FILES[lang], { cache: "no-cache" });
+  if (!res.ok) {
+    document.getElementById("content").innerHTML =
+      '<p class="dim">カタログを読み込めませんでした。</p>';
+    return;
+  }
+  document.getElementById("content").innerHTML = render(await res.text());
+  if (location.hash) {
+    const target = document.querySelector(location.hash);
+    if (target) target.scrollIntoView();
+  }
+}
+
+document.getElementById("lang").addEventListener("change", (e) => load(e.target.value));
+load("ja");
+</script>
+</body>
+</html>

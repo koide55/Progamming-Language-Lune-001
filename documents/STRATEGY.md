@@ -50,7 +50,7 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 新言語の最大の離脱点はインストールである。実装が Pure Python であることは、**Pyodide (ブラウザ内 Python) でそのまま動かせる**ため普及上の武器になる。URL 一つで REPL+`explain`+診断表示が動けば「親しんでもらう」コストがゼロになる。あわせて `pip install` / `uvx lune` での配布も低コストで可能。
 
-技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。
+技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。GitHub Pages での公開も実装済み: `.github/workflows/pages.yml` が main への push でリポジトリ全体をデプロイし、ランディングページ (`index.html`)・Playground・診断カタログ (`playground/errors.html`) が 1 つの URL 配下で公開される。
 
 ### B. 診断メッセージの日本語化 (差別化の核)
 
@@ -62,7 +62,7 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 チュートリアルに「わざとエラーを起こす → 診断を読む → `explain` で理解する → `fix` で直す」という節を組み込み、診断カタログ (全コードの解説) を Web で公開する (Rust error index 相当)。「診断こそが教材」という主張を製品自体で示す。
 
-実装済み: チュートリアル第17章「エラーを読む、エラーから学ぶ」(日英) — 診断の解剖学、typo/網羅性/実行時の3周、「指定した診断をわざと出す」逆転演習。診断カタログは `documents/ERROR_INDEX.md` (`lune explain --index` で自動生成、テストで同期を強制)。残: カタログの Web ホスティング。
+実装済み: チュートリアル第17章「エラーを読む、エラーから学ぶ」(日英) — 診断の解剖学、typo/網羅性/実行時の3周、「指定した診断をわざと出す」逆転演習。診断カタログは `documents/ERROR_INDEX.md` (`lune explain --index` で自動生成、テストで同期を強制)。Web 公開も実装済み: `playground/errors.html` が生成済み Markdown (日英) をその場でレンダリングし、GitHub Pages で配信される。
 
 ### D. 研究発信という増幅器
 
