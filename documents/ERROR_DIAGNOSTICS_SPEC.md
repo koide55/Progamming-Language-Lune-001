@@ -129,6 +129,16 @@ runtime エラーは、再帰サンクの force（専用コード `RUN0005`、hi
 - REPL: `:explain CODE [en|ja]`。
 - 導線: 診断表示（CLI/REPL）は、詳解のあるコードに対し末尾へ `= help: run \`lune explain <CODE>\` for a detailed explanation` を付す。この導線は `format_diagnostic(..., explain_hint=True)` のオプトインで、コアの整形出力自体は変更しない。
 
+### 4.2 診断メッセージの多言語化
+
+診断のメッセージ・caret 注（label）・hint は、すべてメッセージカタログ `lune/messages.py` の `t(key, **params)` を通して生成される（英語・日本語の対訳）。言語はプロセス全体の状態で、入口で一度だけ選ぶ:
+
+- CLI: グローバル `--lang en|ja`（どのサブコマンドでも可。例: `lune --check --lang ja file.lune`）
+- REPL: `:lang en|ja`（`:explain` の既定言語もこれに追従する）
+- Playground: 「言語」セレクタ
+
+テスト `tests/test_messages.py` が「ソース中で使われる全キーがカタログに存在し、未使用キーがなく、全キーに日本語訳があり、英日のプレースホルダが一致すること」を強制する。`= help:` フッタも言語化される（日本語では `--lang ja` 付きの再実行を案内する）。
+
 ## 5. 表示形式
 
 標準表示:

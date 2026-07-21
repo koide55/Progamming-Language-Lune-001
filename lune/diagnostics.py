@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .explanations import has_explanation
+from .messages import t
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,7 @@ def format_diagnostic(
     for hint in diagnostic.hints:
         lines.append(f"   = hint: {hint}")
     if explain_hint and has_explanation(diagnostic.code):
-        lines.append(f"   = help: run `lune explain {diagnostic.code}` for a detailed explanation")
+        lines.append(f"   = help: {t('diag.explain-footer', code=diagnostic.code)}")
     return "\n".join(lines)
 
 

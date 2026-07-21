@@ -7,6 +7,7 @@ import sys
 from .diagnostics import SourceMap, format_diagnostic, format_exception
 from .evaluator import force_value, format_value, set_trace_hook
 from .explanations import LANGUAGES, available_codes, render_error_index, render_explanation
+from .messages import get_language, set_language
 from .fixer import FixError, apply_fixes
 from .formatter import FormatError, format_source
 from .lexer import lex
@@ -134,7 +135,7 @@ def fix_command(args: list[str]) -> int:
 
 def explain_command(args: list[str]) -> int:
     usage = "usage: lune explain <CODE> [--lang en|ja] | lune explain --index [--lang en|ja]"
-    lang = "en"
+    lang = get_language()
     rest: list[str] = []
     i = 0
     while i < len(args):
@@ -170,9 +171,34 @@ def explain_command(args: list[str]) -> int:
     return 0
 
 
+def _extract_lang(argv: list[str]) -> tuple[list[str], str | None]:
+    """Strip a global `--lang X` / `--lang=X` from argv; return (rest, lang)."""
+    rest: list[str] = []
+    lang: str | None = None
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--lang" and i + 1 < len(argv):
+            lang = argv[i + 1]
+            i += 2
+        elif arg.startswith("--lang="):
+            lang = arg[len("--lang="):]
+            i += 1
+        else:
+            rest.append(arg)
+            i += 1
+    return rest, lang
+
+
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
+    argv, lang = _extract_lang(argv)
+    if lang is not None:
+        if lang not in LANGUAGES:
+            print(f"error: unsupported language {lang!r} (supported: {', '.join(LANGUAGES)})", file=sys.stderr)
+            return 2
+        set_language(lang)
     if argv and argv[0] == "explain":
         return explain_command(argv[1:])
     if argv and argv[0] == "fmt":

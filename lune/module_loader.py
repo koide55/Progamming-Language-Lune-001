@@ -9,6 +9,7 @@ from .diagnostics import Diagnostic, DiagnosticError, Label, SourceMap, SourceSp
 from .evaluator import Env, eval_module_into, initial_env
 from .parser import parse_source
 from .typechecker import ANY, TypeEnv, check_module_into, initial_type_env
+from .messages import t
 
 
 EXTERNAL_IMPORT_PREFIXES = ("java.", "javax.", "kotlin.", "std.")
@@ -70,10 +71,10 @@ def load_program(
         if path in visiting:
             cycle = " -> ".join([_display_path(item) for item in visiting[visiting.index(path) :]] + [_display_path(path)])
             raise ModuleLoadError(
-                f"cyclic module import detected: {cycle}",
+                t("mod.cyclic-import", cycle=cycle),
                 "MOD0002",
                 import_span,
-                "this import closes the cycle",
+                t("label.cyclic-import"),
             )
 
         visiting.append(path)
@@ -84,11 +85,11 @@ def load_program(
 
         if import_path is not None and module.module_name is not None and module.module_name != import_path:
             raise ModuleLoadError(
-                f"module declaration mismatch: expected {import_path}, got {module.module_name}",
+                t("mod.declaration-mismatch", expected=import_path, got=module.module_name),
                 "MOD0003",
                 module.span or import_span,
-                "module name does not match the import path",
-                [f"change the declaration to `module {import_path}` or import it as `{module.module_name}`"],
+                t("label.declaration-mismatch"),
+                [t("hint.declaration-mismatch", expected=import_path, got=module.module_name)],
             )
 
         for import_decl in module.imports:
@@ -97,11 +98,11 @@ def load_program(
             resolved = resolve_module_path(import_decl.path, search_roots)
             if resolved is None:
                 raise ModuleLoadError(
-                    f"module not found: {import_decl.path}",
+                    t("mod.not-found", path=import_decl.path),
                     "MOD0001",
                     import_decl.span,
-                    "no matching .lune file was found",
-                    [f"searched: {', '.join(str(root) for root in search_roots)}"],
+                    t("label.module-not-found"),
+                    [t("hint.module-searched", roots=", ".join(str(root) for root in search_roots))],
                 )
             visit(resolved, import_decl.path, import_decl.span)
 
@@ -166,10 +167,10 @@ def _read_source(path: Path, span: SourceSpan | None) -> str:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
         raise ModuleLoadError(
-            f"failed to read module file: {path}",
+            t("mod.unreadable", path=path),
             "MOD0001",
             span,
-            "module file could not be read",
+            t("label.module-unreadable"),
         ) from exc
 
 
