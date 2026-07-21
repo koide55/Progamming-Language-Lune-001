@@ -56,7 +56,7 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 `explanations.py` は全診断コードのカタログ構造を既に持つため、`--lang ja` は設計変更なしで載る。「エラーも解説も母語で読める関数型言語」は Hedy が初等教育で証明した効果を関数型教育に持ち込むもので、研究的新規性 (施策 D) と普及施策が同じ作業で手に入る。費用対効果が最も高い一手。
 
-実装済み: 全29コードの日本語詳解 (`lune/explanations_ja.py`、英語カタログとのコード集合一致をテストで強制)。`lune explain <CODE> --lang ja`、REPL `:explain CODE ja`、Playground の言語セレクタ、`documents/ERROR_INDEX_JA.md` (自動生成・同期テスト付き)。残: 診断メッセージ本文 (`error[...]: ...` の一行目と hint) の日本語化 — メッセージは各 raise サイトで生成されるため、メッセージカタログ化という別規模の作業になる。
+実装済み: 全29コードの日本語詳解 (`lune/explanations_ja.py`、英語カタログとのコード集合一致をテストで強制)。`lune explain <CODE> --lang ja`、REPL `:explain CODE ja`、Playground の言語セレクタ、`documents/ERROR_INDEX_JA.md` (自動生成・同期テスト付き)。診断メッセージ本文も実装済み: 全 raise サイト（約110箇所）を `lune/messages.py` のカタログ (`t(key, **params)`) 経由に移行し、メッセージ・caret 注・hint・`= help:` フッタまで日本語化した。入口は CLI グローバル `--lang ja`、REPL `:lang ja`、Playground の言語セレクタ。キー網羅・未使用ゼロ・対訳パリティはテストで強制。これで施策 B は完了。
 
 ### C. エラー駆動学習への再編
 

@@ -7,6 +7,7 @@ from typing import Callable
 from . import nodes as ast
 from .diagnostics import Diagnostic, DiagnosticError
 from .parser import parse_source
+from .messages import t
 
 
 class LuneRuntimeError(DiagnosticError):
@@ -16,9 +17,9 @@ class LuneRuntimeError(DiagnosticError):
 
 def _recursive_thunk_error() -> LuneRuntimeError:
     return LuneRuntimeError(
-        "recursive thunk evaluation: this value's definition depends on its own result",
+        t("run.recursive-thunk"),
         code="RUN0005",
-        hints=["recursive values cannot be computed; use a recursive function (`def`) instead, or break the reference cycle"],
+        hints=[t("hint.recursive-thunk")],
     )
 
 
@@ -75,14 +76,14 @@ class Env:
         if self.parent is not None:
             self.parent.set(name, value)
             return
-        raise LuneRuntimeError(f"undefined variable: {name}")
+        raise LuneRuntimeError(t("run.undefined-variable", name=name))
 
     def lookup_raw(self, name: str) -> Value:
         if name in self.values:
             return self.values[name]
         if self.parent is not None:
             return self.parent.lookup_raw(name)
-        raise LuneRuntimeError(f"undefined variable: {name}")
+        raise LuneRuntimeError(t("run.undefined-variable", name=name))
 
     def lookup(self, name: str) -> Value:
         return force_value(self.lookup_raw(name))
@@ -295,7 +296,7 @@ def _builtin_println(args: list[Value]) -> Value:
 
 
 def _builtin_crash(args: list[Value]) -> Value:
-    raise LuneRuntimeError("crash() was evaluated")
+    raise LuneRuntimeError(t("run.crash-evaluated"))
 
 
 def _builtin_tick(state: dict[str, int]) -> Value:
@@ -356,7 +357,7 @@ def _builtin_get_or_else(args: list[Value]) -> Value:
         return force_value(option.fields[0])
     if _is_constructor(option, "None"):
         return force_value(args[1])
-    raise LuneRuntimeError(f"getOrElse expects Option, got {option!r}")
+    raise LuneRuntimeError(t("run.expects", func="getOrElse", expected="Option", got=repr(option)))
 
 
 def _builtin_option_map(args: list[Value]) -> Value:
@@ -366,7 +367,7 @@ def _builtin_option_map(args: list[Value]) -> Value:
         return DataValue("None", [])
     if _is_constructor(option, "Some"):
         return DataValue("Some", [LazyValue(lambda: apply_value(function, [option.fields[0]]))])
-    raise LuneRuntimeError(f"optionMap expects Option, got {option!r}")
+    raise LuneRuntimeError(t("run.expects", func="optionMap", expected="Option", got=repr(option)))
 
 
 def _builtin_result_map(args: list[Value]) -> Value:
@@ -376,7 +377,7 @@ def _builtin_result_map(args: list[Value]) -> Value:
         return DataValue("Err", [result.fields[0]])
     if _is_constructor(result, "Ok"):
         return DataValue("Ok", [LazyValue(lambda: apply_value(function, [result.fields[0]]))])
-    raise LuneRuntimeError(f"resultMap expects Result, got {result!r}")
+    raise LuneRuntimeError(t("run.expects", func="resultMap", expected="Result", got=repr(result)))
 
 
 def _builtin_unwrap_or(args: list[Value]) -> Value:
@@ -385,7 +386,7 @@ def _builtin_unwrap_or(args: list[Value]) -> Value:
         return force_value(result.fields[0])
     if _is_constructor(result, "Err"):
         return force_value(args[1])
-    raise LuneRuntimeError(f"unwrapOr expects Result, got {result!r}")
+    raise LuneRuntimeError(t("run.expects", func="unwrapOr", expected="Result", got=repr(result)))
 
 
 def _builtin_head(args: list[Value]) -> Value:
@@ -394,7 +395,7 @@ def _builtin_head(args: list[Value]) -> Value:
         return DataValue("None", [])
     if _is_constructor(items, "Cons"):
         return DataValue("Some", [items.fields[0]])
-    raise LuneRuntimeError(f"head expects List, got {items!r}")
+    raise LuneRuntimeError(t("run.expects", func="head", expected="List", got=repr(items)))
 
 
 def _builtin_tail(args: list[Value]) -> Value:
@@ -403,7 +404,7 @@ def _builtin_tail(args: list[Value]) -> Value:
         return DataValue("None", [])
     if _is_constructor(items, "Cons"):
         return DataValue("Some", [items.fields[1]])
-    raise LuneRuntimeError(f"tail expects List, got {items!r}")
+    raise LuneRuntimeError(t("run.expects", func="tail", expected="List", got=repr(items)))
 
 
 def _builtin_length(args: list[Value]) -> Value:
@@ -416,7 +417,7 @@ def _builtin_length(args: list[Value]) -> Value:
         if _is_constructor(value, "Nil"):
             return count
         if not _is_constructor(value, "Cons"):
-            raise LuneRuntimeError(f"length expects List or String, got {value!r}")
+            raise LuneRuntimeError(t("run.expects", func="length", expected="List or String", got=repr(value)))
         count += 1
         value = value.fields[1]
 
@@ -430,7 +431,7 @@ def _builtin_map(args: list[Value]) -> Value:
         head = LazyValue(lambda: apply_value(function, [items.fields[0]]))
         tail = LazyValue(lambda: _builtin_map([items.fields[1], function]))
         return DataValue("Cons", [head, tail])
-    raise LuneRuntimeError(f"map expects List, got {items!r}")
+    raise LuneRuntimeError(t("run.expects", func="map", expected="List", got=repr(items)))
 
 
 def _builtin_filter(args: list[Value]) -> Value:
@@ -441,7 +442,7 @@ def _builtin_filter(args: list[Value]) -> Value:
         if _is_constructor(items, "Nil"):
             return DataValue("Nil", [])
         if not _is_constructor(items, "Cons"):
-            raise LuneRuntimeError(f"filter expects List, got {items!r}")
+            raise LuneRuntimeError(t("run.expects", func="filter", expected="List", got=repr(items)))
         head = items.fields[0]
         tail = items.fields[1]
         if truthy(apply_value(predicate, [head])):
@@ -458,7 +459,7 @@ def _builtin_fold(args: list[Value]) -> Value:
         if _is_constructor(items, "Nil"):
             return acc
         if not _is_constructor(items, "Cons"):
-            raise LuneRuntimeError(f"fold expects List, got {items!r}")
+            raise LuneRuntimeError(t("run.expects", func="fold", expected="List", got=repr(items)))
         acc = apply_value(function, [acc, items.fields[0]])
         items = items.fields[1]
 
@@ -473,7 +474,7 @@ def _builtin_take(args: list[Value]) -> Value:
     if _is_constructor(items, "Cons"):
         tail = LazyValue(lambda: _builtin_take([items.fields[1], count - 1]))
         return DataValue("Cons", [items.fields[0], tail])
-    raise LuneRuntimeError(f"take expects List, got {items!r}")
+    raise LuneRuntimeError(t("run.expects", func="take", expected="List", got=repr(items)))
 
 
 def _builtin_drop(args: list[Value]) -> Value:
@@ -484,7 +485,7 @@ def _builtin_drop(args: list[Value]) -> Value:
         if _is_constructor(items, "Nil"):
             return DataValue("Nil", [])
         if not _is_constructor(items, "Cons"):
-            raise LuneRuntimeError(f"drop expects List, got {items!r}")
+            raise LuneRuntimeError(t("run.expects", func="drop", expected="List", got=repr(items)))
         items = items.fields[1]
         count -= 1
     return items
@@ -528,7 +529,7 @@ def _builtin_take_while(args: list[Value]) -> Value:
     if _is_constructor(items, "Nil"):
         return DataValue("Nil", [])
     if not _is_constructor(items, "Cons"):
-        raise LuneRuntimeError(f"takeWhile expects List, got {items!r}")
+        raise LuneRuntimeError(t("run.expects", func="takeWhile", expected="List", got=repr(items)))
     head = items.fields[0]
     tail = items.fields[1]
     if truthy(apply_value(predicate, [head])):
@@ -547,7 +548,7 @@ def _builtin_drop_while(args: list[Value]) -> Value:
         if _is_constructor(items, "Nil"):
             return DataValue("Nil", [])
         if not _is_constructor(items, "Cons"):
-            raise LuneRuntimeError(f"dropWhile expects List, got {items!r}")
+            raise LuneRuntimeError(t("run.expects", func="dropWhile", expected="List", got=repr(items)))
         if not truthy(apply_value(predicate, [items.fields[0]])):
             return items
         items = items.fields[1]
@@ -560,7 +561,7 @@ def _builtin_zip(args: list[Value]) -> Value:
     if _is_constructor(a, "Nil") or _is_constructor(b, "Nil"):
         return DataValue("Nil", [])
     if not (_is_constructor(a, "Cons") and _is_constructor(b, "Cons")):
-        raise LuneRuntimeError("zip expects Lists")
+        raise LuneRuntimeError(t("run.expects-lists", func="zip"))
     at, bt = a.fields[1], b.fields[1]
     head = TupleValue([a.fields[0], b.fields[0]])
     return DataValue("Cons", [head, LazyValue(lambda: _builtin_zip([at, bt]))])
@@ -574,7 +575,7 @@ def _builtin_zip_with(args: list[Value]) -> Value:
     if _is_constructor(a, "Nil") or _is_constructor(b, "Nil"):
         return DataValue("Nil", [])
     if not (_is_constructor(a, "Cons") and _is_constructor(b, "Cons")):
-        raise LuneRuntimeError("zipWith expects Lists")
+        raise LuneRuntimeError(t("run.expects-lists", func="zipWith"))
     ah, at = a.fields[0], a.fields[1]
     bh, bt = b.fields[0], b.fields[1]
     head = LazyValue(lambda: apply_value(function, [ah, bh]))
@@ -592,7 +593,7 @@ def _builtin_cycle(args: list[Value]) -> Value:
         if _is_constructor(current, "Nil"):
             return step(original)
         if not _is_constructor(current, "Cons"):
-            raise LuneRuntimeError(f"cycle expects List, got {current!r}")
+            raise LuneRuntimeError(t("run.expects", func="cycle", expected="List", got=repr(current)))
         tail = current.fields[1]
         return DataValue("Cons", [current.fields[0], LazyValue(lambda tail=tail: step(tail))])
 
@@ -616,7 +617,7 @@ def eval_decl(decl: ast.Decl, env: Env) -> Value:
     if isinstance(decl, ast.RecordDecl):
         env.define(decl.name, RecordConstructorValue(decl.name, decl.fields))
         return UNIT
-    raise LuneRuntimeError(f"unsupported declaration: {type(decl).__name__}")
+    raise LuneRuntimeError(t("run.unsupported-declaration", kind=type(decl).__name__))
 
 
 def bind_let(decl: ast.LetDecl, env: Env) -> None:
@@ -626,7 +627,7 @@ def bind_let(decl: ast.LetDecl, env: Env) -> None:
     value = force_value(eval_expr(decl.value, env)) if decl.is_strict else eval_expr(decl.value, env)
     bindings = match_pattern(decl.pattern, force_value(value))
     if bindings is None:
-        raise LuneRuntimeError("let pattern did not match")
+        raise LuneRuntimeError(t("run.let-pattern"))
     for name, bound in bindings.items():
         env.define(name, bound)
 
@@ -650,7 +651,7 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
             return -value
         if expr.op == "!":
             return not truthy(value)
-        raise LuneRuntimeError(f"unsupported unary operator: {expr.op}")
+        raise LuneRuntimeError(t("run.unsupported-unary-op", op=expr.op))
     if isinstance(expr, ast.BinaryExpr):
         return eval_binary(expr, env)
     if isinstance(expr, ast.IfExpr):
@@ -684,7 +685,7 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
         return None if receiver is None else eval_member(receiver, expr.name)
     if isinstance(expr, ast.AssignExpr):
         return eval_assign(expr, env)
-    raise LuneRuntimeError(f"unsupported expression: {type(expr).__name__}")
+    raise LuneRuntimeError(t("run.unsupported-expression", kind=type(expr).__name__))
 
 
 def eval_block(block: ast.BlockExpr, env: Env) -> Value:
@@ -718,7 +719,7 @@ def eval_call(expr: ast.CallExpr, env: Env) -> Value:
         if not expr.args and not callee.params:
             return apply_function(callee, [])
         return apply_function_to_ast_args(callee, expr.args, env)
-    raise LuneRuntimeError(f"value is not callable: {callee!r}")
+    raise LuneRuntimeError(t("run.not-callable", value=repr(callee)))
 
 
 def eval_list_expr(expr: ast.ListExpr, env: Env) -> Value:
@@ -733,19 +734,19 @@ def apply_record_constructor(constructor: RecordConstructorValue, args: list[ast
     values: dict[str, Value] = {}
     for arg in args:
         if arg.name is None:
-            raise LuneRuntimeError(f"{constructor.name} requires named record fields")
+            raise LuneRuntimeError(t("run.named-fields", ctor=constructor.name))
         field = by_name.get(arg.name)
         if field is None:
-            raise LuneRuntimeError(f"unexpected record field for {constructor.name}: {arg.name}")
+            raise LuneRuntimeError(t("run.unexpected-record-field", ctor=constructor.name, field=arg.name))
         if arg.name in values:
-            raise LuneRuntimeError(f"duplicate record initializer field: {arg.name}")
+            raise LuneRuntimeError(t("run.duplicate-init", field=arg.name))
         if field.is_strict:
             values[arg.name] = force_value(eval_expr(arg.value, env))
         else:
             values[arg.name] = Thunk(arg.value, env)
     for field in constructor.fields:
         if field.name not in values:
-            raise LuneRuntimeError(f"missing record field for {constructor.name}: {field.name}")
+            raise LuneRuntimeError(t("run.missing-record-field", ctor=constructor.name, field=field.name))
     return RecordValue(constructor.name, [field.name for field in constructor.fields], values)
 
 
@@ -765,7 +766,7 @@ def apply_function_to_ast_args(function: FunctionValue, args: list[ast.Argument]
     while remaining:
         current = force_value(current)
         if not isinstance(current, FunctionValue):
-            raise LuneRuntimeError(f"value is not callable: {current!r}")
+            raise LuneRuntimeError(t("run.not-callable", value=repr(current)))
         if not current.params:
             current = apply_function(current, [])
             continue
@@ -778,7 +779,7 @@ def apply_function_to_ast_args(function: FunctionValue, args: list[ast.Argument]
 
 def apply_function(function: FunctionValue, args: list[Value]) -> Value:
     if len(args) > len(function.params):
-        raise LuneRuntimeError(f"{function.name or '<lambda>'} expects at most {len(function.params)} arguments, got {len(args)}")
+        raise LuneRuntimeError(t("run.arity-fn", func=function.name or "<lambda>", max=len(function.params), got=len(args)))
     call_env = function.env.child()
     for param, arg in zip(function.params, args):
         call_env.define(param.name, arg)
@@ -791,7 +792,7 @@ def apply_function(function: FunctionValue, args: list[Value]) -> Value:
 def prepare_constructor_args(constructor: ConstructorValue, bound_fields: list[Value], args: list[ast.Argument], env: Env) -> list[Value]:
     remaining_fields = constructor.fields[len(bound_fields) :]
     if len(args) > len(remaining_fields):
-        raise LuneRuntimeError(f"{constructor.name} expects at most {len(remaining_fields)} more arguments, got {len(args)}")
+        raise LuneRuntimeError(t("run.arity-ctor-more", ctor=constructor.name, max=len(remaining_fields), got=len(args)))
     values: list[Value] = []
     for field, arg in zip(remaining_fields, args):
         if field.is_strict:
@@ -804,7 +805,7 @@ def prepare_constructor_args(constructor: ConstructorValue, bound_fields: list[V
 def apply_constructor(constructor: ConstructorValue, bound_fields: list[Value], args: list[Value]) -> Value:
     fields = [*bound_fields, *args]
     if len(fields) > constructor.arity:
-        raise LuneRuntimeError(f"{constructor.name} expects at most {constructor.arity} arguments, got {len(fields)}")
+        raise LuneRuntimeError(t("run.arity-fn", func=constructor.name, max=constructor.arity, got=len(fields)))
     if len(fields) < constructor.arity:
         return PartialConstructorValue(constructor, fields)
     return DataValue(constructor.name, fields)
@@ -831,11 +832,11 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
         return left * right
     if expr.op == "/":
         if right == 0:
-            raise LuneRuntimeError("division by zero", hints=["the right operand of `/` evaluated to 0"])
+            raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="/")])
         return left / right
     if expr.op == "%":
         if right == 0:
-            raise LuneRuntimeError("division by zero", hints=["the right operand of `%` evaluated to 0"])
+            raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="%")])
         return left % right
     if expr.op == "==":
         return left == right
@@ -851,7 +852,7 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
         return left >= right
     if expr.op == "|>":
         return apply_value(right, [left])
-    raise LuneRuntimeError(f"unsupported binary operator: {expr.op}")
+    raise LuneRuntimeError(t("run.unsupported-binary-op", op=expr.op))
 
 
 def eval_if(expr: ast.IfExpr, env: Env) -> Value:
@@ -877,10 +878,10 @@ def eval_for(expr: ast.ForExpr, env: Env) -> Value:
         if isinstance(current, DataValue) and current.constructor == "Nil":
             return UNIT
         if not isinstance(current, DataValue) or current.constructor != "Cons" or len(current.fields) != 2:
-            raise LuneRuntimeError(f"for iterable must be List, got {current!r}")
+            raise LuneRuntimeError(t("run.for-iterable", got=repr(current)))
         bindings = match_pattern(expr.pattern, current.fields[0])
         if bindings is None:
-            raise LuneRuntimeError(f"for pattern did not match: {force_value(current.fields[0])!r}")
+            raise LuneRuntimeError(t("run.for-pattern", value=repr(force_value(current.fields[0]))))
         body_env = env.child()
         for name, bound in bindings.items():
             body_env.define(name, bound)
@@ -900,7 +901,7 @@ def eval_match(expr: ast.MatchExpr, env: Env) -> Value:
         if case.guard is not None and not truthy(force_value(eval_expr(case.guard, case_env))):
             continue
         return eval_expr(case.body, case_env)
-    raise LuneRuntimeError(f"non-exhaustive match for value: {value!r}")
+    raise LuneRuntimeError(t("run.non-exhaustive", value=repr(value)))
 
 
 def match_pattern(pattern: ast.Pattern, value: Value) -> dict[str, Value] | None:
@@ -944,24 +945,24 @@ def match_pattern(pattern: ast.Pattern, value: Value) -> dict[str, Value] | None
         return None
     if isinstance(pattern, ast.TypedPattern):
         return match_pattern(pattern.pattern, value)
-    raise LuneRuntimeError(f"unsupported pattern: {type(pattern).__name__}")
+    raise LuneRuntimeError(t("run.unsupported-pattern", kind=type(pattern).__name__))
 
 
 def eval_member(receiver: Value, name: str) -> Value:
     if isinstance(receiver, RecordValue):
         if name not in receiver.fields:
-            raise LuneRuntimeError(f"unknown record field: {receiver.name}.{name}")
+            raise LuneRuntimeError(t("run.unknown-record-field", record=receiver.name, field=name))
         return force_value(receiver.fields[name])
     if isinstance(receiver, DataValue):
-        raise LuneRuntimeError("data field access is not implemented yet; use match")
+        raise LuneRuntimeError(t("run.data-field-access"))
     if isinstance(receiver, str) and name == "length":
         return BuiltinFunction("String.length", lambda args: len(receiver))
-    raise LuneRuntimeError(f"unsupported member access: {receiver!r}.{name}")
+    raise LuneRuntimeError(t("run.unsupported-member", receiver=repr(receiver), name=name))
 
 
 def eval_assign(expr: ast.AssignExpr, env: Env) -> Value:
     if not isinstance(expr.target, ast.NameExpr):
-        raise LuneRuntimeError("only variable assignment is implemented")
+        raise LuneRuntimeError(t("run.only-var-assign"))
     value = force_value(eval_expr(expr.value, env))
     env.set(expr.target.name, value)
     return value
@@ -980,7 +981,7 @@ def apply_value(function: Value, args: list[Value]) -> Value:
         return apply_constructor(function.constructor, function.bound_fields, values)
     if isinstance(function, FunctionValue):
         return apply_function_to_values(function, args)
-    raise LuneRuntimeError(f"value is not callable: {function!r}")
+    raise LuneRuntimeError(t("run.not-callable", value=repr(function)))
 
 
 def apply_function_to_values(function: FunctionValue, args: list[Value]) -> Value:
@@ -989,7 +990,7 @@ def apply_function_to_values(function: FunctionValue, args: list[Value]) -> Valu
     while remaining:
         current = force_value(current)
         if not isinstance(current, FunctionValue):
-            raise LuneRuntimeError(f"value is not callable: {current!r}")
+            raise LuneRuntimeError(t("run.not-callable", value=repr(current)))
         if not current.params:
             current = apply_function(current, [])
             continue
@@ -1007,7 +1008,7 @@ def prepare_runtime_function_args(function: FunctionValue, args: list[Value]) ->
 def prepare_runtime_constructor_args(constructor: ConstructorValue, bound_fields: list[Value], args: list[Value]) -> list[Value]:
     remaining_fields = constructor.fields[len(bound_fields) :]
     if len(args) > len(remaining_fields):
-        raise LuneRuntimeError(f"{constructor.name} expects at most {len(remaining_fields)} more arguments, got {len(args)}")
+        raise LuneRuntimeError(t("run.arity-ctor-more", ctor=constructor.name, max=len(remaining_fields), got=len(args)))
     return [force_value(arg) if field.is_strict else arg for field, arg in zip(remaining_fields, args)]
 
 

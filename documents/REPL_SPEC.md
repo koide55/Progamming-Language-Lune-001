@@ -83,6 +83,7 @@ v0.1 でサポートするコマンド:
 :type NAME
 :thunks [NAME]
 :trace [on|off]
+:lang [en|ja]
 :explain CODE [en|ja]
 ```
 
@@ -92,6 +93,7 @@ v0.1 でサポートするコマンド:
 - `:type NAME`: 指定名の型を表示する。
 - `:thunks [NAME]`: 遅延束縛（thunk）の評価状態を、**評価を一切起こさずに**表示する。NAME を省略すると全 thunk を定義順に一覧する。
 - `:trace [on|off]`: 遅延評価トレースの有効/無効を切り替える（引数なしで現在の状態を表示）。有効な間、式の評価で**いつ・どの thunk が force されたか**を入れ子の深さ付きで表示する（§5.2）。
+- `:lang [en|ja]`: 診断メッセージと `:explain` の言語を切り替える（引数なしで現在の言語を表示）。
 - `:explain CODE [en|ja]`: 診断コードの詳解を表示する（`lune explain CODE` と同じ内容、`ERROR_DIAGNOSTICS_SPEC.md` §4.1）。言語を省略すると英語。`ja` で日本語の詳解を表示する。
 
 ### 5.1 `:thunks` の表示
