@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lune — the Lazy and Native programming language</title>
+<style>
+  :root {
+    --bg: #1e1f26; --panel: #26272f; --border: #3a3b45;
+    --fg: #e8e8ee; --dim: #9a9ab0; --accent: #7aa2f7; --hint: #9ece6a; --err: #f7768e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font-family: -apple-system, "Hiragino Sans", sans-serif; line-height: 1.7; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
+  h1 { font-size: 34px; margin: 0; }
+  .tagline { color: var(--accent); font-size: 17px; margin: 4px 0 0; }
+  .lead { color: var(--dim); margin-top: 16px; }
+  .links { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0; }
+  .links a { display: inline-block; padding: 10px 18px; border-radius: 8px;
+             text-decoration: none; font-weight: 600; font-size: 14px;
+             border: 1px solid var(--border); color: var(--fg); background: var(--panel); }
+  .links a.primary { background: var(--accent); border-color: var(--accent); color: #14141a; }
+  .links a:hover { border-color: var(--accent); }
+  pre { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+        padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  pre .e { color: var(--err); font-weight: 600; }
+  pre .h { color: var(--hint); }
+  pre .d { color: var(--dim); }
+  ul { padding-left: 1.3em; }
+  li { margin: 6px 0; }
+  code { background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+         padding: 1px 5px; font-family: ui-monospace, monospace; font-size: 0.9em; }
+  .footer { color: var(--dim); font-size: 13px; margin-top: 40px;
+            border-top: 1px solid var(--border); padding-top: 16px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lune</h1>
+  <p class="tagline">the Lazy and Native programming language</p>
+  <p class="lead">
+    コンパイラが教えてくれる、遅延評価の関数型入門言語。
+    エラーも、その解説も、母語で読めます。<br>
+    <span style="color: var(--dim)">A teaching-first functional language: lazy by default,
+    with diagnostics that speak your native language.</span>
+  </p>
+
+  <div class="links">
+    <a class="primary" href="playground/">▶ Playground を開く</a>
+    <a href="playground/errors.html">診断カタログ</a>
+    <a href="https://github.com/koide55/Progamming-Language-Lune-001">GitHub</a>
+  </div>
+
+<pre><span class="e">error[TYP0007]: 網羅的でない match: Blue のケースがありません</span>
+  --> main.lune:7:5
+  |
+7 |     match c:
+  |     ^^^^^ パターン Blue がカバーされていない
+   <span class="h">= hint: Blue のケースを追加するか、ワイルドカードケース `| _ -> ...` を追加してください</span>
+   <span class="d">= help: 詳しくは `lune explain TYP0007 --lang ja` を実行してください</span></pre>
+
+  <ul>
+    <li><strong>Lazy</strong> — デフォルト遅延評価。REPL の <code>:thunks</code> / <code>:trace</code> で、いつ・何が評価されたかを目で見られます。無限ストリームも標準装備。</li>
+    <li><strong>Native</strong> — 全診断コードに「意味・発生する最小例・直し方」の詳解。<code>--lang ja</code> でメッセージも hint も日本語に。</li>
+    <li><strong>教えるコンパイラ</strong> — 網羅性検査は反例つき、typo には did-you-mean、<code>lune fix</code> で自動修正。エラーが教材になります。</li>
+  </ul>
+
+  <p class="footer">
+    Playground はブラウザ内で処理系(Pure Python)を Pyodide 上でそのまま実行します — インストール不要。
+    チュートリアルは <a href="https://github.com/koide55/Progamming-Language-Lune-001/blob/main/documents/TUTORIAL.md">documents/TUTORIAL.md</a> にあります。
+  </p>
+</main>
+</body>
+</html>

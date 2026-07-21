@@ -41,6 +41,18 @@ fetch して Pyodide のファイルシステムに書き込み、`check_file` /
   Pyodide FS に書けば `--module-path` 相当も動くはずだが、本格版で要確認。
 - REPL・thunk 可視化は未実装 (PoC の範囲外)。
 
+## 診断カタログページ
+
+`errors.html` は `documents/ERROR_INDEX_JA.md` / `ERROR_INDEX.md` をその場で
+レンダリングする静的ページ(日英切り替え付き)。Rust の error index に相当する。
+
+## GitHub Pages
+
+`.github/workflows/pages.yml` が main への push でリポジトリ全体を GitHub Pages
+にデプロイする。ランディングページ(リポジトリルートの `index.html`)、
+Playground、診断カタログが公開される。ページ内の fetch はすべて相対パスなので、
+プロジェクトページのサブパス配信 (`/<repo>/...`) でもローカル配信でも動く。
+
 ## explain の言語切り替え
 
 explain ボタンの隣のセレクタで、診断詳解を**日本語/英語**で切り替えられる
