@@ -5,9 +5,12 @@
 
 ## 現在の状態
 
-**構成案の段階**。本文はまだありません。
+**構成確定・執筆準備の段階**。本文はまだありません。
 
 - [OUTLINE.md](OUTLINE.md) — 本書の構成案（書名・対象読者・設計方針・全章の内容・付録・執筆計画）
+- 決定済み（2026-07-21）: 書名『プログラミング言語 Lune』、組版は **mdBook/HTML**、
+  診断表示は当面英語出力（`feature/ja-diagnostics` の main マージ後に日本語へ一括差し替え）、
+  演習解答は各問題直下の折りたたみ（`<details>`）
 
 ## 既存ドキュメントとの関係
 
@@ -33,20 +36,38 @@
 3. REPL トランスクリプトは実際の REPL 出力を貼る。
 4. 用語は `documents/TUTORIAL.md` の訳語（サンク、正格、網羅性など）に合わせる。
 
-## 予定ディレクトリ構成
+## ディレクトリ構成（mdBook）
 
 ```
 books/
-  README.md            # このファイル
-  OUTLINE.md           # 構成案
-  lune-book/           # 本文（章ごとに1ファイル、執筆開始後に作成）
-    00-preface.md
-    01-tour.md
-    ...
-    appendix-a-reference.md
-  examples/            # 検証可能なコード例（章ごと）
+  README.md              # このファイル
+  OUTLINE.md             # 構成案
+  lune-book/             # mdBook プロジェクト
+    book.toml            # mdBook 設定
+    src/
+      SUMMARY.md         # 目次（章構成の正はここ）
+      00-preface.md      # 序章
+      01-tour.md         # 第1章
+      ...
+      appendix-a-reference.md
+  examples/              # 検証可能なコード例（章ごと）
     ch01/
     ...
   tools/
-    check_examples.sh  # 例の一括検証（--check / --eval / 診断出力照合）
+    check_examples.sh    # 例の一括検証（--check / --eval / 診断出力照合）
 ```
+
+ビルド:
+
+```sh
+cd books/lune-book
+mdbook build    # book/ に HTML を生成（book/ はコミットしない）
+mdbook serve    # ローカルプレビュー
+```
+
+執筆規約の補足:
+
+- 診断出力を載せるコードブロックは ` ```text {.diagnostic}` の目印付きで書く。
+  `feature/ja-diagnostics` マージ後の日本語出力への一括差し替えを機械的に行うため。
+- 演習の解答は各問題の直下に `<details><summary>解答</summary>…</details>` で置く。
+  解答のコード例も `books/examples/` の検証対象。

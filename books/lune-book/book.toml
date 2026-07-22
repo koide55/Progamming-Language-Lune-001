@@ -1,0 +1,8 @@
+[book]
+title = "プログラミング言語 Lune"
+description = "コンパイラが教えてくれる、遅延評価の関数型言語"
+authors = ["koide"]
+language = "ja"
+src = "src"
+
+[output.html]
