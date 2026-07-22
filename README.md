@@ -1,146 +1,147 @@
-# Lune v0.1 Prototype
+# Lune — the Lazy and Native programming language
 
-This is the first lexer/layout/parser/AST prototype for Lune. Specifications and the tutorial are collected under `documents/`.
+コンパイラが教えてくれる、遅延評価の関数型入門言語。
+エラーも、その解説も、母語で読めます。
 
-Implemented:
+> Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language. If you prefer English, start with [documents/TUTORIAL_EN.md](documents/TUTORIAL_EN.md) — every diagnostic and explanation defaults to English.
 
-- lexer for identifiers, keywords, literals, comments, and operators
-- Python-style layout processor that emits `INDENT` and `DEDENT`
-- AST dataclasses
-- recursive descent parser with a Pratt expression parser
-- parsing for `module`, `import`, `let`, `var`, `def`, `type`, `if`, `match`, `fn`, `IO:`, calls, member access, and basic types
-- type checker for basic types, functions, ADTs, generic constructor/function calls, `if`, `match`, `lazy`, and `force`
-- match exhaustiveness checking with missing-pattern witnesses (`TYP0007`)
-- refutable pattern rejection in `let` / `for` bindings (`TYP0008`)
-- unreachable match case warnings (`TYP0009`)
-- "did you mean" suggestions for undefined names (`TYP0001`) and unknown record fields (`REC0002`, `REC0005`)
-- local type inference via expected-type propagation into lambdas, lists, and branches (`TYP0010`, `TYP0011`)
-- null safety for `T?`: `null`/`match` patterns with narrowing, `T?`-aware exhaustiveness, the `??` operator, `?.` safe navigation, `if x != null` flow narrowing, and `== null` / `!= null`
-- pipeline operator `|>` (`x |> f` is `f(x)`)
-- teaching-oriented diagnostics: every code has a detailed explanation via `lune explain <CODE>` (and `:explain` in the REPL); diagnostics link to it
-- canonical formatter `lune fmt`: AST-based pretty-printer, idempotent and meaning-preserving (re-parse check), preserves `#` comments, `--write` / `--check` modes
-- auto-fix `lune fix`: applies machine-suggested fixes (currently undefined-name typos via the "did you mean" suggestion), iteratively; `--write` / `--check` modes
-- evaluator for `let`, function calls, lazy thunks, constructors, and `match`
-- prelude standard library with `Option`, `Result`, `List`, `print`, `println`, `show`, `map`, `filter`, `fold`, `head`, `tail`, `length`, and `range`
-- lazy/infinite lists (streams): `iterate`, `repeat`, `naturalsFrom` build infinite lists, with lazy combinators `take`/`map`/`filter`/`takeWhile`/`dropWhile`/`zip`/`zipWith`/`cycle` (no separate `Stream` type — `List` is already lazy-tailed)
-- file module loading for local `.lune` imports, dependency ordering, external Java/std import stubs, and `--module-path`
-- partial application for user-defined functions, lambdas, and data constructors
-- records with named construction, generic fields, strict fields, and field access
-- `while` loops for small imperative blocks with `var`
+**[▶ Playground(インストール不要)](https://koide55.github.io/Progamming-Language-Lune-001/playground/)** · [診断カタログ](https://koide55.github.io/Progamming-Language-Lune-001/playground/errors.html) · [チュートリアル](documents/TUTORIAL.md)
 
-Run tests:
+---
+
+## プロローグ — 全員、部活に入ること
+
+転校初日に知らされた校則がこれだった。**「全生徒、いずれかの部に所属すること」**。
+
+運動部は続く気がしない。文化系の一覧を眺めていたら「プログラミング部」とある。パソコンで何か打っていれば終わる、いちばん楽そうなやつだ。僕は入部届を出した。
+
+部室のドアには、こう書かれていた。
+
+> **部訓: 必要になるまで、やらない。一度やったことは、忘れない。**
+
+……楽そうな部、で合ってるよな?
+
+## 入部初日 — さっそく間違える
+
+「じゃあ転校生くん、まず書いてみて」と部長。見よう見まねで打ったら、初日からエラーを出した。
+
+```lune
+let count = 10
+let total = cont + 5
+```
+
+```text
+$ ./bin/lune --check --lang ja guide.lune
+error[TYP0001]: 未定義の名前: cont
+  --> guide.lune:2:13
+  |
+2 | let total = cont + 5
+  |             ^^^^ この名前は定義されていない
+   = hint: もしかして `count` ですか?
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください
+```
+
+身構えた僕に、部長は画面を指しながら言った。「読み方を教える。上から順に」
+
+- `TYP0001` — エラーの出席番号(診断コード)。あとで調べるときの索引になる
+- `^^^^` — 問題の場所そのもの。まずここを見る
+- `= hint:` — 次の一手。**正解の候補まで書いてある**
+- `= help:` — もっと深く知りたいときの案内
+
+「**うちの部では、エラーは赤点じゃなくて教材**。読めるようになったら、もう半分書けるのと同じ」
+
+思っていたのと違う。この部、楽じゃない。でも、理不尽でもなかった。
+
+## 部員紹介 — 教えてくれる先輩たち
+
+- **真知(まち)部長** — `match` の抜けを絶対に見逃さない。「`Blue` のケースがありません」と**反例つき**で指摘してくる(TYP0007)。書きすぎれば「そのケースには到達しません」(TYP0009)。null も `T?` の型として扱わせ、`?.` / `??` / フロー narrowing まで仕込んでくる。厳しいが、指摘には全部理由がある。
+- **英美(えいみ)先輩** — 解説担当。全29の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/Progamming-Language-Lune-001/playground/errors.html)に貼り出されている。
+- **直美(なおみ)先輩** — 赤ペンと清書の担当。typo は did-you-mean の候補で機械的に直してくれるし(`lune fix`)、提出前には正準スタイルに整えてくれる(`lune fmt`)。整形で意味が変わっていないことを再パースで検証してから返す、と聞いてこの部の本気度を理解した。
+
+教わる流れは決まっている: **間違える → 読む → `explain` → `fix` → 確認**。チュートリアル第17章には「指定した診断をわざと出せたら正解」という逆転演習まであって、僕は初日にエラーの出し方から教わった。
+
+## 部訓の意味 — 「必要になるまで、やらない」(遅延評価)
+
+Lune の値は、必要になるまで計算されない。
+
+```lune
+let danger = crash()
+let answer = 42
+```
+
+`answer` を評価しても `danger` は使われないから、`crash()` は実行されない。「サボりじゃないの。**必要なものを、必要なときに、一度だけ**。そして一度やったことは忘れない(メモ化)」と部長は言う。
+
+信じられないなら目で見ればいい、と教わったのが REPL の `:trace` だ。
+
+```text
+lune> :trace on
+trace on
+lune> let y = x + 1
+ok                       # 宣言では何も評価されない
+lune> y * 10
+force y * 10
+  force x + 1            # y が必要になって初めて評価される
+    memo 1 + 1 => 2      # x はメモ化済み。再計算されない
+  => 3
+=> 30
+30 : Int
+```
+
+この校風なら、無限リストとも普通に付き合える。どこまで計算が進んだかは `:thunks` が見せてくれる。
+
+```text
+lune> let nat = naturalsFrom(1)
+ok
+lune> head(nat)
+Some(1) : Option[Int]
+lune> :thunks nat
+nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手つかず
+```
+
+## 放課後 — 部室はブラウザの中にもある
+
+**<https://koide55.github.io/Progamming-Language-Lune-001/playground/>**
+
+家に帰ってからも練習できるように、部室はブラウザの中にもある。処理系(Pure Python)が Pyodide 上でそのまま動くので、インストールは不要。実行・型チェック・整形・自動修正・explain・遅延評価のトレース・日本語/英語の切り替え、全部できる。
+
+## 資料棚 — ドキュメント
+
+- [チュートリアル(日本語)](documents/TUTORIAL.md) / [Tutorial (English)](documents/TUTORIAL_EN.md) — 全20章。遅延評価は第2〜6章でじっくり、エラー駆動学習は第17章
+- [診断コード索引(日本語)](documents/ERROR_INDEX_JA.md) / [Error Index (English)](documents/ERROR_INDEX.md) — 自動生成、テストで同期を強制
+- [言語仕様](documents/LANGUAGE_SPEC.md)ほか、[documents/](documents/README.md) に仕様書一式
+- [普及戦略](documents/STRATEGY.md) — この部がどこへ向かうか
+
+## 入部届 — はじめかた
+
+必要なのは Python 3.12+ だけ。依存パッケージはありません。
+
+```sh
+git clone https://github.com/koide55/Progamming-Language-Lune-001.git
+cd Progamming-Language-Lune-001
+
+./bin/lune                                 # REPL(:help でコマンド一覧)
+./bin/lune --check --lang ja file.lune     # 型チェック(日本語診断)
+./bin/lune --eval answer file.lune         # ファイルの束縛を評価
+./bin/lune --eval answer --trace file.lune # 遅延評価をトレース
+./bin/lune explain TYP0007 --lang ja       # 診断コードの詳解
+./bin/lune fmt --write file.lune           # 整形
+./bin/lune fix --write file.lune           # typo の自動修正
+```
+
+書き味の見本は [samples/](samples/) にあります(ADT・match・レコード・パイプライン `|>`・nullable・無限ストリームなど)。
+
+## 顧問の先生より — 開発者向け
+
+処理系は `lune/` 以下の Pure Python(外部依存なし)。lexer → layout → parser → typechecker → evaluator の各層と、diagnostics / explanations / messages(英日メッセージカタログ)/ formatter / fixer / REPL で構成されています。
 
 ```sh
 PYTHONPATH=. python3 -m unittest discover -s tests
 ```
 
-Run Lune:
+テストは「発行されうる全診断コードに詳解があること」「詳解とメッセージに日本語訳があること」「生成物(診断カタログ)が陳腐化していないこと」まで強制します。間違いを教材にする部なので、自分自身にもそこそこ厳しめです。
 
-```sh
-./bin/lune
-```
+---
 
-`./bin/lune` starts the REPL when called without arguments. With arguments, it forwards to the normal CLI.
+気づけば、放課後の部室にいちばん長く残っているのは僕になっていた。
 
-Parse a sample:
-
-```sh
-./bin/lune samples/option.lune
-./bin/lune --tokens samples/basics.lune
-```
-
-Type-check a sample:
-
-```sh
-./bin/lune --check samples/option.lune
-./bin/lune --check samples/eval.lune
-./bin/lune --check samples/stdlib.lune
-./bin/lune --check samples/modules/main.lune
-./bin/lune --check samples/records.lune
-./bin/lune --check samples/while.lune
-./bin/lune --check samples/pipeline.lune
-./bin/lune --check samples/nullable.lune
-./bin/lune --check samples/stream.lune
-```
-
-Start the REPL:
-
-```sh
-./bin/lune
-```
-
-When started in a terminal, the REPL supports readline-style line editing and command history.
-
-REPL commands:
-
-```text
-:help
-:env
-:type NAME
-:explain CODE
-:quit
-```
-
-Errors are rendered as diagnostics with codes and source excerpts:
-
-```text
-error[LXL0001]: unexpected character '$'
-  --> sample.lune:1:9
-  |
-1 | let x = $1
-  |         ^ unexpected character
-```
-
-Every diagnostic code has a detailed, teaching-oriented explanation (what it
-means, an example that triggers it, and how to fix it). Diagnostics point you
-to it, and you can ask for it directly:
-
-```sh
-./bin/lune explain TYP0007
-```
-
-In the REPL, use `:explain CODE`.
-
-Format source to a canonical style:
-
-```sh
-./bin/lune fmt samples/records.lune          # print formatted source to stdout
-./bin/lune fmt --write samples/records.lune  # rewrite the file(s) in place
-./bin/lune fmt --check samples/records.lune  # exit non-zero if not formatted (CI)
-```
-
-`lune fmt` pretty-prints the parsed AST, so output is canonical and idempotent. It re-parses its own output and checks the AST is unchanged, so formatting never alters a program's meaning. `#` comments are preserved; files with `###` block comments are left untouched with an error (not yet supported).
-
-Apply suggested fixes automatically:
-
-```sh
-./bin/lune fix samples/basics.lune          # print fixed source to stdout
-./bin/lune fix --write path/to/file.lune    # apply fixes in place
-./bin/lune fix --check path/to/file.lune    # exit non-zero if fixes are available (CI)
-```
-
-`lune fix` currently corrects undefined-name typos using the "did you mean" suggestion, iteratively (several typos in one run). Files with `import`s are skipped for now, since imported names cannot yet be resolved by the fixer.
-
-Evaluate a top-level binding:
-
-```sh
-./bin/lune --eval lazySafe samples/eval.lune
-./bin/lune --eval matched samples/eval.lune
-./bin/lune --eval total samples/stdlib.lune
-./bin/lune --eval answer samples/modules/main.lune
-./bin/lune --eval answer samples/records.lune
-./bin/lune --eval answer samples/while.lune
-./bin/lune --eval result samples/pipeline.lune
-./bin/lune --eval present samples/nullable.lune
-./bin/lune --eval powersOfTwo samples/stream.lune
-```
-
-Add extra module search roots with repeated `--module-path PATH` flags:
-
-```sh
-./bin/lune --module-path samples/modules --check samples/modules/main.lune
-```
-
-The evaluator is intentionally small. It supports default-lazy `let` bindings and function arguments, `lazy` / `force`, arithmetic, booleans, ADT constructors, and pattern matching. Lazy evaluation includes success memoization, failed-thunk memoization, recursive thunk detection, strict parameters, strict constructor fields, `seq`, and `deepForce`.
-
-The current language behavior is specified in `documents/LANGUAGE_SPEC.md`. The future target language is described in `documents/LANGUAGE_FUTURE_SPEC.md`. Lazy evaluation behavior is specified in `documents/LAZY_EVALUATION_SPEC.md`. The current type checker behavior is specified in `documents/TYPE_CHECKER_SPEC.md`. REPL behavior is specified in `documents/REPL_SPEC.md`. Module loading is specified in `documents/MODULE_LOADING_SPEC.md`. Later features such as class/interface parsing, richer type inference, Java type resolution, and code generation remain for later phases.
+*Lazy* は評価戦略のこと。*Native* はネイティブコードのこと……ではなく **native language(母語)** のことだと、英美先輩は最初に教えてくれた。それでは、よい部活動を。
