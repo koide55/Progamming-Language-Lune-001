@@ -5,7 +5,7 @@
 
 > Lune is a teaching-first functional language: lazy by default, with diagnostics that speak your native language. If you prefer English, start with [documents/TUTORIAL_EN.md](documents/TUTORIAL_EN.md) — every diagnostic and explanation defaults to English.
 
-**[▶ Playground(インストール不要)](https://koide55.github.io/Progamming-Language-Lune-001/playground/)** · [診断カタログ](https://koide55.github.io/Progamming-Language-Lune-001/playground/errors.html) · [チュートリアル](documents/TUTORIAL.md)
+**[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · [チュートリアル](documents/TUTORIAL.md)
 
 ---
 
@@ -57,7 +57,7 @@ error[TYP0001]: 未定義の名前: cont
 ## 部員紹介 — 教えてくれる先輩たち
 
 - **真知(まち)部長** — `match` の抜けを絶対に見逃さない。「`Blue` のケースがありません」と**反例つき**で指摘してくる(TYP0007)。書きすぎれば「そのケースには到達しません」(TYP0009)。null も `T?` の型として扱わせ、`?.` / `??` / フロー narrowing まで仕込んでくる。厳しいが、指摘には全部理由がある。
-- **英美(えいみ)先輩** — 解説担当。全29の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/Progamming-Language-Lune-001/playground/errors.html)に貼り出されている。
+- **英美(えいみ)先輩** — 解説担当。全29の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html)に貼り出されている。
 - **直美(なおみ)先輩** — 赤ペンと清書の担当。typo は did-you-mean の候補で機械的に直してくれるし(`lune fix`)、提出前には正準スタイルに整えてくれる(`lune fmt`)。整形で意味が変わっていないことを再パースで検証してから返す、と聞いてこの部の本気度を理解した。
 
 教わる流れは決まっている: **間違える → 読む → `explain` → `fix` → 確認**。チュートリアル第17章には「指定した診断をわざと出せたら正解」という逆転演習まであって、僕は初日にエラーの出し方から教わった。
@@ -102,7 +102,7 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 ## 放課後 — 部室はブラウザの中にもある
 
-**<https://koide55.github.io/Progamming-Language-Lune-001/playground/>**
+**<https://koide55.github.io/lune-lang/playground/>**
 
 家に帰ってからも練習できるように、部室はブラウザの中にもある。処理系(Pure Python)が Pyodide 上でそのまま動くので、インストールは不要。実行・型チェック・整形・自動修正・explain・遅延評価のトレース・日本語/英語の切り替え、全部できる。
 
@@ -118,8 +118,8 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 必要なのは Python 3.12+ だけ。依存パッケージはありません。
 
 ```sh
-git clone https://github.com/koide55/Progamming-Language-Lune-001.git
-cd Progamming-Language-Lune-001
+git clone https://github.com/koide55/lune-lang.git
+cd lune-lang
 
 ./bin/lune                                 # REPL(:help でコマンド一覧)
 ./bin/lune --check --lang ja file.lune     # 型チェック(日本語診断)
