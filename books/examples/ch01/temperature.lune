@@ -1,0 +1,9 @@
+module temperature
+
+# 華氏 0〜300 度を 20 度刻みで摂氏に換算した対応表を作る。
+def toCelsius(f: Int): Double =
+    (f - 32) * 5 / 9
+
+let fahrenheits = map(range(0, 16), fn i -> i * 20)
+
+let table = map(fahrenheits, fn f -> (f, toCelsius(f)))

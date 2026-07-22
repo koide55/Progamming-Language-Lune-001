@@ -1,0 +1,5 @@
+module hello
+
+let greeting = "hello, world"
+
+let main = println(greeting)

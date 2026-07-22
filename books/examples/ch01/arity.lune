@@ -1,0 +1,6 @@
+module wrong
+
+def greet(name: String): String =
+    "hello, " + name
+
+let main = println(greet("world", "again"))

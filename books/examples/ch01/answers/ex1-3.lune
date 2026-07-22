@@ -1,0 +1,8 @@
+module answers
+
+# 演習 1-3: fold で華氏温度の合計と平均を求める。
+let fahrenheits = map(range(0, 16), fn i -> i * 20)
+
+let total = fold(fahrenheits, 0, fn acc f -> acc + f)
+
+let average = total / length(fahrenheits)

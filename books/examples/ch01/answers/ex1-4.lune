@@ -1,0 +1,9 @@
+module answers
+
+# 演習 1-4: 摂氏で氷点下になる華氏温度だけを残す。
+def toCelsius(f: Int): Double =
+    (f - 32) * 5 / 9
+
+let fahrenheits = map(range(0, 16), fn i -> i * 20)
+
+let freezing = filter(fahrenheits, fn f -> toCelsius(f) < 0.0)

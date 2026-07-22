@@ -1,0 +1,6 @@
+error[TYP0005]: expected at most 1 arguments, got 2
+  --> arity.lune:6:20
+  |
+6 | let main = println(greet("world", "again"))
+  |                    ^^^^^ wrong number of arguments
+   = help: run `lune explain TYP0005` for a detailed explanation
