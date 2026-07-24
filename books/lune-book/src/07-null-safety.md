@@ -167,29 +167,16 @@ lune> orOne(absent)
 
 `x != null` が真の分岐では、`x` は `Int` として使えます（`x == null` なら偽の分岐で絞り込まれます）。この絞り込みが効くのは `x != null` / `x == null` という単純な形だけで、`&&` で繋いだ複合条件や `elif` には及びません。凝った条件になったら `match` に切り替えてください。
 
-## 7.6 null を返す関数を書く — 構築の作法
+## 7.6 null を返す関数を書く
 
-ここまでは null を**受け取る**側でした。**返す**側には、v0.1 特有の作法が要ります。素直に書くと、第5章で見た推論の制限（の null 版）に当たるのです。
-
-```text,diagnostic
-lune> def maybeDiv(x: Int, y: Int): Double? =
-...     if y == 0 then null else x / y
-...
-error[TYP0003]: branch type mismatch: Null vs Double
-   = help: run `lune explain TYP0003` for a detailed explanation
-```
-
-分岐の腕どうし（`Null` と `Double`）を合流させる段階で、戻り値型 `Double?` がまだ考慮されないためです。当面の書き方は、**注釈付きの `let` で両腕の型を先に `Double?` へ揃える**ことです。`maybediv.lune`:
+ここまでは null を**受け取る**側でした。**返す**側は、実は書いたとおりに動きます。戻り値型に付けた `Double?` が**期待型**として分岐の両腕へ伝わり、`null` の腕も値の腕も `Double?` として型が付くからです — 第5章 5.6節で見た、コンストラクタの型引数を確定させるのと同じ仕組みです。`maybediv.lune`:
 
 ```lune
 module maybediv
 
-# 分岐で null と値を直接合流できないため（第5章の制限の null 版）、
-# 注釈付き let で両腕の型を Double? に揃えてから分岐する。
+# 戻り値型 Double? が期待型として if の両腕へ伝わる（5.6節と同じ仕組み）。
 def maybeDiv(x: Int, y: Int): Double? =
-    let nothing: Double? = null
-    let quotient: Double? = x / y
-    if y == 0 then nothing else quotient
+    if y == 0 then null else x / y
 
 let some = maybeDiv(7, 2)
 
@@ -207,9 +194,9 @@ $ lune --eval fallback maybediv.lune
 0.0
 ```
 
-`maybeDiv(7, 0)` で `let quotient: Double? = x / y` を通っているのに、0 除算エラーが出ていないことに気づいたでしょうか。`quotient` はサンクで、`y == 0` の分岐では一度も force されないからです。**遅延評価のおかげで、このイディオムは「先に計算してしまう」心配なしに書けます**。第4章がここで効いています。
+`maybeDiv(7, 0)` で 0 除算エラーが出ないのは、`if` が選ばなかった腕を評価しないからです（第2章）。「失敗しうる計算」を else の腕に置いたまま、null で受け流す — `T?` を返す関数の基本形です。
 
-この制限は言語側の改修候補です（第5章の囲みと同じ課題）。解消されれば、冒頭の素直な書き方がそのまま通るようになります。
+「なくてもよい」フィールドの読み出し（`?.`）、デフォルトへの着地（`??`）、そしてこの「なければ null を返す関数」。3点セットで、null は型に守られた普通の道具になります。
 
 ## 7.7 Option[T] と T? の使い分け
 
@@ -248,7 +235,7 @@ $ lune --eval fallback maybediv.lune
 | `??` | null ならデフォルト。右辺は必要になるまで評価されない |
 | `?.` | null なら null に短絡してフィールドを読む。`??` とセットで |
 | `if x != null` | 単純形のみ絞り込み。複雑になったら `match` |
-| null を返す | v0.1 では注釈付き `let` で型を揃えてから分岐（遅延が安全性を担保） |
+| null を返す | 戻り値型 `T?` が期待型として分岐へ伝わる。書いたとおりに動く |
 | vs `Option` | データの形は `T?`、リスト・高階関数の世界は `Option` |
 
 ## 演習問題
@@ -315,11 +302,9 @@ lune> ageOf(null) ?? 0
 ```lune
 module answers
 
-# 演習 7-4: 空リストの平均は「ない」。null で表し、計算は遅延に任せる。
+# 演習 7-4: 空リストの平均は「ない」ので null。選ばれない腕は評価されない。
 def average(xs: List[Int]): Double? =
-    let nothing: Double? = null
-    let mean: Double? = fold(xs, 0, fn a x -> a + x) / length(xs)
-    if isEmpty(xs) then nothing else mean
+    if isEmpty(xs) then null else fold(xs, 0, fn a x -> a + x) / length(xs)
 
 let some = average([2, 3, 4])
 
@@ -337,7 +322,7 @@ $ lune --eval safe ex7-4.lune
 0.0
 ```
 
-`mean` の定義は空リストに対して 0 除算になりそうですが、なりません — サンクのまま捨てられるからです。7.6節のイディオムがそのまま使える、遅延評価と null 安全の合わせ技です。
+else の腕には `length(xs)` での割り算が書いてありますが、空リストのときその腕は選ばれず、評価もされません。0 除算のガードと null の返却が、`if` 一つで同時に済んでいます。
 
 </details>
 

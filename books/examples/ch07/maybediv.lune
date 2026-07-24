@@ -1,11 +1,8 @@
 module maybediv
 
-# 分岐で null と値を直接合流できないため（第5章の制限の null 版）、
-# 注釈付き let で両腕の型を Double? に揃えてから分岐する。
+# 戻り値型 Double? が期待型として if の両腕へ伝わる（5.6節と同じ仕組み）。
 def maybeDiv(x: Int, y: Int): Double? =
-    let nothing: Double? = null
-    let quotient: Double? = x / y
-    if y == 0 then nothing else quotient
+    if y == 0 then null else x / y
 
 let some = maybeDiv(7, 2)
 
