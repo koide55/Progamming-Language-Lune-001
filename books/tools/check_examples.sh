@@ -128,6 +128,24 @@ eval_is answers/ex1-4.lune freezing expected/ex1-4.freezing.txt
 
 fmt_ok hello.lune temperature.lune answers/ex1-2.lune answers/ex1-3.lune answers/ex1-4.lune
 
+# ----- 第2章 -----
+cd "$BOOKS_DIR/examples/ch02"
+
+check_ok grade.lune
+eval_is grade.lune result expected/grade.result.txt
+
+diag_is annot.lune expected/annot.check.txt
+diag_is lex.lune expected/lex.check.txt
+diag_is indent.lune expected/indent.check.txt
+
+check_ok answers/ex2-3.lune
+eval_is answers/ex2-3.lune bmi expected/ex2-3.bmi.txt
+
+check_ok answers/ex2-4.lune
+eval_is answers/ex2-4.lune swapped expected/ex2-4.swapped.txt
+
+fmt_ok grade.lune answers/ex2-3.lune answers/ex2-4.lune
+
 # ----- 第4章 -----
 cd "$BOOKS_DIR/examples/ch04"
 

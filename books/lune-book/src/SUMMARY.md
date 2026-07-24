@@ -8,7 +8,7 @@
 
 # 第II部 言語を学ぶ
 
-- [値・型・式]()
+- [値・型・式](02-values-types-expressions.md)
 - [関数]()
 - [遅延評価 — Lune の心臓部](04-lazy-evaluation.md)
 - [代数的データ型とパターンマッチ]()

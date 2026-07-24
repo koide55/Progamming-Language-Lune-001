@@ -1,0 +1,6 @@
+error[LXL0001]: unexpected character '$'
+  --> lex.lune:3:9
+  |
+3 | let x = $1
+  |         ^ unexpected character
+   = help: run `lune explain LXL0001` for a detailed explanation

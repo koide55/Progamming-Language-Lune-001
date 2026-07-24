@@ -1,0 +1,3 @@
+module bad
+
+let x = $1

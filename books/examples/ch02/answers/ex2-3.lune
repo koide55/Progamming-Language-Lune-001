@@ -1,0 +1,7 @@
+module answers
+
+# 演習 2-3: ブロック形式の let で中間値に名前を付けて BMI を計算する。
+let bmi =
+    let h = 1.7
+    let w = 62.0
+    w / (h * h)

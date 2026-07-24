@@ -1,0 +1,6 @@
+error[PRS0001]: expected top-level declaration, got INDENT
+  --> indent.lune:4:1
+  |
+4 |   let b = 2
+  | ^ unexpected token
+   = help: run `lune explain PRS0001` for a detailed explanation
