@@ -237,6 +237,26 @@ eval_is answers/ex5-4.lune none expected/ex5-4.none.txt
 
 fmt_ok shape.lune missing.lune refutable.lune unreachable.lune answers/ex5-2.lune answers/ex5-3.lune answers/ex5-4.lune
 
+# ----- 第6章 -----
+cd "$BOOKS_DIR/examples/ch06"
+
+check_ok user.lune
+eval_is user.lune hello expected/user.hello.txt
+eval_is user.lune ada expected/user.ada.txt
+
+check_ok items.lune
+eval_is items.lune total expected/items.total.txt
+
+diag_is typofield.lune expected/typofield.check.txt
+
+check_ok answers/ex6-2.lune
+eval_is answers/ex6-2.lune pricey expected/ex6-2.pricey.txt
+
+check_ok answers/ex6-3.lune
+eval_is answers/ex6-3.lune swapped expected/ex6-3.swapped.txt
+
+fmt_ok user.lune items.lune typofield.lune answers/ex6-2.lune answers/ex6-3.lune
+
 # ----- 第8章 -----
 cd "$BOOKS_DIR/examples/ch08"
 

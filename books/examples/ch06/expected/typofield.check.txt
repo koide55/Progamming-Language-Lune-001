@@ -1,0 +1,7 @@
+error[REC0002]: unknown record field: User.nmae
+  --> typofield.lune:9:12
+  |
+9 | let oops = ada.nmae
+  |            ^^^ field is not declared by this record
+   = hint: did you mean `name`?
+   = help: run `lune explain REC0002` for a detailed explanation

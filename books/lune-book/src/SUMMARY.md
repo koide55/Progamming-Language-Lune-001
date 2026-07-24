@@ -12,7 +12,7 @@
 - [関数](03-functions.md)
 - [遅延評価 — Lune の心臓部](04-lazy-evaluation.md)
 - [代数的データ型とパターンマッチ](05-adts-and-match.md)
-- [レコード]()
+- [レコード](06-records.md)
 - [null 安全]()
 - [リストとストリーム](08-lists-and-streams.md)
 - [命令的に書く — var・while・for・IO]()
