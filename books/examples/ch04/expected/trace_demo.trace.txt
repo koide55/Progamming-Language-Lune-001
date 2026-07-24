@@ -1,0 +1,5 @@
+force x + x
+  force 1 + 1
+  => 2
+  memo 1 + 1 => 2
+=> 4

@@ -74,6 +74,34 @@ fix_is() {
     fi
 }
 
+# --eval が失敗し、診断出力が期待ファイルと一致すること
+eval_diag_is() { # file binding expect
+    local out
+    if out=$("$LUNE" --eval "$2" "$1" 2>&1); then
+        ng "--eval $2 $1: unexpectedly succeeded"
+        return
+    fi
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
+        ok
+    else
+        ng "--eval $2 $1: diagnostic differs from $3"
+        printf '%s\n' "$out" | diff -u "$3" - | head -20
+    fi
+}
+
+# --eval --trace の stderr トレースが期待ファイルと一致すること
+trace_is() { # file binding expect
+    local out
+    out=$("$LUNE" --eval "$2" --trace "$1" 2>&1 > /dev/null)
+    if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
+        ok
+    else
+        ng "--eval $2 --trace $1: trace differs from $3"
+        printf '%s\n' "$out" | diff -u "$3" - | head -20
+    fi
+}
+
 # ----- 第1章 -----
 cd "$BOOKS_DIR/examples/ch01"
 
@@ -99,6 +127,31 @@ check_ok answers/ex1-4.lune
 eval_is answers/ex1-4.lune freezing expected/ex1-4.freezing.txt
 
 fmt_ok hello.lune temperature.lune answers/ex1-2.lune answers/ex1-3.lune answers/ex1-4.lune
+
+# ----- 第4章 -----
+cd "$BOOKS_DIR/examples/ch04"
+
+check_ok myif.lune
+eval_is myif.lune taken expected/myif.taken.txt
+eval_is myif.lune skipped expected/myif.skipped.txt
+
+check_ok trace_demo.lune
+eval_is trace_demo.lune answer expected/trace_demo.answer.txt
+trace_is trace_demo.lune answer expected/trace_demo.trace.txt
+
+check_ok box.lune
+eval_is box.lune ok expected/box.ok.txt
+
+check_ok point.lune
+eval_diag_is point.lune p expected/point.p.txt
+
+diag_is recursive.lune expected/recursive.check.txt
+eval_diag_is recursive.lune x expected/recursive.x.txt
+
+check_ok answers/ex4-2.lune
+eval_is answers/ex4-2.lune shortCircuited expected/ex4-2.shortCircuited.txt
+
+fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune answers/ex4-2.lune
 
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"

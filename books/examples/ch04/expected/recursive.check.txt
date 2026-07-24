@@ -1,0 +1,6 @@
+error[TYP0001]: undefined name: x
+  --> recursive.lune:3:9
+  |
+3 | let x = x + 1
+  |         ^ name is not defined
+   = help: run `lune explain TYP0001` for a detailed explanation
