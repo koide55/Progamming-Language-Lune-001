@@ -41,6 +41,24 @@ fetch して Pyodide のファイルシステムに書き込み、`check_file` /
   Pyodide FS に書けば `--module-path` 相当も動くはずだが、本格版で要確認。
 - REPL・thunk 可視化は未実装 (PoC の範囲外)。
 
+## エディタ(CodeMirror)
+
+エディタは CodeMirror 5(CDN)で、Lune の構文ハイライト(simple mode)・行番号・
+Ctrl/Cmd+Enter での実行に対応。CDN が使えない環境では素の textarea に
+フォールバックする。診断が `main.lune:行:列` を指すとき、該当行を
+エディタ上でハイライトする。
+
+## 出力の診断コードリンク
+
+出力中の診断コード(`TYP0007` など)はクリックできる。クリックすると
+その場で explain が開く(選択中の言語で表示)。
+
+## 共有リンク
+
+「共有」ボタンで、コード・評価する束縛・トレース設定・言語を URL の
+`#s=`(base64url の JSON)に畳み込んでクリップボードにコピーする。
+開いた側はページ読み込み時にそのまま復元される。演習の配布に使える。
+
 ## 診断カタログページ
 
 `errors.html` は `documents/ERROR_INDEX_JA.md` / `ERROR_INDEX.md` をその場で
