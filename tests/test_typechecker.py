@@ -1135,5 +1135,126 @@ let u = User(naem = "Ada")
         self.assertIn("did you mean `name`?", ctx.exception.diagnostic.hints)
 
 
+class ConstructorExpectedTypeTests(unittest.TestCase):
+    """Expected types fix the free type variables of generic constructors and
+    let `null` join value branches (LOCAL_TYPE_INFERENCE_SPEC.md section 5.6)."""
+
+    def test_if_branches_instantiate_option_constructors(self) -> None:
+        source = "def maybeDiv(x: Int, y: Int): Option[Double] = if y == 0 then None else Some(x / y)\n"
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("maybeDiv"), FunctionType((INT, INT), Type("Option", (FLOAT,))))
+
+    def test_match_arms_instantiate_result_constructors(self) -> None:
+        source = """
+def safeDiv(x: Int, y: Int): Result[Double, String] =
+    match y:
+        | 0 -> Err("div by zero")
+        | _ -> Ok(x / y)
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("safeDiv"), FunctionType((INT, INT), Type("Result", (FLOAT, STRING))))
+
+    def test_let_annotation_instantiates_bare_none(self) -> None:
+        env = check_source("let nothing: Option[Double] = None\n")
+        self.assertEqual(env.lookup_value("nothing"), Type("Option", (FLOAT,)))
+
+    def test_let_annotation_instantiates_bare_nil(self) -> None:
+        env = check_source("let empty: List[Int] = Nil\n")
+        self.assertEqual(env.lookup_value("empty"), Type("List", (INT,)))
+
+    def test_nullable_return_joins_null_and_value_branches(self) -> None:
+        source = "def maybeDiv(x: Int, y: Int): Double? = if y == 0 then null else x / y\n"
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("maybeDiv"), FunctionType((INT, INT), Type("Nullable", (FLOAT,))))
+
+    def test_nullable_match_joins_null_and_value_arms(self) -> None:
+        source = """
+def bump(x: Int?): Int? =
+    match x:
+        | null -> null
+        | v -> v + 1
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("bump"), FunctionType((Type("Nullable", (INT,)),), Type("Nullable", (INT,))))
+
+    def test_concrete_argument_instantiates_constructor(self) -> None:
+        source = """
+def describe(r: Result[Int, String]): String =
+    match r:
+        | Ok(v) -> "ok"
+        | Err(e) -> e
+
+let s = describe(Ok(42))
+let f = describe(Err("boom"))
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("s"), STRING)
+        self.assertEqual(env.lookup_value("f"), STRING)
+
+    def test_record_field_instantiates_constructor(self) -> None:
+        source = """
+record Holder:
+    value: Option[Double]
+
+let h = Holder(value = None)
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("h"), Type("Holder"))
+
+    def test_user_defined_generic_adt_instantiates(self) -> None:
+        source = """
+type Box[T] =
+    | Empty
+    | Full(value: T)
+
+def f(b: Bool): Box[Int] = if b then Full(1) else Empty()
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("f"), FunctionType((BOOL,), Type("Box", (INT,))))
+
+    def test_generic_argument_unification_still_works(self) -> None:
+        env = check_source("let a = getOrElse(Some(42), 0)\nlet b = getOrElse(None, 7)\n")
+        self.assertEqual(env.lookup_value("a"), INT)
+        self.assertEqual(env.lookup_value("b"), INT)
+
+    def test_rejects_wrong_constructor_payload_for_annotation(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source('let bad: Option[Double] = Some("s")\n')
+
+    def test_rejects_wrong_payload_in_instantiated_branch(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source('def f(x: Int, y: Int): Option[Double] = if y == 0 then None else Some("s")\n')
+
+    def test_rejects_mismatched_err_payload(self) -> None:
+        source = """
+def safeDiv(x: Int, y: Int): Result[Double, String] =
+    match y:
+        | 0 -> Err(42)
+        | _ -> Ok(x / y)
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
+
+    def test_rejects_wrong_concrete_argument_instantiation(self) -> None:
+        source = """
+def describe(r: Result[Int, String]): String =
+    match r:
+        | Ok(v) -> "ok"
+        | Err(e) -> e
+
+let s = describe(Ok(1.5))
+"""
+        with self.assertRaises(LuneTypeError):
+            check_source(source)
+
+    def test_rejects_null_branch_for_non_nullable_return(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("def f(y: Int): Double = if y == 0 then null else 1.5\n")
+
+    def test_rigid_type_param_still_rejected(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("def weird[T](x: T): Double = x\n")
+
+
 if __name__ == "__main__":
     unittest.main()

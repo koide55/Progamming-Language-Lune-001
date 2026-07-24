@@ -208,6 +208,11 @@ class TypeEnv:
             return self.parent.lookup_constructor(name)
         raise LuneTypeError(t("typ.undefined-constructor", name=name))
 
+    def has_constructor(self, name: str) -> bool:
+        if name in self.constructors:
+            return True
+        return self.parent is not None and self.parent.has_constructor(name)
+
     def lookup_record(self, name: str) -> RecordInfo:
         if name in self.records:
             return self.records[name]
@@ -433,7 +438,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return ANY
     if isinstance(expr, ast.NameExpr):
         try:
-            return env.lookup_value(expr.name)
+            value_type = env.lookup_value(expr.name)
         except LuneTypeError as exc:
             raise LuneTypeError(
                 t("typ.undefined-name", name=expr.name),
@@ -442,6 +447,11 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                 t("label.name-not-defined"),
                 *name_suggestion(expr.name, visible_value_names(env), expr.span),
             ) from exc
+        if expected is not None and env.has_constructor(expr.name):
+            # A bare nullary constructor (`None`, `Nil`) leaves its type
+            # parameters free; the expected type fixes them.
+            return instantiate_free_type_vars(value_type, expected)
+        return value_type
     if isinstance(expr, ast.NullExpr):
         return NULL
     if isinstance(expr, ast.CallExpr):
@@ -456,7 +466,13 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                 )
             return Type("Tuple", tuple(ensure_type(infer_expr(arg.value, env)) for arg in expr.args))
         callee_type = infer_expr(expr.callee, env)
-        return infer_call(callee_type, expr.args, env, expr.span)
+        result = infer_call(callee_type, expr.args, env, expr.span)
+        if expected is not None and isinstance(expr.callee, ast.NameExpr) and env.has_constructor(expr.callee.name):
+            # A constructor application (`Some(x)`, `Err(e)`) leaves type
+            # parameters no argument mentions free; the expected type fixes
+            # them.
+            return instantiate_free_type_vars(result, expected)
+        return result
     if isinstance(expr, ast.ListExpr):
         if isinstance(expected, Type) and expected.name == "List" and len(expected.args) == 1:
             element = expected.args[0]
@@ -519,15 +535,15 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             if expr.else_branch is not None:
                 infer_expr(expr.else_branch, else_env, expected)
             return branch_value
-        branch_types = [ensure_type(infer_expr(expr.then_branch, then_env, expected))]
+        branches = [(ensure_type(infer_expr(expr.then_branch, then_env, expected)), getattr(expr.then_branch, "span", None))]
         for condition, branch in expr.elif_branches:
             require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
-            branch_types.append(ensure_type(infer_expr(branch, env, expected)))
+            branches.append((ensure_type(infer_expr(branch, env, expected)), getattr(branch, "span", None)))
         if expr.else_branch is not None:
-            branch_types.append(ensure_type(infer_expr(expr.else_branch, else_env, expected)))
+            branches.append((ensure_type(infer_expr(expr.else_branch, else_env, expected)), getattr(expr.else_branch, "span", None)))
         else:
-            branch_types.append(UNIT)
-        return common_type(branch_types)
+            branches.append((UNIT, expr.span))
+        return merge_branch_types(branches, expected)
     if isinstance(expr, ast.WhileExpr):
         require_assignable(
             ensure_type(infer_expr(expr.condition, env)),
@@ -561,7 +577,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         nullable = scrutinee_type.name == "Nullable" and bool(scrutinee_type.args)
         inner_type = scrutinee_type.args[0] if nullable else scrutinee_type
         null_live = nullable
-        result_types: list[Type] = []
+        result_types: list[tuple[Type, SourceSpan | None]] = []
         for case in expr.cases:
             local = env.child()
             if nullable:
@@ -578,9 +594,9 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                 bind_pattern_types(case.pattern, scrutinee_type, local)
             if case.guard is not None:
                 require_assignable(ensure_type(infer_expr(case.guard, local)), BOOL, "match guard")
-            result_types.append(ensure_type(infer_expr(case.body, local, expected)))
+            result_types.append((ensure_type(infer_expr(case.body, local, expected)), getattr(case.body, "span", None)))
         check_match_exhaustiveness(expr, scrutinee_type, env)
-        return common_type(result_types) if result_types else BOTTOM
+        return merge_branch_types(result_types, expected) if result_types else BOTTOM
     if isinstance(expr, ast.LazyExpr):
         body_expected = None
         if isinstance(expected, Type) and expected.name == "Lazy" and len(expected.args) == 1:
@@ -758,7 +774,11 @@ def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, s
         if isinstance(arg.value, ast.LambdaExpr):
             deferred.append((expected, arg))
             continue
-        actual = infer_expr(arg.value, env)
+        # a parameter type that is already concrete becomes the argument's
+        # expected type, so constructor applications in argument position
+        # instantiate their free type variables against it
+        resolved = substitute_value(expected, substitutions)
+        actual = infer_expr(arg.value, env, resolved if resolved != ANY and not contains_type_var(resolved) else None)
         unify_value(expected, actual, substitutions)
     for expected, arg in deferred:
         resolved = substitute_value(expected, substitutions)
@@ -806,7 +826,8 @@ def infer_record_constructor_call(
                 t("label.duplicate-init"),
             )
         seen.add(arg.name)
-        actual = ensure_type(infer_expr(arg.value, env))
+        field_expected = field.type if field.type != ANY and not contains_type_var(field.type) else None
+        actual = ensure_type(infer_expr(arg.value, env, field_expected))
         unify(field.type, actual, substitutions)
     missing = [field.name for field in constructor_type.fields if field.name not in seen]
     if missing:
@@ -1360,6 +1381,33 @@ def unify_value(expected: ValueType, actual: ValueType, substitutions: dict[str,
     unify(expected, actual, substitutions)
 
 
+def instantiate_free_type_vars(actual: ValueType, expected: ValueType) -> ValueType:
+    """Resolve free type variables in `actual` against a concrete expected type.
+
+    Constructor applications and bare nullary constructors leave type
+    parameters that no argument mentions free (`None : Option[T]`,
+    `Ok(42) : Result[Int, E]`); unifying with the expected type fixes them
+    (LOCAL_TYPE_INFERENCE_SPEC.md section 5.6). Returns `actual` unchanged
+    when it has no free variables or when the expected type itself contains
+    type variables. When the two do not fully unify, the variables bound
+    before the failure are still applied so the caller's assignability check
+    reports the real mismatch rather than an unresolved variable.
+    """
+    if not isinstance(actual, Type) or not isinstance(expected, Type):
+        return actual
+    if not contains_type_var(actual) or contains_type_var(expected):
+        return actual
+    if expected.name == "Nullable" and expected.args and actual.name != "Nullable":
+        # a non-null value fills the inner type of an expected `T?`
+        expected = expected.args[0]
+    substitutions: dict[str, Type] = {}
+    try:
+        unify(actual, expected, substitutions)
+    except LuneTypeError:
+        pass
+    return substitute(actual, substitutions)
+
+
 def flatten_function_type(function: FunctionType) -> FunctionType:
     params = list(function.params)
     result = function.result
@@ -1461,6 +1509,23 @@ def require_comparable(left: Type, right: Type, context: str) -> None:
         return
     if left != right:
         raise LuneTypeError(t("typ.cannot-compare", context=context, left=repr(left), right=repr(right)))
+
+
+def merge_branch_types(branches: list[tuple[Type, SourceSpan | None]], expected: ValueType | None) -> Type:
+    """Join the branch types of an if/match expression.
+
+    With a concrete expected type (a `Type` without type variables, not
+    `Any`), each branch is checked for assignability against it and the whole
+    expression takes the expected type; this lets `null` and independently
+    instantiated constructor applications coexist across branches
+    (LOCAL_TYPE_INFERENCE_SPEC.md section 5.3). Without one, the branches
+    must agree exactly, as before.
+    """
+    if isinstance(expected, Type) and expected != ANY and not contains_type_var(expected):
+        for branch_type, span in branches:
+            require_assignable(branch_type, expected, "branch", span, t("label.expression-has-type", type=repr(branch_type)))
+        return expected
+    return common_type([branch_type for branch_type, _span in branches])
 
 
 def common_type(types: list[Type]) -> Type:
