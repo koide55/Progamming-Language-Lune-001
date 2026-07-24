@@ -1,6 +1,6 @@
 module maybediv
 
-# 戻り値型 Double? が期待型として if の両腕へ伝わる（5.6節と同じ仕組み）。
+# 期待型 Double? が if の両分岐へ配られ、null の腕と x / y の腕がそこで合流する。
 def maybeDiv(x: Int, y: Int): Double? =
     if y == 0 then null else x / y
 

@@ -1,0 +1,9 @@
+module maybedivlet
+
+# 部品を注釈付き let で先に作ってから分岐しても動く。
+# quotient はサンクなので、y == 0 の側では割り算は一度も走らない。
+def maybeDivLet(x: Int, y: Int): Double? =
+    let quotient: Double? = x / y
+    if y == 0 then null else quotient
+
+let viaLet = maybeDivLet(7, 0)
