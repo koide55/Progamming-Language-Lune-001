@@ -1,0 +1,10 @@
+module infinite
+
+# List の tail は遅延している。だからリストは無限になれる。
+let firstFive = take(naturalsFrom(1), 5)
+
+let powersOfTwo = take(iterate(fn x: Int -> x * 2, 1), 6)
+
+let threeSevens = take(repeat(7), 3)
+
+let pattern = take(cycle([1, 2, 3]), 7)

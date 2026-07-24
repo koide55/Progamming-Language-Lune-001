@@ -1,0 +1,6 @@
+module answers
+
+# 演習 2-4: タプルの分解束縛で 2 値を入れ替える。
+let (x, y) = (1, 2)
+
+let swapped = (y, x)

@@ -1,0 +1,10 @@
+module answers
+
+# 演習 3-4: applyTwice の一般化。f を n 回適用する。
+def applyN(f: Int -> Int, n: Int, x: Int): Int =
+    if n == 0 then x else applyN(f, n - 1, f(x))
+
+def double(n: Int): Int =
+    n * 2
+
+let answer = applyN(double, 3, 1)

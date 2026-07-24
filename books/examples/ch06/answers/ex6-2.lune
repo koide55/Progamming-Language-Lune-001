@@ -1,0 +1,10 @@
+module answers
+
+# 演習 6-2: 150 円以上の品物の名前だけを取り出す。
+record Item:
+    name: String
+    price: Int
+
+let items = [Item(name = "pen", price = 120), Item(name = "note", price = 200)]
+
+let pricey = map(filter(items, fn i: Item -> i.price >= 150), fn i: Item -> i.name)

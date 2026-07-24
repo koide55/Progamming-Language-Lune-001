@@ -1,0 +1,24 @@
+module shape
+
+# 直和型: Shape は Circle か Rect のどちらか。
+type Shape =
+    | Circle(radius: Double)
+    | Rect(width: Double, height: Double)
+
+def area(s: Shape): Double =
+    match s:
+        | Circle(r) -> r * r * 3.14159
+        | Rect(w, h) -> w * h
+
+# ガード: パターンに追加の条件を付ける。
+def describe(s: Shape): String =
+    match s:
+        | Circle(_) -> "circle"
+        | Rect(w, h) if w == h -> "square"
+        | Rect(_, _) -> "rectangle"
+
+let circleArea = area(Circle(1.0))
+
+let rectArea = area(Rect(3.0, 4.0))
+
+let squareness = describe(Rect(2.0, 2.0))

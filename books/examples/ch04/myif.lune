@@ -1,0 +1,12 @@
+module myif
+
+# 引数はデフォルトで遅延される。制御構文を自分で定義できる。
+def myIf(c: Bool, a: Int, b: Int): Int =
+    if c then a else b
+
+def myAnd(a: Bool, b: Bool): Bool =
+    if a then b else false
+
+let taken = myIf(true, 1, crash())
+
+let skipped = myAnd(false, crash())

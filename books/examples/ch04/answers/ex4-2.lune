@@ -1,0 +1,7 @@
+module answers
+
+# 演習 4-2: 左が true なら右を評価せずに短絡する myOr。
+def myOr(a: Bool, b: Bool): Bool =
+    if a then true else b
+
+let shortCircuited = myOr(true, crash())

@@ -1,0 +1,18 @@
+module answers
+
+# 演習 5-4: ジェネリックな入れ物を自作する。prelude の Option と同じ構造。
+type MyOption[T] =
+    | MySome(value: T)
+    | MyNone
+
+def myGetOrElse[T](option: MyOption[T], defaultValue: T): T =
+    match option:
+        | MySome(value) -> value
+        | MyNone -> defaultValue
+
+let some = myGetOrElse(MySome(42), 0)
+
+let none = myGetOrElse(MyNone(), 0)
+
+# 期待型による確定 (5.6節) は自作のジェネリック ADT にも働く。
+let empty: MyOption[Int] = MyNone()

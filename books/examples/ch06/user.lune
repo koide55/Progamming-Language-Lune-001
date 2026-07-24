@@ -1,0 +1,9 @@
+module user
+
+record User:
+    name: String
+    age: Int
+
+let ada = User(name = "Ada", age = 36)
+
+let hello = "hello, " + ada.name

@@ -1,0 +1,11 @@
+module maybediv
+
+# 期待型 Double? が if の両分岐へ配られ、null の腕と x / y の腕がそこで合流する。
+def maybeDiv(x: Int, y: Int): Double? =
+    if y == 0 then null else x / y
+
+let some = maybeDiv(7, 2)
+
+let none = maybeDiv(7, 0)
+
+let fallback = maybeDiv(7, 0) ?? 0.0

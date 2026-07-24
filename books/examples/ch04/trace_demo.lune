@@ -1,0 +1,5 @@
+module trace_demo
+
+let x = 1 + 1
+
+let answer = x + x

@@ -1,0 +1,12 @@
+module grade
+
+# if は式。block 形式では elif で分岐を足せる。
+def grade(score: Int): String =
+    if score >= 80:
+        "pass"
+    elif score >= 60:
+        "retry"
+    else:
+        "fail"
+
+let result = grade(75)

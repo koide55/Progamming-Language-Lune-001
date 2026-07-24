@@ -1,0 +1,15 @@
+module fib
+
+# 状態 (a, b) を一歩進める: (0,1) -> (1,1) -> (1,2) -> (2,3) -> ...
+def step(p: Tuple[Int, Int]): Tuple[Int, Int] =
+    match p:
+        | (a, b) -> (b, a + b)
+
+def fst(p: Tuple[Int, Int]): Int =
+    let (a, _) = p
+    a
+
+# フィボナッチ数列そのもの（無限リスト）。
+let fibs = map(iterate(step, (0, 1)), fst)
+
+let first10 = take(fibs, 10)

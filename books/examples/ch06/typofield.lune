@@ -1,0 +1,9 @@
+module bad
+
+record User:
+    name: String
+    age: Int
+
+let ada = User(name = "Ada", age = 36)
+
+let oops = ada.nmae

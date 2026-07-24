@@ -1,0 +1,3 @@
+module recursive
+
+let x = x + 1

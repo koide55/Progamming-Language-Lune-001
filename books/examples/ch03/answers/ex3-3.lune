@@ -1,0 +1,7 @@
+module answers
+
+# 演習 3-3: 再帰でフィボナッチ数。戻り値型 Int は必須（TYP0011）。
+def fib(n: Int): Int =
+    if n <= 1 then n else fib(n - 1) + fib(n - 2)
+
+let answer = fib(10)

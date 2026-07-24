@@ -1,0 +1,7 @@
+module point
+
+# strict 付きの正格フィールドは、構築の時点で評価される。
+type Point =
+    | Point(strict x: Int, strict y: Int)
+
+let p = Point(crash(), 0)

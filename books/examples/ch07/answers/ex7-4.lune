@@ -1,0 +1,11 @@
+module answers
+
+# 演習 7-4: 空リストの平均は「ない」。先に分岐すれば 0 除算には触れない。
+def average(xs: List[Int]): Double? =
+    if isEmpty(xs) then null else fold(xs, 0, fn a x -> a + x) / length(xs)
+
+let some = average([2, 3, 4])
+
+let none = average([])
+
+let safe = average([]) ?? 0.0

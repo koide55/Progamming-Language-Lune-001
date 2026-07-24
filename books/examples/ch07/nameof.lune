@@ -1,0 +1,15 @@
+module nameof
+
+record User:
+    name: String
+    age: Int
+
+# ?. は受け手が null なら null に短絡し、そうでなければフィールドを読む。
+def nameOf(user: User?): String? =
+    user?.name
+
+let someName = nameOf(User(name = "Ada", age = 36))
+
+let noName = nameOf(null)
+
+let fallback = nameOf(null) ?? "(nobody)"

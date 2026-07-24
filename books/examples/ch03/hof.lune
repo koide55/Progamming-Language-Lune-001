@@ -1,0 +1,16 @@
+module hof
+
+def inc(n: Int): Int =
+    n + 1
+
+# 関数を受け取る関数。
+def applyTwice(f: Int -> Int, x: Int): Int =
+    f(f(x))
+
+# 関数を返す関数。
+def adder(n: Int): Int -> Int =
+    fn x -> x + n
+
+let fortyTwo = applyTwice(inc, 40)
+
+let seven = adder(3)(4)

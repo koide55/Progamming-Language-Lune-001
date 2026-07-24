@@ -1,0 +1,8 @@
+error[TYP0008]: refutable pattern in let binding: Some(x)
+  --> refutable.lune:3:5
+  |
+3 | let Some(x) = Some(1)
+  |     ^^^^ this pattern can fail to match
+   = hint: the pattern does not cover None
+   = hint: use `match` to handle all cases of Option[Int]
+   = help: run `lune explain TYP0008` for a detailed explanation

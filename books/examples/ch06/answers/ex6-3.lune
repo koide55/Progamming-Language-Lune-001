@@ -1,0 +1,11 @@
+module answers
+
+# 演習 6-3: ジェネリックなレコードと、型が入れ替わる swap。
+record Pair[A, B]:
+    first: A
+    second: B
+
+def swap[A, B](p: Pair[A, B]): Pair[B, A] =
+    Pair(first = p.second, second = p.first)
+
+let swapped = swap(Pair(first = 1, second = "a"))

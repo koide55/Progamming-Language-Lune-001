@@ -1,0 +1,7 @@
+module answers
+
+# 演習 1-2: 摂氏 → 華氏の換算表（0〜100 度を 20 度刻み）。
+def toFahrenheit(c: Int): Double =
+    c * 9 / 5 + 32.0
+
+let table = map(range(0, 6), fn i -> (i * 20, toFahrenheit(i * 20)))

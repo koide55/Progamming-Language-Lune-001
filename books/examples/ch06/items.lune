@@ -1,0 +1,9 @@
+module items
+
+record Item:
+    name: String
+    price: Int
+
+let items = [Item(name = "pen", price = 120), Item(name = "note", price = 200)]
+
+let total = fold(map(items, fn i: Item -> i.price), 0, fn a x -> a + x)

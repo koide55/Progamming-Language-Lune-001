@@ -1,0 +1,2 @@
+error[RUN0006]: crash() was evaluated
+   = help: run `lune explain RUN0006` for a detailed explanation
