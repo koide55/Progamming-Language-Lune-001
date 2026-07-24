@@ -301,13 +301,20 @@ def initial_env() -> Env:
 
 
 def _builtin_print(args: list[Value]) -> Value:
-    print(*(_show_value(arg) for arg in args), end="")
+    print(*(_print_text(arg) for arg in args), end="")
     return UNIT
 
 
 def _builtin_println(args: list[Value]) -> Value:
-    print(*(_show_value(arg) for arg in args))
+    print(*(_print_text(arg) for arg in args))
     return UNIT
+
+
+def _print_text(value: Value) -> str:
+    value = force_value(value)
+    if isinstance(value, str):
+        return value
+    return _show_value(value)
 
 
 def _builtin_crash(args: list[Value]) -> Value:
