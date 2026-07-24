@@ -363,7 +363,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         expected = type_from_ast(decl.type) if decl.type is not None else None
         value_type = infer_expr(decl.value, env, expected)
         if expected is not None:
-            require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), f"this expression has type {value_type!r}")
+            require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), t("label.expression-has-type", type=repr(value_type)))
             value_type = expected
         bind_pattern_types(decl.pattern, value_type, env)
         check_pattern_irrefutable(decl.pattern, value_type, env, "let")
@@ -399,7 +399,7 @@ def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
         return
     expected = type_from_ast(decl.return_type, decl.type_params)
     body_type = infer_expr(decl.body, local, expected)
-    require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), f"function body has type {body_type!r}")
+    require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), t("label.function-body-has-type", type=repr(body_type)))
 
 
 def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) -> ValueType:
@@ -466,7 +466,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             if contains_type_var(element):
                 return Type("List", (common_type([ensure_type(item_type) for item_type in item_types]),))
             for item, item_type in zip(expr.items, item_types, strict=True):
-                require_value_assignable(item_type, element, "list element", getattr(item, "span", None), f"this element has type {item_type!r}")
+                require_value_assignable(item_type, element, "list element", getattr(item, "span", None), t("label.element-has-type", type=repr(item_type)))
             return expected
         if not expr.items:
             return Type("List", (ANY,))
@@ -708,7 +708,7 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
                     annotated,
                     f"parameter {param.name}",
                     param.span,
-                    f"annotation {annotated!r} does not accept expected {expected_param!r}",
+                    t("label.annotation-rejects-expected", annotation=repr(annotated), expected=repr(expected_param)),
                 )
             param_type: ValueType = annotated
         else:
@@ -724,7 +724,7 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
             body_expected,
             "lambda body",
             getattr(expr.body, "span", None),
-            f"lambda body has type {body_type!r}",
+            t("label.lambda-body-has-type", type=repr(body_type)),
         )
         result: ValueType = body_expected
     else:

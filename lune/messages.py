@@ -95,6 +95,14 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "{context}: expected {expected}, got {actual}",
         "{context}: {expected} が必要ですが、{actual} が見つかりました",
     ),
+    "label.expression-has-type": ("this expression has type {type}", "この式の型は {type}"),
+    "label.function-body-has-type": ("function body has type {type}", "関数本体の型は {type}"),
+    "label.element-has-type": ("this element has type {type}", "この要素の型は {type}"),
+    "label.lambda-body-has-type": ("lambda body has type {type}", "ラムダ本体の型は {type}"),
+    "label.annotation-rejects-expected": (
+        "annotation {annotation} does not accept expected {expected}",
+        "注釈 {annotation} は期待される型 {expected} を受け付けない",
+    ),
     "typ.expected-numeric": (
         "{context}: expected numeric type, got {type}",
         "{context}: 数値型が必要ですが、{type} が見つかりました",
