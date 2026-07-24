@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import io
 import pathlib
 import unittest
+from contextlib import redirect_stdout
 
 from lune.evaluator import DataValue, eval_source, force_value, format_value
 from lune.typechecker import INT, STRING, Type, check_source
@@ -204,6 +206,33 @@ let c: List[Int] = take(repeat(5), 3)
 
     def test_cycle_of_empty_is_empty(self) -> None:
         self.assertEqual(self.list_to_py(self.value_of("let xs = cycle([])\n", "xs")), [])
+
+    def stdout_of(self, source: str, name: str) -> str:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.value_of(source, name)
+        return out.getvalue()
+
+    def test_println_prints_string_without_quotes(self) -> None:
+        output = self.stdout_of('let r = println("hello, world")\n', "r")
+        self.assertEqual(output, "hello, world\n")
+
+    def test_println_resolves_escapes_in_string(self) -> None:
+        output = self.stdout_of('let r = println("a\\nb")\n', "r")
+        self.assertEqual(output, "a\nb\n")
+
+    def test_print_prints_string_without_newline(self) -> None:
+        output = self.stdout_of('let r = print("hi")\n', "r")
+        self.assertEqual(output, "hi")
+
+    def test_println_uses_show_for_non_strings(self) -> None:
+        self.assertEqual(self.stdout_of("let r = println(42)\n", "r"), "42\n")
+        self.assertEqual(self.stdout_of("let r = println([1, 2])\n", "r"), "(1 2)\n")
+        self.assertEqual(self.stdout_of('let r = println(Some("ok"))\n', "r"), 'Some("ok")\n')
+
+    def test_println_show_keeps_quoted_form(self) -> None:
+        output = self.stdout_of('let r = println(show("Ada"))\n', "r")
+        self.assertEqual(output, '"Ada"\n')
 
     def test_combinators_typecheck(self) -> None:
         env = check_source(

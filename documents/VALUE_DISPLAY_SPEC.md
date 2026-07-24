@@ -3,7 +3,7 @@
 Version: 0.1 draft  
 Related: `REPL_SPEC.md`, `STANDARD_LIBRARY_SPEC.md`, `LIST_LITERAL_SPEC.md`, `RECORD_FIELD_SPEC.md`
 
-この文書は Lune v0.1 の REPL、CLI `--eval`、`show`、`print`、`println` で使う値表示ルールを定義する。
+この文書は Lune v0.1 の REPL、CLI `--eval`、`show`、`print`、`println` で使う値表示ルールを定義する。ただし `print` / `println` は例外として、`String` 引数を引用符なしの生の内容で出力する（`STANDARD_LIBRARY_SPEC.md` §7 を参照）。`String` 以外の引数は本文書のルールに従う。
 
 ## 1. 目的
 
