@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast as python_ast
 import io
 import os
 import re
@@ -16,6 +17,29 @@ from lune.typechecker import LuneTypeError, name_suggestion, required_type
 
 KEY_RE = re.compile(r"""\bt\(\s*['"]([a-z0-9.\-]+)['"]""")
 LUNE_DIR = Path(__file__).resolve().parent.parent / "lune"
+
+# Text-carrying argument slots of the diagnostic constructors:
+# name -> (positional indices, keyword names). Slots not listed (codes,
+# severities, spans, replacement text) may legitimately be literals.
+DIAGNOSTIC_TEXT_ARGS: dict[str, tuple[tuple[int, ...], tuple[str, ...]]] = {
+    "Diagnostic": ((2,), ("message", "notes", "hints")),
+    "Label": ((1,), ("message",)),
+    "Fix": ((2,), ("description",)),
+    "LuneTypeError": ((0, 3, 4), ("message", "label", "hints")),
+    "LuneRuntimeError": ((0,), ("message", "hints")),
+    "LuneSyntaxError": ((0, 3, 4), ("message", "label", "hints")),
+    "ModuleLoadError": ((0, 3, 4), ("message", "label", "hints")),
+}
+
+
+def _is_literal_text(node: python_ast.expr) -> bool:
+    if isinstance(node, python_ast.Constant) and isinstance(node.value, str):
+        return True
+    if isinstance(node, python_ast.JoinedStr):
+        return True
+    if isinstance(node, (python_ast.List, python_ast.Tuple)):
+        return any(_is_literal_text(element) for element in node.elts)
+    return False
 
 
 class MessageCatalogTests(unittest.TestCase):
@@ -34,6 +58,32 @@ class MessageCatalogTests(unittest.TestCase):
         self.assertEqual(missing, [], f"keys used but not in catalog: {missing}")
         unused = sorted(set(MESSAGES) - used)
         self.assertEqual(unused, [], f"catalog keys never used: {unused}")
+
+    def test_diagnostic_text_goes_through_catalog(self) -> None:
+        """Diagnostic text must be built with `t(...)`, never a string literal.
+
+        The key scan above only sees `t("...")` calls, so a literal passed
+        straight to a diagnostic constructor ships untranslated without any
+        test noticing (TYP0010's hint did exactly that).
+        """
+        violations: list[str] = []
+        for path in LUNE_DIR.glob("*.py"):
+            tree = python_ast.parse(path.read_text(encoding="utf-8"))
+            for node in python_ast.walk(tree):
+                if not isinstance(node, python_ast.Call):
+                    continue
+                func = node.func
+                name = func.id if isinstance(func, python_ast.Name) else getattr(func, "attr", None)
+                if name not in DIAGNOSTIC_TEXT_ARGS:
+                    continue
+                positions, keywords = DIAGNOSTIC_TEXT_ARGS[name]
+                for index in positions:
+                    if index < len(node.args) and _is_literal_text(node.args[index]):
+                        violations.append(f"{path.name}:{node.args[index].lineno}: {name} positional arg {index}")
+                for keyword in node.keywords:
+                    if keyword.arg in keywords and _is_literal_text(keyword.value):
+                        violations.append(f"{path.name}:{keyword.value.lineno}: {name} {keyword.arg}=")
+        self.assertEqual(violations, [], f"diagnostic text bypasses the message catalog: {violations}")
 
     def test_every_key_is_translated(self) -> None:
         for key, (en, ja) in MESSAGES.items():
@@ -129,6 +179,19 @@ class MessageCatalogTests(unittest.TestCase):
         with self.assertRaises(LuneTypeError) as ctx:
             required_type(None, t("ctx.parameter", name="x"))
         self.assertEqual(ctx.exception.diagnostic.message, "v0.1 では 引数 x に型注釈が必要です")
+
+    def test_typ0010_hint_follows_language(self) -> None:
+        """The TYP0010 hint used to be a hardcoded English f-string."""
+        for lang, expected_hint in [
+            ("en", "add a type annotation, e.g. `fn x: Int -> ...`"),
+            ("ja", "型注釈を追加してください。例: `fn x: Int -> ...`"),
+        ]:
+            with self.subTest(lang=lang):
+                set_language(lang)
+                session = ReplSession()
+                result = session.submit("let f = fn x -> x * 2")
+                warning = next(w for w in result.warnings if w.code == "TYP0010")
+                self.assertEqual(warning.hints, [expected_hint])
 
     def test_japanese_did_you_mean(self) -> None:
         set_language("ja")
