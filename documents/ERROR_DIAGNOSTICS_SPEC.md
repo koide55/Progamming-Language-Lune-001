@@ -157,6 +157,7 @@ error[TYP0003]: return type of bad: expected Bool, got Int
 
 - 1 行目は `severity[code]: message`。
 - 2 行目は `--> filename:line:column`。
+- `filename` は、カレントディレクトリ配下のファイルであれば cwd からの相対パスで表示する（rustc と同様）。cwd 外のファイルは絶対パスのまま表示する。`<repl:N>` のような仮想ファイル名はそのまま表示する。
 - 該当行を `line | source` 形式で表示する。
 - `^` を使って primary span を示す。
 - label message がある場合、caret の右に表示する。

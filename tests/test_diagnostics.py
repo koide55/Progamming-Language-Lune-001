@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import io
+import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from lune.cli import main
-from lune.diagnostics import SourceMap, format_exception
+from lune.diagnostics import SourceMap, SourceSpan, format_exception
 from lune.lexer import lex
 from lune.repl import repl_main
 from lune.typechecker import LuneTypeError
@@ -61,6 +63,36 @@ class DiagnosticTests(unittest.TestCase):
         self.assertIn("1 | let answer: Int = true", rendered)
         self.assertIn("^", rendered)
         self.assertIn("this expression has type Bool", rendered)
+
+    def test_span_under_cwd_formats_relative(self) -> None:
+        absolute = str(Path.cwd() / "examples" / "bad.lune")
+        span = SourceSpan.point(absolute, 2, 5)
+        self.assertEqual(span.format(), f"{Path('examples') / 'bad.lune'}:2:5")
+
+    def test_span_outside_cwd_stays_absolute(self) -> None:
+        span = SourceSpan.point(f"{os.sep}nonexistent-root{os.sep}bad.lune", 1, 1)
+        self.assertEqual(span.format(), f"{os.sep}nonexistent-root{os.sep}bad.lune:1:1")
+
+    def test_span_virtual_filename_passes_through(self) -> None:
+        span = SourceSpan.point("<repl:3>", 1, 19)
+        self.assertEqual(span.format(), "<repl:3>:1:19")
+
+    def test_cli_check_renders_relative_path_for_file_under_cwd(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.lune"
+            path.write_text("let x = $1\n", encoding="utf-8")
+            stderr = io.StringIO()
+            old_stderr = sys.stderr
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                sys.stderr = stderr
+                code = main(["bad.lune", "--check"])
+            finally:
+                sys.stderr = old_stderr
+                os.chdir(old_cwd)
+        self.assertEqual(code, 1)
+        self.assertIn("--> bad.lune:1:9", stderr.getvalue())
 
     def test_repl_formats_error_and_continues(self) -> None:
         stdin = io.StringIO("let x = $1\n1 + 2\n:q\n")
