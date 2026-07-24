@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lune Playground (PoC)</title>
+<title>Lune Playground</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
 <style>
   :root {
     --bg: #1e1f26; --panel: #26272f; --border: #3a3b45;
@@ -17,6 +18,8 @@
            display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   header h1 { font-size: 16px; margin: 0; }
   header .sub { color: var(--dim); font-size: 12px; }
+  header .nav { font-size: 12px; }
+  header .nav a { color: var(--accent); text-decoration: none; }
   #status { margin-left: auto; font-size: 12px; color: var(--dim); }
   main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
          padding: 10px 16px; height: calc(100vh - 46px); }
@@ -42,15 +45,34 @@
   #output .tf { color: var(--accent); }
   #output .tm { color: var(--hint); }
   #output .tv { color: var(--dim); }
+  #output a.diag { color: inherit; text-decoration: underline dotted; cursor: pointer; }
   label { font-size: 12px; color: var(--dim); }
+  /* CodeMirror: match the page palette */
+  .CodeMirror { flex: 1; height: auto; background: var(--panel); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.5; }
+  .CodeMirror-gutters { background: var(--panel); border-right: 1px solid var(--border); }
+  .CodeMirror-linenumber { color: var(--dim); }
+  .CodeMirror-cursor { border-left: 1px solid var(--fg); }
+  .CodeMirror-selected { background: rgba(122, 162, 247, 0.18); }
+  .CodeMirror-focused .CodeMirror-selected { background: rgba(122, 162, 247, 0.25); }
+  .cm-s-default .cm-keyword { color: var(--accent); }
+  .cm-s-default .cm-string { color: var(--hint); }
+  .cm-s-default .cm-comment { color: var(--dim); }
+  .cm-s-default .cm-number { color: var(--warn); }
+  .cm-s-default .cm-atom { color: var(--warn); }
+  .cm-s-default .cm-variable-2 { color: var(--help); }
+  .cm-s-default .cm-operator { color: var(--fg); }
+  .cm-error-line { background: rgba(247, 118, 142, 0.14); }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; height: auto; }
-    textarea, #output { min-height: 40vh; } }
+    textarea, #output, .CodeMirror { min-height: 40vh; } }
 </style>
 </head>
 <body>
 <header>
   <h1>Lune Playground</h1>
-  <span class="sub">技術検証 PoC — Pyodide 上で Lune 処理系(Pure Python)をそのまま実行</span>
+  <span class="sub">ブラウザの中の部室 — 処理系(Pure Python)を Pyodide 上でそのまま実行</span>
+  <span class="nav"><a href="../">トップ</a> · <a href="errors.html">診断カタログ</a></span>
   <span id="status">Pyodide を読み込み中…</span>
 </header>
 <main>
@@ -66,6 +88,11 @@
       <label>評価する束縛:</label>
       <input type="text" id="binding" value="total">
       <label><input type="checkbox" id="trace"> トレース</label>
+      <label>言語:</label>
+      <select id="lang">
+        <option value="ja">日本語</option>
+        <option value="en">English</option>
+      </select>
     </div>
     <textarea id="editor" spellcheck="false"></textarea>
     <div class="toolbar">
@@ -75,6 +102,7 @@
       <button id="btn-fix" disabled>自動修正 (fix)</button>
       <input type="text" id="explain-code" placeholder="TYP0007">
       <button id="btn-explain" disabled>explain</button>
+      <button id="btn-share" title="コードと設定を URL に畳み込んでコピー">共有</button>
     </div>
   </div>
   <div class="col">
@@ -82,6 +110,8 @@
   </div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/mode/simple.min.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 <script>
 const PRESETS = {
@@ -123,8 +153,9 @@ let firstThree = take(evens, 3)
 };
 
 const LUNE_FILES = ["__init__.py","cli.py","diagnostics.py","evaluator.py",
-  "explanations.py","fixer.py","formatter.py","layout.py","lexer.py",
-  "module_loader.py","nodes.py","parser.py","repl.py","tokens.py","typechecker.py"];
+  "explanations.py","explanations_ja.py","fixer.py","formatter.py","layout.py",
+  "lexer.py","messages.py","module_loader.py","nodes.py","parser.py","repl.py",
+  "tokens.py","typechecker.py"];
 
 const DRIVER = `
 import io, json, sys, contextlib
@@ -133,6 +164,7 @@ sys.path.insert(0, "/app")
 from lune.diagnostics import SourceMap, format_diagnostic, format_exception
 from lune.module_loader import check_file, eval_file
 from lune.evaluator import format_value, set_trace_hook
+from lune.messages import set_language
 from lune.explanations import render_explanation, available_codes
 from lune.formatter import format_source
 from lune.fixer import apply_fixes
@@ -143,7 +175,8 @@ def _write(source):
     with open(ENTRY, "w", encoding="utf-8") as f:
         f.write(source)
 
-def lune_check(source):
+def lune_check(source, lang="en"):
+    set_language(lang)
     _write(source)
     sm = SourceMap()
     out = io.StringIO()
@@ -156,7 +189,8 @@ def lune_check(source):
         out.write(format_exception(exc, sm, explain_hint=True) + "\\n")
     return out.getvalue()
 
-def lune_run(source, binding, trace=False):
+def lune_run(source, binding, trace=False, lang="en"):
+    set_language(lang)
     _write(source)
     sm = SourceMap()
     out = io.StringIO()
@@ -187,7 +221,8 @@ def lune_run(source, binding, trace=False):
         return "\\n".join(trace_lines) + "\\n" + "-" * 40 + "\\n" + out.getvalue()
     return out.getvalue()
 
-def lune_fmt(source):
+def lune_fmt(source, lang="en"):
+    set_language(lang)
     try:
         return json.dumps({"ok": True, "text": format_source(source, "main.lune")})
     except Exception as exc:
@@ -195,7 +230,8 @@ def lune_fmt(source):
         sm.add("main.lune", source)
         return json.dumps({"ok": False, "text": format_exception(exc, sm, explain_hint=True)})
 
-def lune_fix(source):
+def lune_fix(source, lang="en"):
+    set_language(lang)
     try:
         fixed, applied = apply_fixes(source, "main.lune")
         return json.dumps({"ok": True, "text": fixed, "applied": applied})
@@ -204,22 +240,74 @@ def lune_fix(source):
         sm.add("main.lune", source)
         return json.dumps({"ok": False, "text": format_exception(exc, sm, explain_hint=True)})
 
-def lune_explain(code):
+def lune_explain(code, lang="en"):
+    set_language(lang)
     code = code.strip()
-    text = render_explanation(code)
+    text = render_explanation(code, lang)
     if text is None:
         return "診断コード %r の解説はありません\\n利用可能: %s" % (code, ", ".join(available_codes()))
     return text
 `;
 
 const $ = (id) => document.getElementById(id);
-const editor = $("editor"), output = $("output"), status = $("status");
+const output = $("output"), status = $("status");
 let py = null;
+let cm = null;
 
 function setStatus(msg) { status.textContent = msg; }
 
+// --- editor (CodeMirror with a plain-textarea fallback) ---------------------
+
+function initEditor() {
+  if (typeof CodeMirror === "undefined") return; // CDN unavailable: keep the textarea
+  CodeMirror.defineSimpleMode("lune", {
+    start: [
+      { regex: /###/, token: "comment", next: "blockComment" },
+      { regex: /#.*/, token: "comment" },
+      { regex: /"(?:[^\\"]|\\.)*"?/, token: "string" },
+      { regex: /'(?:[^\\']|\\.)'/, token: "string" },
+      { regex: /\b(?:let|var|def|type|record|match|if|then|elif|else|fn|lazy|force|strict|seq|deepForce|while|for|in|import|module|IO)\b/, token: "keyword" },
+      { regex: /\b(?:true|false|null)\b/, token: "atom" },
+      { regex: /\b\d+(?:\.\d+)?\b/, token: "number" },
+      { regex: /\b[A-Z][\w]*\b/, token: "variable-2" },
+      { regex: /\|>|->|\?\?|\?\.|==|!=|<=|>=|[+\-*\/%=<>!|&?]/, token: "operator" },
+    ],
+    blockComment: [
+      { regex: /.*?###/, token: "comment", next: "start" },
+      { regex: /.*/, token: "comment" },
+    ],
+    meta: { lineComment: "#" },
+  });
+  cm = CodeMirror.fromTextArea($("editor"), {
+    mode: "lune",
+    lineNumbers: true,
+    indentUnit: 4,
+    viewportMargin: Infinity,
+  });
+}
+
+function getCode() { return cm ? cm.getValue() : $("editor").value; }
+function setCode(text) { cm ? cm.setValue(text) : ($("editor").value = text); }
+
+let errorLine = null;
+function clearErrorLine() {
+  if (cm && errorLine !== null) cm.removeLineClass(errorLine, "background", "cm-error-line");
+  errorLine = null;
+}
+function markErrorLineFrom(text) {
+  clearErrorLine();
+  if (!cm) return;
+  const m = text.match(/main\.lune:(\d+):\d+/);
+  if (!m) return;
+  errorLine = Number(m[1]) - 1;
+  cm.addLineClass(errorLine, "background", "cm-error-line");
+}
+
+// --- output ------------------------------------------------------------------
+
 function render(text) {
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const linkCodes = (s) => s.replace(/\b([A-Z]{3}\d{4})\b/g, '<a class="diag" data-code="$1" title="クリックで explain">$1</a>');
   output.innerHTML = text.split("\n").map((line) => {
     let cls = "";
     if (/^error\[/.test(line)) cls = "e";
@@ -229,15 +317,48 @@ function render(text) {
     else if (/^\s*force /.test(line)) cls = "tf";
     else if (/^\s*memo /.test(line)) cls = "tm";
     else if (/^\s*=> /.test(line)) cls = "tv";
-    return cls ? `<span class="${cls}">${esc(line)}</span>` : esc(line);
+    const html = linkCodes(esc(line));
+    return cls ? `<span class="${cls}">${html}</span>` : html;
   }).join("\n");
 }
 
+// --- presets / share links ---------------------------------------------------
+
 function loadPreset(name) {
-  editor.value = PRESETS[name].code;
+  setCode(PRESETS[name].code);
   $("binding").value = PRESETS[name].binding;
   $("trace").checked = Boolean(PRESETS[name].trace);
+  clearErrorLine();
 }
+
+function encodeState() {
+  const state = { c: getCode(), b: $("binding").value, t: $("trace").checked, l: $("lang").value };
+  const utf8 = unescape(encodeURIComponent(JSON.stringify(state)));
+  return btoa(utf8).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function decodeState(hash) {
+  try {
+    const b64 = hash.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(decodeURIComponent(escape(atob(b64))));
+  } catch {
+    return null;
+  }
+}
+
+function applySharedState() {
+  const m = location.hash.match(/^#s=(.+)$/);
+  if (!m) return false;
+  const state = decodeState(m[1]);
+  if (!state || typeof state.c !== "string") return false;
+  setCode(state.c);
+  $("binding").value = state.b ?? "";
+  $("trace").checked = Boolean(state.t);
+  if (state.l === "en" || state.l === "ja") $("lang").value = state.l;
+  return true;
+}
+
+// --- wiring --------------------------------------------------------------------
 
 async function timed(label, fn) {
   const t0 = performance.now();
@@ -247,8 +368,23 @@ async function timed(label, fn) {
 }
 
 async function main() {
-  loadPreset("basics");
+  initEditor();
+  if (!applySharedState()) loadPreset("basics");
   $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
+
+  $("btn-share").onclick = () => {
+    history.replaceState(null, "", "#s=" + encodeState());
+    navigator.clipboard?.writeText(location.href);
+    setStatus("共有リンクをコピーしました");
+  };
+  $("btn-share").disabled = false;
+
+  output.addEventListener("click", (e) => {
+    const code = e.target?.dataset?.code;
+    if (!code || !py) return;
+    $("explain-code").value = code;
+    $("btn-explain").onclick();
+  });
 
   const t0 = performance.now();
   py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
@@ -257,7 +393,7 @@ async function main() {
   py.FS.mkdirTree("/app/lune");
   const t1 = performance.now();
   await Promise.all(LUNE_FILES.map(async (f) => {
-    const res = await fetch(`/lune/${f}`);
+    const res = await fetch(`../lune/${f}`, { cache: "no-cache" });
     if (!res.ok) throw new Error(`fetch failed: lune/${f}`);
     py.FS.writeFile(`/app/lune/${f}`, await res.text());
   }));
@@ -265,24 +401,37 @@ async function main() {
   const tLune = Math.round(performance.now() - t1);
 
   setStatus(`起動完了 — Pyodide ${tPyodide} ms + Lune ${tLune} ms (Python ${py.runPython("import sys; sys.version.split()[0]")})`);
-  render("処理系の準備ができました。「▶ 実行」を押してください。\n");
+  render("処理系の準備ができました。「▶ 実行」(Ctrl/Cmd+Enter)を押してください。\n");
 
   const call = (name, ...args) => py.globals.get(name)(...args);
 
-  $("btn-run").onclick = () => timed("実行", async () =>
-    render(call("lune_run", editor.value, $("binding").value, $("trace").checked)));
-  $("btn-check").onclick = () => timed("型チェック", async () =>
-    render(call("lune_check", editor.value)));
+  $("btn-run").onclick = () => timed("実行", async () => {
+    const text = call("lune_run", getCode(), $("binding").value, $("trace").checked, $("lang").value);
+    render(text);
+    markErrorLineFrom(text);
+  });
+  $("btn-check").onclick = () => timed("型チェック", async () => {
+    const text = call("lune_check", getCode(), $("lang").value);
+    render(text);
+    markErrorLineFrom(text);
+  });
   $("btn-fmt").onclick = () => timed("整形", async () => {
-    const r = JSON.parse(call("lune_fmt", editor.value));
-    if (r.ok) { editor.value = r.text; render("(整形しました)\n"); } else render(r.text);
+    const r = JSON.parse(call("lune_fmt", getCode(), $("lang").value));
+    if (r.ok) { setCode(r.text); clearErrorLine(); render("(整形しました)\n"); } else render(r.text);
   });
   $("btn-fix").onclick = () => timed("自動修正", async () => {
-    const r = JSON.parse(call("lune_fix", editor.value));
-    if (r.ok) { editor.value = r.text; render(`(自動修正: ${r.applied} 件適用)\n`); } else render(r.text);
+    const r = JSON.parse(call("lune_fix", getCode(), $("lang").value));
+    if (r.ok) { setCode(r.text); clearErrorLine(); render(`(自動修正: ${r.applied} 件適用)\n`); } else render(r.text);
   });
   $("btn-explain").onclick = () => timed("explain", async () =>
-    render(call("lune_explain", $("explain-code").value || "TYP0007")));
+    render(call("lune_explain", $("explain-code").value || "TYP0007", $("lang").value)));
+
+  if (cm) {
+    cm.setOption("extraKeys", {
+      "Ctrl-Enter": () => $("btn-run").onclick(),
+      "Cmd-Enter": () => $("btn-run").onclick(),
+    });
+  }
 
   for (const id of ["btn-run","btn-check","btn-fmt","btn-fix","btn-explain"])
     $(id).disabled = false;

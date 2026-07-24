@@ -18,7 +18,8 @@ from .evaluator import (
     preview_value,
     set_trace_hook,
 )
-from .explanations import render_explanation
+from .explanations import LANGUAGES, render_explanation
+from .messages import get_language, set_language
 from .parser import parse_source
 from .tokens import LuneSyntaxError
 from .typechecker import TypeEnv, check_module_into, initial_type_env
@@ -98,7 +99,7 @@ class ReplSession:
         if name == ":help":
             return ReplResult(
                 "info",
-                "commands: :help, :quit, :q, :env, :type NAME, :thunks [NAME], :trace [on|off], :explain CODE",
+                "commands: :help, :quit, :q, :env, :type NAME, :thunks [NAME], :trace [on|off], :lang [en|ja], :explain CODE [en|ja]",
             )
         if name == ":env":
             public = sorted(key for key in self.type_env.values if not key.startswith("__"))
@@ -125,6 +126,13 @@ class ReplSession:
             if not lines:
                 return ReplResult("info", "no thunks: nothing is bound lazily yet (try `let x = 1 + 1`)")
             return ReplResult("info", "\n".join(lines))
+        if name == ":lang":
+            if len(parts) == 1:
+                return ReplResult("info", f"language is {get_language()}")
+            if len(parts) == 2 and parts[1] in LANGUAGES:
+                set_language(parts[1])
+                return ReplResult("info", f"language: {parts[1]}")
+            return ReplResult("error", "usage: :lang [en|ja]")
         if name == ":trace":
             if len(parts) == 1:
                 return ReplResult("info", f"trace is {'on' if self.trace_enabled else 'off'}")
@@ -133,9 +141,10 @@ class ReplSession:
                 return ReplResult("info", f"trace {parts[1]}")
             return ReplResult("error", "usage: :trace [on|off]")
         if name == ":explain":
-            if len(parts) != 2:
-                return ReplResult("error", "usage: :explain CODE")
-            text = render_explanation(parts[1])
+            if len(parts) not in {2, 3} or (len(parts) == 3 and parts[2] not in LANGUAGES):
+                return ReplResult("error", "usage: :explain CODE [en|ja]")
+            lang = parts[2] if len(parts) == 3 else get_language()
+            text = render_explanation(parts[1], lang)
             if text is None:
                 return ReplResult("error", f"no explanation for diagnostic code {parts[1]!r}")
             return ReplResult("info", text)

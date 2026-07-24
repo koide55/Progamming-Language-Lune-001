@@ -431,46 +431,80 @@ def available_codes() -> list[str]:
     return sorted(EXPLANATIONS)
 
 
-def render_error_index() -> str:
+LANGUAGES = ("en", "ja")
+
+_LABELS = {
+    "en": ("Example that triggers it:", "How to fix:"),
+    "ja": ("発生する例:", "直し方:"),
+}
+
+
+def catalog(lang: str = "en") -> dict[str, Explanation]:
+    if lang == "ja":
+        from .explanations_ja import EXPLANATIONS_JA
+
+        return EXPLANATIONS_JA
+    return EXPLANATIONS
+
+
+def render_error_index(lang: str = "en") -> str:
     """Render the full diagnostics catalog as one markdown document.
 
-    `documents/ERROR_INDEX.md` is generated from this (and kept in sync by
-    tests/test_explanations.py): ./bin/lune explain --index > documents/ERROR_INDEX.md
+    `documents/ERROR_INDEX.md` (en) and `documents/ERROR_INDEX_JA.md` (ja) are
+    generated from this and kept in sync by tests/test_explanations.py:
+        ./bin/lune explain --index > documents/ERROR_INDEX.md
+        ./bin/lune explain --index --lang ja > documents/ERROR_INDEX_JA.md
     """
-    codes = sorted(EXPLANATIONS)
-    lines = [
-        "# Lune 診断コード索引 (Error Index)",
-        "",
-        "<!-- 自動生成ファイル。手で編集しない。再生成: ./bin/lune explain --index > documents/ERROR_INDEX.md -->",
-        "",
-        "コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を",
-        "`lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。",
-        f"発行されうる全コードに詳解があることはテストで保証される（現在 {len(codes)} コード）。",
-        "",
-    ]
+    entries = catalog(lang)
+    codes = sorted(entries)
+    example_label, fix_label = _LABELS.get(lang, _LABELS["en"])
+    if lang == "ja":
+        header = [
+            "# Lune 診断コード索引（日本語版）",
+            "",
+            "<!-- 自動生成ファイル。手で編集しない。再生成: ./bin/lune explain --index --lang ja > documents/ERROR_INDEX_JA.md -->",
+            "",
+            "コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を",
+            "`lune explain <CODE> --lang ja`、REPL の `:explain CODE ja`、Playground の explain ボタンでも読める。",
+            f"発行されうる全コードに詳解があることはテストで保証される（現在 {len(codes)} コード）。英語版: `ERROR_INDEX.md`。",
+            "",
+        ]
+    else:
+        header = [
+            "# Lune 診断コード索引 (Error Index)",
+            "",
+            "<!-- 自動生成ファイル。手で編集しない。再生成: ./bin/lune explain --index > documents/ERROR_INDEX.md -->",
+            "",
+            "コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を",
+            "`lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。",
+            f"発行されうる全コードに詳解があることはテストで保証される（現在 {len(codes)} コード）。日本語版: `ERROR_INDEX_JA.md`。",
+            "",
+        ]
+    lines = list(header)
     for code in codes:
-        lines.append(f"- [`{code}`](#{code.lower()}) — {EXPLANATIONS[code].title}")
+        lines.append(f"- [`{code}`](#{code.lower()}) — {entries[code].title}")
     for code in codes:
-        entry = EXPLANATIONS[code]
+        entry = entries[code]
         lines.extend(["", f"## {code}", "", f"**{entry.title}**", "", entry.summary])
         if entry.example is not None:
-            lines.extend(["", "Example that triggers it:", "", "```lune", entry.example, "```"])
-        lines.extend(["", "How to fix:", "", entry.fix])
+            lines.extend(["", example_label, "", "```lune", entry.example, "```"])
+        lines.extend(["", fix_label, "", entry.fix])
     lines.append("")
     return "\n".join(lines)
 
 
-def render_explanation(code: str) -> str | None:
-    entry = EXPLANATIONS.get(code.upper())
+def render_explanation(code: str, lang: str = "en") -> str | None:
+    entry = catalog(lang).get(code.upper())
     if entry is None:
         return None
+    example_label, fix_label = _LABELS.get(lang, _LABELS["en"])
     lines = [f"error[{entry.code}]: {entry.title}", "", entry.summary]
     if entry.example is not None:
         lines.append("")
-        lines.append("Example that triggers it:")
+        lines.append(example_label)
         lines.append("")
         lines.extend(f"    {line}" if line.strip() else "" for line in entry.example.splitlines())
     lines.append("")
-    lines.append("How to fix:")
+    lines.append(fix_label)
     lines.append(entry.fix)
     return "\n".join(lines)

@@ -54,6 +54,18 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
 """)
         self.assertEqual(session.submit("getOrElse(Some(42), 0)").message, "42 : Int")
 
+    def test_function_values_display_short_form(self) -> None:
+        session = ReplSession()
+        session.submit("""
+def add(x: Int, y: Int): Int =
+    x + y
+""")
+        self.assertEqual(session.submit("add").message, "<fn add> : Int -> Int -> Int")
+        self.assertEqual(session.submit("add(1)").message, "<fn add> : Int -> Int")
+        self.assertEqual(session.submit("fn x: Int -> x").message, "<fn> : Int -> Int")
+        self.assertEqual(session.submit("println").message, "<fn println> : Any -> Unit")
+        self.assertEqual(session.submit("Some").message, "<fn Some> : [T] T -> Option[T]")
+
     def test_type_error_does_not_bind_name(self) -> None:
         session = ReplSession()
         with self.assertRaises(LuneTypeError):
@@ -67,6 +79,12 @@ def getOrElse[T](option: Option[T], defaultValue: T): T =
         session = ReplSession()
         self.assertIn(":help", session.submit(":help").message)
         self.assertEqual(session.submit(":q").kind, "quit")
+
+    def test_explain_command_supports_japanese(self) -> None:
+        session = ReplSession()
+        self.assertIn("未定義の名前", session.submit(":explain TYP0001 ja").message)
+        self.assertIn("undefined name", session.submit(":explain TYP0001").message)
+        self.assertEqual(session.submit(":explain TYP0001 de").kind, "error")
 
     def test_thunks_reports_states_without_forcing(self) -> None:
         session = ReplSession()

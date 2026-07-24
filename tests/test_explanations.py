@@ -54,6 +54,47 @@ class ExplanationTests(unittest.TestCase):
         self.assertTrue(codes)
         self.assertEqual(codes, sorted(codes))
 
+    def test_japanese_catalog_has_every_code(self) -> None:
+        """Language parity: every explained code must also be explained in Japanese."""
+        from lune.explanations_ja import EXPLANATIONS_JA
+
+        self.assertEqual(sorted(EXPLANATIONS_JA), sorted(EXPLANATIONS))
+        for code, entry in EXPLANATIONS_JA.items():
+            self.assertTrue(entry.title and entry.summary and entry.fix, code)
+            has_japanese = any(ord(ch) > 0x3000 for ch in entry.title + entry.summary)
+            self.assertTrue(has_japanese, f"{code}: Japanese entry looks untranslated")
+
+    def test_render_explanation_japanese(self) -> None:
+        text = render_explanation("TYP0007", lang="ja")
+        assert text is not None
+        self.assertIn("error[TYP0007]", text)
+        self.assertIn("直し方:", text)
+        self.assertIn("witness", text)
+        self.assertIsNone(render_explanation("ZZZ9999", lang="ja"))
+        # unknown languages fall back to English labels/catalog
+        self.assertIn("How to fix:", render_explanation("TYP0007", lang="fr"))
+
+    def test_explain_command_lang_flag(self) -> None:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = explain_command(["TYP0001", "--lang", "ja"])
+        self.assertEqual(code, 0)
+        self.assertIn("未定義の名前", out.getvalue())
+        err = io.StringIO()
+        with redirect_stderr(err):
+            code = explain_command(["TYP0001", "--lang", "de"])
+        self.assertEqual(code, 2)
+        self.assertIn("unsupported language", err.getvalue())
+
+    def test_japanese_error_index_document_is_in_sync(self) -> None:
+        doc_path = LUNE_DIR.parent / "documents" / "ERROR_INDEX_JA.md"
+        self.assertEqual(
+            doc_path.read_text(encoding="utf-8"),
+            render_error_index(lang="ja"),
+            "documents/ERROR_INDEX_JA.md is stale — regenerate with "
+            "`./bin/lune explain --index --lang ja > documents/ERROR_INDEX_JA.md`",
+        )
+
     def test_error_index_lists_every_code(self) -> None:
         text = render_error_index()
         for code in EXPLANATIONS:

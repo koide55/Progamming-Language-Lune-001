@@ -50,17 +50,19 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 新言語の最大の離脱点はインストールである。実装が Pure Python であることは、**Pyodide (ブラウザ内 Python) でそのまま動かせる**ため普及上の武器になる。URL 一つで REPL+`explain`+診断表示が動けば「親しんでもらう」コストがゼロになる。あわせて `pip install` / `uvx lune` での配布も低コストで可能。
 
-技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。
+技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。GitHub Pages での公開も実装済み: `.github/workflows/pages.yml` が main への push でリポジトリ全体をデプロイし、ランディングページ (`index.html`)・Playground・診断カタログ (`playground/errors.html`) が 1 つの URL 配下で公開される。
 
 ### B. 診断メッセージの日本語化 (差別化の核)
 
 `explanations.py` は全診断コードのカタログ構造を既に持つため、`--lang ja` は設計変更なしで載る。「エラーも解説も母語で読める関数型言語」は Hedy が初等教育で証明した効果を関数型教育に持ち込むもので、研究的新規性 (施策 D) と普及施策が同じ作業で手に入る。費用対効果が最も高い一手。
 
+実装済み: 全29コードの日本語詳解 (`lune/explanations_ja.py`、英語カタログとのコード集合一致をテストで強制)。`lune explain <CODE> --lang ja`、REPL `:explain CODE ja`、Playground の言語セレクタ、`documents/ERROR_INDEX_JA.md` (自動生成・同期テスト付き)。診断メッセージ本文も実装済み: 全 raise サイト（約110箇所）を `lune/messages.py` のカタログ (`t(key, **params)`) 経由に移行し、メッセージ・caret 注・hint・`= help:` フッタまで日本語化した。入口は CLI グローバル `--lang ja`、REPL `:lang ja`、Playground の言語セレクタ。キー網羅・未使用ゼロ・対訳パリティはテストで強制。これで施策 B は完了。
+
 ### C. エラー駆動学習への再編
 
 チュートリアルに「わざとエラーを起こす → 診断を読む → `explain` で理解する → `fix` で直す」という節を組み込み、診断カタログ (全コードの解説) を Web で公開する (Rust error index 相当)。「診断こそが教材」という主張を製品自体で示す。
 
-実装済み: チュートリアル第17章「エラーを読む、エラーから学ぶ」(日英) — 診断の解剖学、typo/網羅性/実行時の3周、「指定した診断をわざと出す」逆転演習。診断カタログは `documents/ERROR_INDEX.md` (`lune explain --index` で自動生成、テストで同期を強制)。残: カタログの Web ホスティング。
+実装済み: チュートリアル第17章「エラーを読む、エラーから学ぶ」(日英) — 診断の解剖学、typo/網羅性/実行時の3周、「指定した診断をわざと出す」逆転演習。診断カタログは `documents/ERROR_INDEX.md` (`lune explain --index` で自動生成、テストで同期を強制)。Web 公開も実装済み: `playground/errors.html` が生成済み Markdown (日英) をその場でレンダリングし、GitHub Pages で配信される。
 
 ### D. 研究発信という増幅器
 
@@ -85,6 +87,8 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 ### F. 見せ方の整備 (低コスト)
 
 README は現在「実装済み機能の羅列」で、初見の人に物語が伝わらない。「コンパイラが教える関数型言語」を冒頭に置き、エラー表示のスクリーンショットを最初に見せる構成へ。公開を強く意識する段階になったら、リポジトリ名を `lune-lang` 等へ変える選択肢もある (GitHub はリネーム後も旧 URL をリダイレクトする)。
+
+実装済み (2026-07-21): README を学園青春ものの物語構成に全面刷新 (設定は koide 提供: 全員部活必須の校則、楽そうだと思ってプログラミング部に入った男子転校生が、先輩たちに鍛えられる)。部訓「必要になるまで、やらない。一度やったことは、忘れない」= 遅延評価+メモ化。先輩たち = ツールの擬人化 (真知部長 = match/型チェッカ、英美先輩 = explain/日英切替、直美先輩 = fix/fmt)。冒頭はタグライン・Playground 導線・日本語診断のヒーローサンプルで、掲載出力はすべて実機検証済み。リポジトリ名も 2026-07-21 に `Progamming-Language-Lune-001` から `lune-lang` へ変更済み (旧 git/Web URL はリダイレクトされる。GitHub Pages の URL のみ https://koide55.github.io/lune-lang/ に変わる)。これで施策 F は完了。
 
 ## 5. やらないこと
 
