@@ -1,0 +1,12 @@
+module primes
+
+# エラトステネスの篩。先頭 p を素数として採り、
+# p で割り切れるものを残りから漉して、続きは必要になったら計算する。
+def sieve(xs: List[Int]): List[Int] =
+    match xs:
+        | Cons(p, rest) -> Cons(p, sieve(filter(rest, fn n: Int -> n % p != 0)))
+        | Nil -> xs
+
+let primes = sieve(naturalsFrom(2))
+
+let first10 = take(primes, 10)

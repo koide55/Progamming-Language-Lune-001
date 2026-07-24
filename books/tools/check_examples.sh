@@ -237,6 +237,32 @@ eval_is answers/ex5-4.lune none expected/ex5-4.none.txt
 
 fmt_ok shape.lune missing.lune refutable.lune unreachable.lune answers/ex5-2.lune answers/ex5-3.lune answers/ex5-4.lune
 
+# ----- 第8章 -----
+cd "$BOOKS_DIR/examples/ch08"
+
+check_ok infinite.lune
+eval_is infinite.lune firstFive expected/infinite.firstFive.txt
+eval_is infinite.lune powersOfTwo expected/infinite.powersOfTwo.txt
+eval_is infinite.lune threeSevens expected/infinite.threeSevens.txt
+eval_is infinite.lune pattern expected/infinite.pattern.txt
+
+check_ok fib.lune
+eval_is fib.lune first10 expected/fib.first10.txt
+
+check_ok primes.lune
+eval_is primes.lune first10 expected/primes.first10.txt
+
+check_ok answers/ex8-2.lune
+eval_is answers/ex8-2.lune evenSquares expected/ex8-2.evenSquares.txt
+
+check_ok answers/ex8-3.lune
+eval_is answers/ex8-3.lune smoothed expected/ex8-3.smoothed.txt
+
+check_ok answers/ex8-4.lune
+eval_is answers/ex8-4.lune first10 expected/ex8-4.first10.txt
+
+fmt_ok infinite.lune fib.lune primes.lune answers/ex8-2.lune answers/ex8-3.lune answers/ex8-4.lune
+
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"
 [ "$fail" -eq 0 ]

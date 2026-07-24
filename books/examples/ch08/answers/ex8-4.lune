@@ -1,0 +1,14 @@
+module answers
+
+# 演習 8-4: リュカ数列。フィボナッチと同じ漸化式で、種だけ (2, 1) に変える。
+def step(p: Tuple[Int, Int]): Tuple[Int, Int] =
+    match p:
+        | (a, b) -> (b, a + b)
+
+def fst(p: Tuple[Int, Int]): Int =
+    let (a, _) = p
+    a
+
+let lucas = map(iterate(step, (2, 1)), fst)
+
+let first10 = take(lucas, 10)

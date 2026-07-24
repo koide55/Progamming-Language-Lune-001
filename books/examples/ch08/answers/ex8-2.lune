@@ -1,0 +1,6 @@
+module answers
+
+# 演習 8-2: 平方数の無限リストから、偶数のものだけを 5 個。
+let squares = map(naturalsFrom(1), fn n: Int -> n * n)
+
+let evenSquares = take(filter(squares, fn s: Int -> s % 2 == 0), 5)

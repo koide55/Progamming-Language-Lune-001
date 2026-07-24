@@ -1,0 +1,6 @@
+module answers
+
+# 演習 8-3: 隣どうしの平均（移動平均）。リストを 1 つずらして自分と zip する。
+let readings = [1, 4, 7, 10]
+
+let smoothed = zipWith(readings, drop(readings, 1), fn a: Int b: Int -> (a + b) / 2)
