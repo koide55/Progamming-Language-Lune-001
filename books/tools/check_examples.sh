@@ -257,6 +257,33 @@ eval_is answers/ex6-3.lune swapped expected/ex6-3.swapped.txt
 
 fmt_ok user.lune items.lune typofield.lune answers/ex6-2.lune answers/ex6-3.lune
 
+# ----- 第7章 -----
+cd "$BOOKS_DIR/examples/ch07"
+
+check_ok orzero.lune
+eval_is orzero.lune unwrapped expected/orzero.unwrapped.txt
+eval_is orzero.lune defaulted expected/orzero.defaulted.txt
+
+check_ok nameof.lune
+eval_is nameof.lune someName expected/nameof.someName.txt
+eval_is nameof.lune noName expected/nameof.noName.txt
+eval_is nameof.lune fallback expected/nameof.fallback.txt
+
+check_ok maybediv.lune
+eval_is maybediv.lune some expected/maybediv.some.txt
+eval_is maybediv.lune none expected/maybediv.none.txt
+eval_is maybediv.lune fallback expected/maybediv.fallback.txt
+
+diag_is missingnull.lune expected/missingnull.check.txt
+diag_is misuse.lune expected/misuse.check.txt
+
+check_ok answers/ex7-4.lune
+eval_is answers/ex7-4.lune some expected/ex7-4.some.txt
+eval_is answers/ex7-4.lune none expected/ex7-4.none.txt
+eval_is answers/ex7-4.lune safe expected/ex7-4.safe.txt
+
+fmt_ok orzero.lune nameof.lune maybediv.lune missingnull.lune misuse.lune answers/ex7-4.lune
+
 # ----- 第8章 -----
 cd "$BOOKS_DIR/examples/ch08"
 

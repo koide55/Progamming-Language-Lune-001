@@ -1,0 +1,7 @@
+module bad
+
+# Bool? の match は true / false だけでは足りない。
+def toInt(b: Bool?): Int =
+    match b:
+        | true -> 1
+        | false -> 0

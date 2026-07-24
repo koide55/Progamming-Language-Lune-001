@@ -1,0 +1,16 @@
+module orzero
+
+# T? には T の値も null も入る。
+let present: Int? = 42
+
+let absent: Int? = null
+
+# null を match で被覆すると、残りの腕の v は Int に絞り込まれる。
+def orZero(value: Int?): Int =
+    match value:
+        | null -> 0
+        | v -> v
+
+let unwrapped = orZero(present)
+
+let defaulted = orZero(absent)

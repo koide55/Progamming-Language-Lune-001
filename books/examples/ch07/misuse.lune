@@ -1,0 +1,8 @@
+module bad
+
+def wantsInt(n: Int): Int =
+    n + 1
+
+let present: Int? = 42
+
+let oops = wantsInt(present)

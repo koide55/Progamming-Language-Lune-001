@@ -1,0 +1,13 @@
+module answers
+
+# 演習 7-4: 空リストの平均は「ない」。null で表し、計算は遅延に任せる。
+def average(xs: List[Int]): Double? =
+    let nothing: Double? = null
+    let mean: Double? = fold(xs, 0, fn a x -> a + x) / length(xs)
+    if isEmpty(xs) then nothing else mean
+
+let some = average([2, 3, 4])
+
+let none = average([])
+
+let safe = average([]) ?? 0.0

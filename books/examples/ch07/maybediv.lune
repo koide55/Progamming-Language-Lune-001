@@ -1,0 +1,14 @@
+module maybediv
+
+# 分岐で null と値を直接合流できないため（第5章の制限の null 版）、
+# 注釈付き let で両腕の型を Double? に揃えてから分岐する。
+def maybeDiv(x: Int, y: Int): Double? =
+    let nothing: Double? = null
+    let quotient: Double? = x / y
+    if y == 0 then nothing else quotient
+
+let some = maybeDiv(7, 2)
+
+let none = maybeDiv(7, 0)
+
+let fallback = maybeDiv(7, 0) ?? 0.0
