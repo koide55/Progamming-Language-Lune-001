@@ -1,3 +1,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# 発表・投稿用の作業素材はローカルのみで管理する(公開しない)
+/demo/prosym68/
+/paper/
