@@ -1,0 +1,9 @@
+module demo.typo
+
+# デモ4a: did-you-mean と lune fix (TYP0001)
+# lenght は length の書き間違い。診断が候補を提示し、
+# `lune fix --write` が機械的に適用できる。
+# 注意: fix を実演するとこのファイルが書き換わる。
+#       リハーサル・本番とも /tmp へコピーしてから実行すること。
+let numbers = [1, 2, 3]
+let total = lenght(numbers)
