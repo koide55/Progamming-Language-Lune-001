@@ -281,6 +281,9 @@ eval_is maybediv.lune some expected/maybediv.some.txt
 eval_is maybediv.lune none expected/maybediv.none.txt
 eval_is maybediv.lune fallback expected/maybediv.fallback.txt
 
+check_ok maybedivlet.lune
+eval_is maybedivlet.lune viaLet expected/maybedivlet.viaLet.txt
+
 diag_is missingnull.lune expected/missingnull.check.txt
 diag_is misuse.lune expected/misuse.check.txt
 
@@ -289,7 +292,7 @@ eval_is answers/ex7-4.lune some expected/ex7-4.some.txt
 eval_is answers/ex7-4.lune none expected/ex7-4.none.txt
 eval_is answers/ex7-4.lune safe expected/ex7-4.safe.txt
 
-fmt_ok orzero.lune nameof.lune maybediv.lune missingnull.lune misuse.lune answers/ex7-4.lune
+fmt_ok orzero.lune nameof.lune maybediv.lune maybedivlet.lune missingnull.lune misuse.lune answers/ex7-4.lune
 
 # ----- 第8章 -----
 cd "$BOOKS_DIR/examples/ch08"

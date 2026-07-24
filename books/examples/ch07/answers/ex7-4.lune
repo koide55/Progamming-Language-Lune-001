@@ -1,10 +1,8 @@
 module answers
 
-# 演習 7-4: 空リストの平均は「ない」。null で表し、計算は遅延に任せる。
+# 演習 7-4: 空リストの平均は「ない」。先に分岐すれば 0 除算には触れない。
 def average(xs: List[Int]): Double? =
-    let nothing: Double? = null
-    let mean: Double? = fold(xs, 0, fn a x -> a + x) / length(xs)
-    if isEmpty(xs) then nothing else mean
+    if isEmpty(xs) then null else fold(xs, 0, fn a x -> a + x) / length(xs)
 
 let some = average([2, 3, 4])
 

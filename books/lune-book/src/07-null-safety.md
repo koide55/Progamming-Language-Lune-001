@@ -167,29 +167,29 @@ lune> orOne(absent)
 
 `x != null` が真の分岐では、`x` は `Int` として使えます（`x == null` なら偽の分岐で絞り込まれます）。この絞り込みが効くのは `x != null` / `x == null` という単純な形だけで、`&&` で繋いだ複合条件や `elif` には及びません。凝った条件になったら `match` に切り替えてください。
 
-## 7.6 null を返す関数を書く — 構築の作法
+## 7.6 null を返す関数を書く
 
-ここまでは null を**受け取る**側でした。**返す**側には、v0.1 特有の作法が要ります。素直に書くと、第5章で見た推論の制限（の null 版）に当たるのです。
+ここまでは null を**受け取る**側でした。**返す**側は、素直に書けば通ります。
 
-```text,diagnostic
+```text
 lune> def maybeDiv(x: Int, y: Int): Double? =
 ...     if y == 0 then null else x / y
 ...
-error[TYP0003]: branch type mismatch: Null vs Double
-   = help: run `lune explain TYP0003` for a detailed explanation
+ok
+lune> maybeDiv(7, 2)
+3.5 : Nullable[Double]
+lune> maybeDiv(7, 0)
+null : Nullable[Double]
 ```
 
-分岐の腕どうし（`Null` と `Double`）を合流させる段階で、戻り値型 `Double?` がまだ考慮されないためです。当面の書き方は、**注釈付きの `let` で両腕の型を先に `Double?` へ揃える**ことです。`maybediv.lune`:
+`null` を返す腕と `Double` を返す腕が、なぜ揉めずに合流できるのか。第5章 §5.6 の先取りボックスで予告した仕組みがここで働いています — 戻り値注釈 `Double?` が**期待型**として `if` の両分岐へ配られ、`null` の腕も `x / y` の腕もそこで `Double?` に揃うのです。`match` の腕でも同じことが起きます。ファイル版の `maybediv.lune`:
 
 ```lune
 module maybediv
 
-# 分岐で null と値を直接合流できないため（第5章の制限の null 版）、
-# 注釈付き let で両腕の型を Double? に揃えてから分岐する。
+# 期待型 Double? が if の両分岐へ配られ、null の腕と x / y の腕がそこで合流する。
 def maybeDiv(x: Int, y: Int): Double? =
-    let nothing: Double? = null
-    let quotient: Double? = x / y
-    if y == 0 then nothing else quotient
+    if y == 0 then null else x / y
 
 let some = maybeDiv(7, 2)
 
@@ -207,9 +207,17 @@ $ lune --eval fallback maybediv.lune
 0.0
 ```
 
-`maybeDiv(7, 0)` で `let quotient: Double? = x / y` を通っているのに、0 除算エラーが出ていないことに気づいたでしょうか。`quotient` はサンクで、`y == 0` の分岐では一度も force されないからです。**遅延評価のおかげで、このイディオムは「先に計算してしまう」心配なしに書けます**。第4章がここで効いています。
-
-この制限は言語側の改修候補です（第5章の囲みと同じ課題）。解消されれば、冒頭の素直な書き方がそのまま通るようになります。
+> **こう書いても動く** — 分岐の前に、注釈付き `let` で部品を作っておく書き方もあります。
+>
+> ```lune
+> # 部品を注釈付き let で先に作ってから分岐しても動く。
+> # quotient はサンクなので、y == 0 の側では割り算は一度も走らない。
+> def maybeDivLet(x: Int, y: Int): Double? =
+>     let quotient: Double? = x / y
+>     if y == 0 then null else quotient
+> ```
+>
+> `maybeDivLet(7, 0)` もちゃんと `null` を返します。`let quotient: Double? = x / y` を「通って」いるのに 0 除算エラーが出ないのは、`quotient` がサンクのまま一度も force されないから — 第4章の遅延評価がここでも効いています。どちらを選んでも安全なので、普段は分岐を先に書く素直な形で十分です。
 
 ## 7.7 Option[T] と T? の使い分け
 
@@ -248,7 +256,7 @@ $ lune --eval fallback maybediv.lune
 | `??` | null ならデフォルト。右辺は必要になるまで評価されない |
 | `?.` | null なら null に短絡してフィールドを読む。`??` とセットで |
 | `if x != null` | 単純形のみ絞り込み。複雑になったら `match` |
-| null を返す | v0.1 では注釈付き `let` で型を揃えてから分岐（遅延が安全性を担保） |
+| null を返す | 期待型が分岐へ配られるので、素直に `if`/`match` で書ける（第5章 §5.6 と同じ仕組み） |
 | vs `Option` | データの形は `T?`、リスト・高階関数の世界は `Option` |
 
 ## 演習問題
@@ -315,11 +323,9 @@ lune> ageOf(null) ?? 0
 ```lune
 module answers
 
-# 演習 7-4: 空リストの平均は「ない」。null で表し、計算は遅延に任せる。
+# 演習 7-4: 空リストの平均は「ない」。先に分岐すれば 0 除算には触れない。
 def average(xs: List[Int]): Double? =
-    let nothing: Double? = null
-    let mean: Double? = fold(xs, 0, fn a x -> a + x) / length(xs)
-    if isEmpty(xs) then nothing else mean
+    if isEmpty(xs) then null else fold(xs, 0, fn a x -> a + x) / length(xs)
 
 let some = average([2, 3, 4])
 
@@ -337,7 +343,7 @@ $ lune --eval safe ex7-4.lune
 0.0
 ```
 
-`mean` の定義は空リストに対して 0 除算になりそうですが、なりません — サンクのまま捨てられるからです。7.6節のイディオムがそのまま使える、遅延評価と null 安全の合わせ技です。
+空かどうかを**先に**分岐してしまえば、割り算は空でないリストに対してしか評価されません。`null` の腕と計算の腕が `Double?` へ合流するのは 7.6節のとおりです。合計と割り算を注釈付き `let` で先に定義してから分岐する書き方でも、サンクのまま捨てられるので 0 除算にはなりません（7.6節の「こう書いても動く」）。
 
 </details>
 
@@ -357,4 +363,4 @@ let oops = present + 1
 
 ---
 
-**より正確には** — `T?` の型付け・narrowing の正確な規則は `documents/LANGUAGE_SPEC.md` §11（match の null パターン）と §9.2（if の絞り込み）、null を含む網羅性は `documents/MATCH_EXHAUSTIVENESS_SPEC.md`。実例は `samples/nullable.lune` にもあります。この章のコード例は `books/examples/ch07/` にあり、すべて実際の CLI で検証されています。
+**より正確には** — `T?` の型付け・narrowing の正確な規則は `documents/LANGUAGE_SPEC.md` §11（match の null パターン）と §9.2（if の絞り込み）、null を含む網羅性は `documents/MATCH_EXHAUSTIVENESS_SPEC.md`、期待型が分岐へ配られる規則は `documents/LOCAL_TYPE_INFERENCE_SPEC.md` §5.3。実例は `samples/nullable.lune` にもあります。この章のコード例は `books/examples/ch07/` にあり、すべて実際の CLI で検証されています。
