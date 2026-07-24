@@ -116,6 +116,7 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "ctx.elif-condition": ("elif condition", "elif の条件"),
     "ctx.while-condition": ("while condition", "while の条件"),
     "ctx.match-guard": ("match guard", "match のガード"),
+    "ctx.branch": ("branch", "分岐"),
     "ctx.assignment": ("assignment", "代入"),
     "ctx.lambda-body": ("lambda body", "ラムダ本体"),
     "ctx.literal-pattern": ("literal pattern", "リテラルパターン"),

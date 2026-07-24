@@ -45,8 +45,8 @@ Related: `TYPE_CHECKER_SPEC.md`, `FUNCTION_TYPE_SPEC.md`, `ERROR_DIAGNOSTICS_SPE
 
 1. `let` / `var` の型注釈 → 右辺式。
 2. `def` の戻り値注釈 → body 式。
-3. 関数・コンストラクタ呼び出しの引数位置 → 対応するパラメータ型 (§6 の 2 パス方式)。
-4. record construction の named field → フィールド型。
+3. 関数・コンストラクタ呼び出しの引数位置 → 対応するパラメータ型 (§6 の 2 パス方式)。置換適用後に具体型 (型変数を含まず `Any` でもない) となったパラメータ型は、ラムダ以外の引数式へも期待型として分配される。
+4. record construction の named field → フィールド型 (具体型の場合)。
 5. 型注釈付きリスト・コンストラクタフィールド経由で決まったリスト要素型 → 各要素式。
 
 ## 5. 検査モードの分配規則
@@ -81,7 +81,17 @@ let ys: List[Int -> Int] = [fn x -> x + 1]
 
 ### 5.3 if / match
 
-期待型 `T` を各分岐 (then / elif / else、各 case body) へ分配する。分岐型の合流検査は従来どおり行う。
+期待型 `T` を各分岐 (then / elif / else、各 case body) へ分配する。
+
+分岐型の合流は期待型の有無で切り替わる (`merge_branch_types`)。
+
+- 期待型が具体型 (型変数を含まない `Type`、`Any` を除く) のとき: 各分岐型を期待型への代入可能性で検査し、式全体の型は期待型とする。これにより `null` 分岐と値分岐が `T?` へ合流でき (`if y == 0 then null else x / y` が `Double?` になる)、分岐ごとに独立へインスタンス化されたコンストラクタ適用 (§5.6) も合流できる。
+- 期待型がない・関数型・型変数を含む場合: 従来どおり全分岐型の一致 (`common_type`) を要求する。
+
+```lune
+def maybeDiv(x: Int, y: Int): Double? =
+    if y == 0 then null else x / y          # OK: Null と Double が Double? へ合流
+```
 
 ### 5.4 block / let-in / lazy / IO
 
@@ -93,11 +103,36 @@ let ys: List[Int -> Int] = [fn x -> x + 1]
 
 期待型が `Tuple[T1, ..., Tn]` で要素数が一致するとき、各要素へ分配する。
 
+### 5.6 コンストラクタの自由型変数の確定
+
+ジェネリックコンストラクタは、引数に現れない型パラメータが未確定 (自由型変数) のまま残る (`None : Option[T]`、`Ok(42) : Result[Int, E]`)。期待型が具体型のとき、次の位置で結果型の自由型変数を期待型と単一化して確定する (`instantiate_free_type_vars`)。
+
+- **裸の nullary コンストラクタ名** (`None`、`Nil`): 名前参照の型を期待型で確定する。
+- **コンストラクタ適用** (`Some(x)`、`Err(e)`、`Empty()`): 引数からの置換適用後に残った自由型変数を期待型で確定する。
+
+```lune
+let nothing: Option[Double] = None                # Option[Double]
+def maybeDiv(x: Int, y: Int): Option[Double] =
+    if y == 0 then None else Some(x / y)          # 両分岐とも Option[Double]
+def safeDiv(x: Int, y: Int): Result[Double, String] =
+    match y:
+        | 0 -> Err("div by zero")                 # T := Double
+        | _ -> Ok(x / y)                          # E := String
+let s = describe(Ok(42))                          # 引数位置: E := String (§4 の 3)
+```
+
+規則の詳細:
+
+- 期待型が `T?` (`Nullable[T]`) で実型が非 null のとき、内側の `T` に対して単一化する (`let x: Option[Double]? = None`)。
+- 単一化が途中で失敗した場合も、失敗前に確定した束縛は適用する。呼び出し元の代入可能性検査が未解決の型変数ではなく実際の食い違いを報告するためである (`Err(42)` を `Result[Double, String]` 文脈に置くと `expected String, got Int`)。
+- 期待型が型変数を含む場合 (ジェネリック関数の body など) は何もしない。関数宣言の型パラメータは rigid であり、期待型からの確定対象にならない (`def weird[T](x: T): Double = x` は従来どおりエラー)。
+- コンストラクタ以外の名前参照・呼び出しには適用しない。
+
 ## 6. 呼び出し引数の 2 パス検査
 
 `infer_call` を次の 2 パスに変更する。部分適用・可変長引数の規則は従来を維持する。
 
-- **パス 1**: ラムダ以外の引数を合成推論し、対応パラメータ型と unify して置換を蓄積する。
+- **パス 1**: ラムダ以外の引数を推論し、対応パラメータ型と unify して置換を蓄積する。置換適用後のパラメータ型が具体型であれば、それを期待型として引数式へ分配する (§5.6 のコンストラクタ確定が引数位置でも効く)。
 - **パス 2**: ラムダ引数を、置換適用後のパラメータ型で検査モード検査する。検査結果を再度 unify し、未解決の型変数 (ラムダの戻り値由来など) を解決する。
 
 ```lune
@@ -194,6 +229,16 @@ warning は TYP0009 と同じ収集基盤 (`TypeEnv.warnings`) を使う。型�
 - `map([1,2,3], fn x -> x && true)` → TYP0003。
 - `let xs: List[Int] = [1, true]` → TYP0003。
 - `let f: Int -> Int = fn x y -> x` (引数過剰) → TYP0005 相当。
+
+コンストラクタの自由型変数の確定 (§5.6、`ConstructorExpectedTypeTests`):
+
+- `def maybeDiv(x: Int, y: Int): Option[Double] = if y == 0 then None else Some(x / y)` → OK。
+- `Result[Double, String]` を返す match の `Err(...)` / `Ok(...)` 分岐 → OK。
+- `let nothing: Option[Double] = None` → `Option[Double]`。`let empty: List[Int] = Nil` → `List[Int]`。
+- `def maybeDiv(x: Int, y: Int): Double? = if y == 0 then null else x / y` → OK (§5.3 の合流)。
+- 具体型引数の関数への `describe(Ok(42))` → OK (引数位置の確定)。
+- `let bad: Option[Double] = Some("s")` / `Err(42)` (期待 `Result[Double, String]`) → TYP0003 のまま。
+- `def weird[T](x: T): Double = x` → TYP0003 のまま (rigid 型パラメータ)。
 
 TYP0010 / TYP0011:
 
