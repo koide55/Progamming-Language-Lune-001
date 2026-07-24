@@ -1,7 +1,7 @@
-error[REC0002]: unknown record field: User.nmae
+error[REC0002]: 存在しないレコードフィールド: User.nmae
   --> typofield.lune:9:12
   |
 9 | let oops = ada.nmae
-  |            ^^^ field is not declared by this record
-   = hint: did you mean `name`?
-   = help: run `lune explain REC0002` for a detailed explanation
+  |            ^^^ このレコードにそのフィールドは宣言されていない
+   = hint: もしかして `name` ですか?
+   = help: 詳しくは `lune explain REC0002 --lang ja` を実行してください

@@ -23,12 +23,12 @@ lune> ada
 
 ```text,diagnostic
 lune> User("Ada", 36)
-error[REC0006]: User requires named record fields
+error[REC0006]: User の構築には名前付きフィールドが必要です
   --> <repl:2>:1:25
   |
 1 | User("Ada", 36)
-  |                         ^^^^^ use field = value
-   = help: run `lune explain REC0006` for a detailed explanation
+  |                         ^^^^^ フィールド = 値 の形で書く
+   = help: 詳しくは `lune explain REC0006 --lang ja` を実行してください
 ```
 
 ここは ADT のコンストラクタ（位置渡し、第5章）と対照的です。レコードはフィールドが増えがちで、`User("Ada", 36)` の 36 が何かは型が同じ限り機械にも人にも判別できない — だから名前を強制する、という設計です。おかげで構築まわりの間違いは、すべて名指しで叱ってもらえます。足りなければ `REC0003`（missing field）、知らない名前なら `REC0005`、同じ名前を2回書けば `REC0004` です。
@@ -51,13 +51,13 @@ $ lune --check typofield.lune
 ```
 
 ```text,diagnostic
-error[REC0002]: unknown record field: User.nmae
+error[REC0002]: 存在しないレコードフィールド: User.nmae
   --> typofield.lune:9:12
   |
 9 | let oops = ada.nmae
-  |            ^^^ field is not declared by this record
-   = hint: did you mean `name`?
-   = help: run `lune explain REC0002` for a detailed explanation
+  |            ^^^ このレコードにそのフィールドは宣言されていない
+   = hint: もしかして `name` ですか?
+   = help: 詳しくは `lune explain REC0002 --lang ja` を実行してください
 ```
 
 そして第4章の住人ならもう予想がつくはずです — **フィールドも遅延されます**。
@@ -84,8 +84,8 @@ ok
 lune> let t = Tagged(tag = crash(), note = "n")
 ok
 lune> t.note
-error[RUN0006]: crash() was evaluated
-   = help: run `lune explain RUN0006` for a detailed explanation
+error[RUN0006]: crash() が評価されました
+   = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 ```
 
 `note` を読んだだけなのに `tag` の地雷が爆発しました。`t` を最初に force した瞬間にレコードが構築され、strict フィールドはそのとき評価されるからです。「不正な値を抱えたレコードを存在させない」— 第4章で予告した設計道具です。
@@ -146,12 +146,12 @@ v0.1 のレコードには、隣の言語にある2つの機能がまだあり�
 lune> match ada:
 ...     | { name = n } -> n
 ...
-error[PRS0001]: expected pattern, got LBRACE
+error[PRS0001]: パターンが必要ですが、LBRACE が見つかりました
   --> <repl:3>:2:7
   |
 2 |     | { name = n } -> n
-  |       ^ unexpected token
-   = help: run `lune explain PRS0001` for a detailed explanation
+  |       ^ 予期しないトークン
+   = help: 詳しくは `lune explain PRS0001 --lang ja` を実行してください
 ```
 
 レコードの中身が要るときは `.` で読む、条件分岐はフィールドの値に対して `if`/`match` する、と覚えてください。どちらも将来仕様（付録E）には入っています。

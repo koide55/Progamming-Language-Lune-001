@@ -9,12 +9,12 @@
 Lune には REPL（対話環境）があります。式を打ち込むと、その場で評価して結果を返してくれます。まずはここから始めましょう。
 
 ```console
-$ lune
+$ lune --repl
 Lune v0.1 REPL. Type :help or :quit.
 lune>
 ```
 
-> **表記について** — この本では、シェルのコマンドは `$` で、REPL への入力は `lune>` で示します。`lune` コマンドは、リポジトリの `./bin/lune` を指します（パスを通すか、`alias lune=./bin/lune` としておくと本書のとおりに打てます）。
+> **表記について** — この本では、シェルのコマンドは `$` で、REPL への入力は `lune>` で示します。`lune` コマンドは、リポジトリの `./bin/lune` に日本語診断オプションを付けた **`./bin/lune --lang ja`** を指します（`alias lune='./bin/lune --lang ja'` としておくと本書のとおりに打てます）。エラーを母語で読めるのは Lune の看板機能で、本書の診断表示はすべて日本語です。REPL は `lune --repl` で起動します。
 
 数を打ち込んでみます。
 
@@ -202,13 +202,13 @@ $ lune --check typo.lune
 ```
 
 ```text,diagnostic
-error[TYP0001]: undefined name: greting
+error[TYP0001]: 未定義の名前: greting
   --> typo.lune:5:20
   |
 5 | let main = println(greting)
-  |                    ^^^^^^^ name is not defined
-   = hint: did you mean `greeting`?
-   = help: run `lune explain TYP0001` for a detailed explanation
+  |                    ^^^^^^^ この名前は定義されていない
+   = hint: もしかして `greeting` ですか?
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください
 ```
 
 この表示を上から解剖します。Lune の診断はすべてこの形です。
@@ -218,8 +218,8 @@ error[TYP0001]: undefined name: greting
 | `error[TYP0001]: ...` | 重大度（error）、**診断コード**（TYP0001）、要約 |
 | `--> typo.lune:5:20` | 場所 — ファイル名:行:桁 |
 | `5 \| let main = ...` と `^^^^^^^` | 問題のソースと、問題の箇所を指す印 |
-| `= hint: ...` | 修正の提案。ここでは「`greeting` のことでは?」 |
-| `= help: run \`lune explain TYP0001\` ...` | もっと詳しく知る方法 |
+| `= hint: ...` | 修正の提案。ここでは「もしかして `greeting` ですか?」 |
+| `= help: ...` | もっと詳しく知る方法 |
 
 > **表記について** — 診断の `-->` 行に表示されるパスは、実際にはあなたの環境での絶対パスになります。紙面では作業ディレクトリを省略しています。
 
@@ -230,17 +230,17 @@ $ lune explain TYP0001
 ```
 
 ```text
-error[TYP0001]: undefined name
+error[TYP0001]: 未定義の名前
 
-A name was used that is not bound in the current scope and is not provided by
-the prelude or an import.
+現在のスコープで束縛されておらず、prelude にも import にも見つからない
+名前が使われました。
 
-Example that triggers it:
+発生する例:
 
-    let y = x + 1      # x was never defined
+    let y = x + 1      # x はどこにも定義されていない
 
-How to fix:
-Define or import the name before using it, and check the spelling.
+直し方:
+使う前に名前を定義または import してください。綴りも確認してください。
 ```
 
 何が起きたのか、それを再現する最小の例、直し方。エラーが出るたびにこの解説を読む習慣をつけると、コンパイラが家庭教師になります。
@@ -264,8 +264,8 @@ let main = println(greeting)
 >
 > ```text,diagnostic
 > lune> 1 + true
-> error[TYP0003]: +: expected Int, got Bool
->    = help: run `lune explain TYP0003` for a detailed explanation
+> error[TYP0003]: +: Int が必要ですが、Bool が見つかりました
+>    = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 > ```
 >
 > `TYP0003`（型の不一致）は、これから最もよく出会う診断です。`:explain TYP0003` で解説を読んでおきましょう（REPL の中では `lune explain` の代わりに `:explain` が使えます）。
@@ -312,11 +312,11 @@ let main = println(greeting)
 `"hello, " - name` は型エラーになります。
 
 ```text,diagnostic
-error[TYP0003]: -: expected numeric type, got String
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: -: 数値型が必要ですが、String が見つかりました
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
-`+` は文字列の連結に使えますが、`-` は数値専用です。診断が「`-` は数値型を期待したのに `String` が来た」と、演算子の側の都合を主語にして説明していることに注目してください。
+`+` は文字列の連結に使えますが、`-` は数値専用です。診断が「`-` には数値型が必要なのに `String` が来た」と、演算子の側の都合を主語にして説明していることに注目してください。
 
 ところで、呼び出しの引数を消して `greet()` にしても、実は型エラーに**なりません**（`lune --check` は通ります）。Lune の関数は引数を途中まで渡せるからです — これは部分適用といって、第3章の主役のひとつです。
 
@@ -341,7 +341,7 @@ $ lune --eval table ex1-2.lune
 ((0, 32.0) (20, 68.0) (40, 104.0) (60, 140.0) (80, 176.0) (100, 212.0))
 ```
 
-ひとつ罠があります。`+ 32` と書くと `TYP0003`（`+: expected Double, got Int`）になります。`c * 9 / 5` は `/` のせいで `Double` になっているので、足す方も `32.0` と書く必要があります。Lune は `Int` と `Double` を黙って混ぜません。
+ひとつ罠があります。`+ 32` と書くと `TYP0003`（`+: Double が必要ですが、Int が見つかりました`）になります。`c * 9 / 5` は `/` のせいで `Double` になっているので、足す方も `32.0` と書く必要があります。Lune は `Int` と `Double` を黙って混ぜません。
 
 </details>
 
@@ -401,15 +401,15 @@ $ lune --eval freezing ex1-4.lune
 <details><summary>解答</summary>
 
 ```text,diagnostic
-error[TYP0005]: expected at most 1 arguments, got 2
+error[TYP0005]: 引数は最大 1 個ですが、2 個渡されました
   --> arity.lune:6:20
   |
 6 | let main = println(greet("world", "again"))
-  |                    ^^^^^ wrong number of arguments
-   = help: run `lune explain TYP0005` for a detailed explanation
+  |                    ^^^^^ 引数の個数が違う
+   = help: 詳しくは `lune explain TYP0005 --lang ja` を実行してください
 ```
 
-「expected **at most** 1」という言い方に注目してください。Lune の関数は引数を途中まで渡すこと（部分適用、第3章）ができるので、「少ない」のは必ずしもエラーではなく、「多い」ことが確実なエラーなのです。
+「**最大** 1 個」という言い方に注目してください。Lune の関数は引数を途中まで渡すこと（部分適用、第3章）ができるので、「少ない」のは必ずしもエラーではなく、「多い」ことが確実なエラーなのです。
 
 </details>
 

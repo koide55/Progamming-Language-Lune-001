@@ -125,13 +125,13 @@ lune> def label(c: Color): String =
 ...         | Red -> "warm"
 ...         | Blue -> "cool"
 ...
-error[TYP0007]: non-exhaustive match: missing case Green
+error[TYP0007]: 網羅的でない match: Green のケースがありません
   --> <repl:2>:2:5
   |
 2 |     match c:
-  |     ^^^^^ pattern Green is not covered
-   = hint: add a case for Green, or a wildcard case `| _ -> ...`
-   = help: run `lune explain TYP0007` for a detailed explanation
+  |     ^^^^^ パターン Green がカバーされていない
+   = hint: Green のケースを追加するか、ワイルドカードケース `| _ -> ...` を追加してください
+   = help: 詳しくは `lune explain TYP0007 --lang ja` を実行してください
 ```
 
 「`Green` が足りない」。この程度なら自分でも気づけそうですが、witness の真価は形が**入れ子**になったときです。`missing.lune`:
@@ -151,13 +151,13 @@ $ lune --check missing.lune
 ```
 
 ```text,diagnostic
-error[TYP0007]: non-exhaustive match: missing case Some(false)
+error[TYP0007]: 網羅的でない match: Some(false) のケースがありません
   --> missing.lune:5:5
   |
 5 |     match o:
-  |     ^^^^^ pattern Some(false) is not covered
-   = hint: add a case for Some(false), or a wildcard case `| _ -> ...`
-   = help: run `lune explain TYP0007` for a detailed explanation
+  |     ^^^^^ パターン Some(false) がカバーされていない
+   = hint: Some(false) のケースを追加するか、ワイルドカードケース `| _ -> ...` を追加してください
+   = help: 詳しくは `lune explain TYP0007 --lang ja` を実行してください
 ```
 
 `Some` は書いたし `None` も書いた — それでも「`Some(false)` が漏れている」とコンパイラは**反例を合成して**指摘します。ここまで来ると、網羅性検査は単なるお目付け役ではなく、**仕様の穴を見つける道具**です。「この関数、こういう入力のこと考えてた?」と、実例つきで聞いてくれるのですから。
@@ -181,13 +181,13 @@ $ lune --check unreachable.lune
 ```
 
 ```text,diagnostic
-warning[TYP0009]: unreachable match case: Red
+warning[TYP0009]: 到達しない match ケース: Red
   --> unreachable.lune:10:9
    |
 10 |         | Red -> 2
-   |         ^ this case can never match
-   = hint: remove this case, or move it before the cases that cover it
-   = help: run `lune explain TYP0009` for a detailed explanation
+   |         ^ このケースには決して到達しない
+   = hint: このケースを削除するか、これをカバーしているケースより前に移動してください
+   = help: 詳しくは `lune explain TYP0009 --lang ja` を実行してください
 type check OK
 ```
 
@@ -206,14 +206,14 @@ $ lune --check refutable.lune
 ```
 
 ```text,diagnostic
-error[TYP0008]: refutable pattern in let binding: Some(x)
+error[TYP0008]: let の束縛に反駁可能パターンは使えません: Some(x)
   --> refutable.lune:3:5
   |
 3 | let Some(x) = Some(1)
-  |     ^^^^ this pattern can fail to match
-   = hint: the pattern does not cover None
-   = hint: use `match` to handle all cases of Option[Int]
-   = help: run `lune explain TYP0008` for a detailed explanation
+  |     ^^^^ このパターンはマッチに失敗し得る
+   = hint: このパターンは None をカバーしていません
+   = hint: `match` を使って Option[Int] の全ケースを場合分けしてください
+   = help: 詳しくは `lune explain TYP0008 --lang ja` を実行してください
 ```
 
 右辺が `Some(1)` だと分かっていても、です。`Option[Int]` 型の値は `None` かもしれず、「かもしれない」がある限り `let` では受けられません。hint が言うとおり、そういう値は `match` で開けます。タプルパターンが `let` に書けたのは、タプルに「別の形」がないからです。
@@ -331,7 +331,7 @@ Ok(4.5)
 
 <details><summary>解答</summary>
 
-`error[TYP0007]: non-exhaustive match: missing case Yellow` が `label` に出ます。型にケースを足した瞬間、**その型を match しているすべての場所**をコンパイラが洗い出してくれる — これが「列挙できるなら `_` より列挙」の理由です。`| _ -> "unknown"` と書いてあったら、`Yellow` は黙って `"unknown"` に落ち、誰も気づきません。
+`error[TYP0007]: 網羅的でない match: Yellow のケースがありません` が `label` に出ます。型にケースを足した瞬間、**その型を match しているすべての場所**をコンパイラが洗い出してくれる — これが「列挙できるなら `_` より列挙」の理由です。`| _ -> "unknown"` と書いてあったら、`Yellow` は黙って `"unknown"` に落ち、誰も気づきません。
 
 </details>
 
@@ -442,7 +442,7 @@ $ lune --eval none ex5-4.lune
 
 <details><summary>解答</summary>
 
-`let Some(x) = Some(1)`（5.4節）。1つ目の hint「the pattern does not cover None」は**なぜ**失敗しうるか（覆えていない形の名指し）、2つ目の「use `match` to handle all cases」は**どうすればいいか**（代わりの構文）。診断は「原因 → 対処」の順で読む、という第11章の読み方の予行演習です。
+`let Some(x) = Some(1)`（5.4節）。1つ目の hint「このパターンは None をカバーしていません」は**なぜ**失敗しうるか（覆えていない形の名指し）、2つ目の「`match` を使って…全ケースを場合分けしてください」は**どうすればいいか**（代わりの構文）。診断は「原因 → 対処」の順で読む、という第11章の読み方の予行演習です。
 
 </details>
 

@@ -25,8 +25,8 @@ lune> def wantsInt(n: Int): Int =
 ...
 ok
 lune> wantsInt(present)
-error[TYP0003]: expected Int, got Nullable[Int]
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: Int が必要ですが、Nullable[Int] が見つかりました
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 これが null 安全のすべてです。「null かもしれない値」は、null でないことを**確かめるまで**、普通の値として使えない。確かめる方法がこの章の残りです。
@@ -76,16 +76,16 @@ $ lune --check missingnull.lune
 ```
 
 ```text,diagnostic
-error[TYP0007]: non-exhaustive match: missing case null
+error[TYP0007]: 網羅的でない match: null のケースがありません
   --> missingnull.lune:5:5
   |
 5 |     match b:
-  |     ^^^^^ pattern null is not covered
-   = hint: add a case for null, or a wildcard case `| _ -> ...`
-   = help: run `lune explain TYP0007` for a detailed explanation
+  |     ^^^^^ パターン null がカバーされていない
+   = hint: null のケースを追加するか、ワイルドカードケース `| _ -> ...` を追加してください
+   = help: 詳しくは `lune explain TYP0007 --lang ja` を実行してください
 ```
 
-「null チェックを忘れる」というあの事故が、コンパイル時の `missing case null` に変わりました。
+「null チェックを忘れる」というあの事故が、コンパイル時の「null のケースがありません」に変わりました。
 
 一つ注意。名前パターンだけで受けると、網羅性は満たせますが**絞り込まれません**。
 
@@ -94,15 +94,15 @@ lune> def bad(value: Int?): Int =
 ...     match value:
 ...         | v -> v
 ...
-error[TYP0003]: return type of bad: expected Int, got Nullable[Int]
-  --> <repl:17>:2:5
+error[TYP0003]: 分岐: Int が必要ですが、Nullable[Int] が見つかりました
+  --> <repl:1>:3:16
   |
-2 |     match value:
-  |     ^^^^^ function body has type Nullable[Int]
-   = help: run `lune explain TYP0003` for a detailed explanation
+3 |         | v -> v
+  |                ^ この式の型は Nullable[Int]
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
-`v` が `Int` になるのは、`null` の腕がそれより前にあるときだけです。
+診断が名指ししているのは腕の式 `v` です — null が被覆されていないので、そこではまだ `Nullable[Int]` のまま。`v` が `Int` になるのは、`null` の腕がそれより**前**にあるときだけです。
 
 ## 7.3 ?? — なければこれ
 
@@ -244,11 +244,15 @@ $ lune --eval fallback maybediv.lune
 > ...         | v -> v
 > ...         | null -> 0
 > ...
-> error[TYP0003]: branch type mismatch: Nullable[Int] vs Int
->    = help: run `lune explain TYP0003` for a detailed explanation
+> error[TYP0003]: 分岐: Int が必要ですが、Nullable[Int] が見つかりました
+>   --> <repl:1>:3:16
+>   |
+> 3 |         | v -> v
+>   |                ^ この式の型は Nullable[Int]
+>    = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 > ```
 >
-> 到達不能（`TYP0009`）を予想した人が多いはずですが、その手前で捕まりました。先頭の `v` はまだ null が被覆されていないので `Int?` のまま（7.2節の注意）で、`null` の腕の `Int` と型が食い違うのです。絞り込みは「null の腕が**先**」のときだけ働く — 腕の順番は型にまで影響します。
+> 到達不能（`TYP0009`）を予想した人が多いはずですが、先に型が捕まえました。7.2節の `bad` と同じ診断です — 先頭の `v` の腕では null がまだ被覆されておらず、`v` は `Int?` のまま。絞り込みは「null の腕が**先**」のときだけ働く — 腕の順番は型にまで影響します。
 
 ## まとめ
 
@@ -361,7 +365,7 @@ let present: Int? = 42
 let oops = present + 1
 ```
 
-とすると `error[TYP0003]: +: expected numeric type, got Nullable[Int]` が出ます。関数に渡す形（本文 7.1 節の `wantsInt(present)`）なら `expected Int, got Nullable[Int]`。他言語なら実行時の NullPointerException になっていた事故が、コンパイル時のこの1行に置き換わっている — それが null 安全の価値です。
+とすると `error[TYP0003]: +: 数値型が必要ですが、Nullable[Int] が見つかりました` が出ます。関数に渡す形（本文 7.1 節の `wantsInt(present)`）なら「Int が必要ですが、Nullable[Int] が見つかりました」。他言語なら実行時の NullPointerException になっていた事故が、コンパイル時のこの1行に置き換わっている — それが null 安全の価値です。
 
 </details>
 

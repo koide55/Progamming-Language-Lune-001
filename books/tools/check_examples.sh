@@ -12,11 +12,15 @@
 #
 # 診断出力中の絶対パスは、その例のディレクトリからの相対パスに正規化して比較する
 # （紙面の表記規約と同じ）。
+#
+# 診断は日本語（--lang ja）で検証する。紙面の規約（本書の diagnostics は日本語表示）と同じ。
 
 set -u
 BOOKS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$BOOKS_DIR/.." && pwd)"
-LUNE="$REPO_ROOT/bin/lune"
+LUNE_BIN="$REPO_ROOT/bin/lune"
+
+lune() { "$LUNE_BIN" --lang ja "$@"; }
 
 pass=0
 fail=0
@@ -29,17 +33,17 @@ ng() {
 
 check_ok() {
     local out
-    if out=$("$LUNE" --check "$1" 2>&1); then ok; else ng "--check $1: $out"; fi
+    if out=$(lune --check "$1" 2>&1); then ok; else ng "--check $1: $out"; fi
 }
 
 fmt_ok() {
     local out
-    if out=$("$LUNE" fmt --check "$@" 2>&1); then ok; else ng "fmt --check $*: $out"; fi
+    if out=$(lune fmt --check "$@" 2>&1); then ok; else ng "fmt --check $*: $out"; fi
 }
 
 eval_is() {
     local out
-    out=$("$LUNE" --eval "$2" "$1" 2>&1)
+    out=$(lune --eval "$2" "$1" 2>&1)
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
         ok
     else
@@ -50,7 +54,7 @@ eval_is() {
 
 diag_is() {
     local out
-    if out=$("$LUNE" --check "$1" 2>&1); then
+    if out=$(lune --check "$1" 2>&1); then
         ng "--check $1: unexpectedly passed"
         return
     fi
@@ -65,7 +69,7 @@ diag_is() {
 
 fix_is() {
     local out
-    out=$("$LUNE" fix "$1" 2>&1)
+    out=$(lune fix "$1" 2>&1)
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -77,7 +81,7 @@ fix_is() {
 # --check が警告付きで成功し、出力が期待ファイルと一致すること
 check_warn_is() { # file expect
     local out
-    if ! out=$("$LUNE" --check "$1" 2>&1); then
+    if ! out=$(lune --check "$1" 2>&1); then
         ng "--check $1: unexpectedly failed"
         return
     fi
@@ -93,7 +97,7 @@ check_warn_is() { # file expect
 # --eval が失敗し、診断出力が期待ファイルと一致すること
 eval_diag_is() { # file binding expect
     local out
-    if out=$("$LUNE" --eval "$2" "$1" 2>&1); then
+    if out=$(lune --eval "$2" "$1" 2>&1); then
         ng "--eval $2 $1: unexpectedly succeeded"
         return
     fi
@@ -109,7 +113,7 @@ eval_diag_is() { # file binding expect
 # --eval --trace の stderr トレースが期待ファイルと一致すること
 trace_is() { # file binding expect
     local out
-    out=$("$LUNE" --eval "$2" --trace "$1" 2>&1 > /dev/null)
+    out=$(lune --eval "$2" --trace "$1" 2>&1 > /dev/null)
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
         ok
     else

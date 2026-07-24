@@ -296,10 +296,11 @@ REPL コマンド一覧。
 2. **組版**: **mdBook で HTML 化**。本文は `books/lune-book/src/` 配下の Markdown、`SUMMARY.md` が目次の正。
    将来、Playground との連携（例を1クリックで実行）を HTML 側の拡張として狙える。
    PDF が必要になったら mdBook のプリントページ（print.html）を第一候補とする。
-3. **診断表示の言語**: 当面は現行 CLI の英語出力を正として掲載する。
-   日本語診断（STRATEGY 施策 B、`feature/ja-diagnostics`）が main にマージされた時点で、
-   本書の診断表示を日本語出力へ一括差し替えする。差し替え箇所を機械的に見つけられるよう、
-   診断出力を載せるコードブロックには目印（` ```text,diagnostic` 規約）を付けて執筆する。
+3. **診断表示の言語**: **日本語**（2026-07-24 に全面差し替え実施済み）。
+   本書の規約は「`lune` = `./bin/lune --lang ja`」（第1章 1.1 の表記についてを参照。REPL は `lune --repl`）。
+   診断出力を載せるコードブロックには目印（` ```text,diagnostic` 規約）を付け、
+   検証スクリプトも `--lang ja` で厳密比較する。既定言語の永続設定（`LUNE_LANG` 等）が
+   言語側に入ったら、表記規約を簡素化する。
 4. **演習解答**: 各演習問題の直下に折りたたみ（HTML の `<details><summary>解答</summary>…</details>`）で置く。
    独習者がその場で答え合わせできることを優先する。解答のコード例も `books/examples/` の検証対象に含める。
    講義で課題として使う場合に解答を隠したくなったら、mdBook の preprocessor で

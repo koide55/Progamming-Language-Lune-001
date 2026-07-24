@@ -1,8 +1,8 @@
-error[TYP0008]: refutable pattern in let binding: Some(x)
+error[TYP0008]: let の束縛に反駁可能パターンは使えません: Some(x)
   --> refutable.lune:3:5
   |
 3 | let Some(x) = Some(1)
-  |     ^^^^ this pattern can fail to match
-   = hint: the pattern does not cover None
-   = hint: use `match` to handle all cases of Option[Int]
-   = help: run `lune explain TYP0008` for a detailed explanation
+  |     ^^^^ このパターンはマッチに失敗し得る
+   = hint: このパターンは None をカバーしていません
+   = hint: `match` を使って Option[Int] の全ケースを場合分けしてください
+   = help: 詳しくは `lune explain TYP0008 --lang ja` を実行してください
