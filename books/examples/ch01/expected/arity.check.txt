@@ -1,6 +1,6 @@
-error[TYP0005]: expected at most 1 arguments, got 2
+error[TYP0005]: 引数は最大 1 個ですが、2 個渡されました
   --> arity.lune:6:20
   |
 6 | let main = println(greet("world", "again"))
-  |                    ^^^^^ wrong number of arguments
-   = help: run `lune explain TYP0005` for a detailed explanation
+  |                    ^^^^^ 引数の個数が違う
+   = help: 詳しくは `lune explain TYP0005 --lang ja` を実行してください
