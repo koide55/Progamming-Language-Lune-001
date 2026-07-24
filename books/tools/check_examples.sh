@@ -146,6 +146,30 @@ eval_is answers/ex2-4.lune swapped expected/ex2-4.swapped.txt
 
 fmt_ok grade.lune answers/ex2-3.lune answers/ex2-4.lune
 
+# ----- 第3章 -----
+cd "$BOOKS_DIR/examples/ch03"
+
+check_ok pipeline.lune
+eval_is pipeline.lune result expected/pipeline.result.txt
+eval_is pipeline.lune eleven expected/pipeline.eleven.txt
+
+check_ok hof.lune
+eval_is hof.lune fortyTwo expected/hof.fortyTwo.txt
+eval_is hof.lune seven expected/hof.seven.txt
+
+diag_is norettype.lune expected/norettype.check.txt
+
+check_ok answers/ex3-2.lune
+eval_is answers/ex3-2.lune answer expected/ex3-2.answer.txt
+
+check_ok answers/ex3-3.lune
+eval_is answers/ex3-3.lune answer expected/ex3-3.answer.txt
+
+check_ok answers/ex3-4.lune
+eval_is answers/ex3-4.lune answer expected/ex3-4.answer.txt
+
+fmt_ok pipeline.lune hof.lune norettype.lune answers/ex3-2.lune answers/ex3-3.lune answers/ex3-4.lune
+
 # ----- 第4章 -----
 cd "$BOOKS_DIR/examples/ch04"
 

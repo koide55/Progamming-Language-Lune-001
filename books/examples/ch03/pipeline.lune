@@ -1,0 +1,18 @@
+module pipeline
+
+def inc(n: Int): Int =
+    n + 1
+
+def double(n: Int): Int =
+    n * 2
+
+def add(x: Int, y: Int): Int =
+    x + y
+
+# x |> f は f(x) の糖衣。左から右へ、データの流れの順に読める。
+let result = 5 |> inc |> double
+
+# 多引数関数へのパイプは部分適用になる。
+let addFive = 5 |> add
+
+let eleven = addFive(6)
