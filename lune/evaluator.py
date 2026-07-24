@@ -188,12 +188,18 @@ class FunctionValue:
     body: ast.Expr
     env: Env
 
+    def __repr__(self) -> str:
+        return format_value(self)
+
 
 @dataclass(frozen=True)
 class BuiltinFunction:
     name: str
     func: Callable[[list[Value]], Value]
     force_args: bool = True
+
+    def __repr__(self) -> str:
+        return format_value(self)
 
 
 @dataclass(frozen=True)
@@ -205,6 +211,9 @@ class ConstructorValue:
     def arity(self) -> int:
         return len(self.fields)
 
+    def __repr__(self) -> str:
+        return format_value(self)
+
 
 @dataclass(frozen=True)
 class PartialConstructorValue:
@@ -215,11 +224,17 @@ class PartialConstructorValue:
     def remaining_fields(self) -> list[ast.Param]:
         return self.constructor.fields[len(self.bound_fields) :]
 
+    def __repr__(self) -> str:
+        return format_value(self)
+
 
 @dataclass(frozen=True)
 class RecordConstructorValue:
     name: str
     fields: list[ast.RecordField]
+
+    def __repr__(self) -> str:
+        return format_value(self)
 
 
 @dataclass(frozen=True)
@@ -1036,6 +1051,17 @@ def truthy(value: Value) -> bool:
     return bool(force_value(value))
 
 
+def _format_callable(value: Value) -> str | None:
+    """Spec: VALUE_DISPLAY_SPEC.md §4 — callables display as `<fn name>` / `<fn>`."""
+    if isinstance(value, (FunctionValue, BuiltinFunction)):
+        return f"<fn {value.name}>" if value.name else "<fn>"
+    if isinstance(value, (ConstructorValue, RecordConstructorValue)):
+        return f"<fn {value.name}>"
+    if isinstance(value, PartialConstructorValue):
+        return f"<fn {value.constructor.name}>"
+    return None
+
+
 def format_value(value: Value) -> str:
     value = force_value(value)
     if isinstance(value, str):
@@ -1061,6 +1087,9 @@ def format_value(value: Value) -> str:
         if len(value.items) == 1:
             return f"({items},)"
         return f"({items})"
+    rendered_callable = _format_callable(value)
+    if rendered_callable is not None:
+        return rendered_callable
     return repr(value)
 
 
@@ -1103,10 +1132,9 @@ def preview_value(value: Value, depth: int = _PREVIEW_DEPTH) -> str:
             return "(…)"
         items = ", ".join(preview_value(item, depth - 1) for item in value.items)
         return f"({items},)" if len(value.items) == 1 else f"({items})"
-    if isinstance(value, FunctionValue):
-        return f"<function {value.name or 'fn'}>"
-    if isinstance(value, BuiltinFunction):
-        return f"<builtin {value.name}>"
+    rendered_callable = _format_callable(value)
+    if rendered_callable is not None:
+        return rendered_callable
     if isinstance(value, (int, float)):
         return repr(value)
     return f"<{type(value).__name__}>"

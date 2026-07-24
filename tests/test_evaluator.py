@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import unittest
 
-from lune.evaluator import DataValue, LuneRuntimeError, RecordValue, ThunkState, eval_source, force_value, format_value
+from lune.evaluator import (
+    DataValue,
+    LuneRuntimeError,
+    RecordValue,
+    ThunkState,
+    eval_source,
+    force_value,
+    format_value,
+    preview_value,
+)
 
 
 class EvaluatorTests(unittest.TestCase):
@@ -53,6 +62,73 @@ let thunk = fn -> 42
 let answer = thunk()
 """
         self.assertEqual(self.value_of(source, "answer"), 42)
+
+    def test_format_value_named_function_uses_fn_notation(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("greet")), "<fn greet>")
+
+    def test_format_value_partial_application_keeps_function_name(self) -> None:
+        source = """
+def add(x: Int, y: Int): Int =
+    x + y
+
+let inc = add(1)
+let unapplied = add()
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("inc")), "<fn add>")
+        self.assertEqual(format_value(env.lookup_raw("unapplied")), "<fn add>")
+
+    def test_format_value_lambda_has_no_name(self) -> None:
+        env = eval_source("let f = fn x -> x\n")
+        self.assertEqual(format_value(env.lookup_raw("f")), "<fn>")
+
+    def test_format_value_builtin_function(self) -> None:
+        env = eval_source("let answer = 42\n")
+        self.assertEqual(format_value(env.lookup_raw("println")), "<fn println>")
+
+    def test_format_value_constructor_values(self) -> None:
+        source = """
+type Pair =
+    | MkPair(a: Int, b: Int)
+
+let partial = MkPair(1)
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("MkPair")), "<fn MkPair>")
+        self.assertEqual(format_value(env.lookup_raw("partial")), "<fn MkPair>")
+        self.assertEqual(format_value(env.lookup_raw("Some")), "<fn Some>")
+
+    def test_format_value_record_constructor(self) -> None:
+        source = """
+record Person:
+    name: String
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("Person")), "<fn Person>")
+
+    def test_function_value_repr_is_short(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+"""
+        env = eval_source(source)
+        self.assertEqual(repr(env.lookup_raw("greet")), "<fn greet>")
+        self.assertEqual(repr(env.lookup_raw("println")), "<fn println>")
+        self.assertEqual(repr(env.lookup_raw("Some")), "<fn Some>")
+
+    def test_preview_value_uses_fn_notation(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+"""
+        env = eval_source(source)
+        self.assertEqual(preview_value(env.lookup_raw("greet")), "<fn greet>")
+        self.assertEqual(preview_value(env.lookup_raw("println")), "<fn println>")
 
     def test_partial_application_preserves_lazy_arguments(self) -> None:
         source = """
