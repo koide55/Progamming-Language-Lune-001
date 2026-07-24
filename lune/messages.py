@@ -214,6 +214,10 @@ MESSAGES: dict[str, tuple[str, str]] = {
     ),
     "typ.cannot-infer-param": ("cannot infer type of parameter {name}", "引数 {name} の型を推論できません"),
     "label.param-falls-back": ("parameter type falls back to Any", "引数の型が Any にフォールバックする"),
+    "hint.annotate-param": (
+        "add a type annotation, e.g. `fn {name}: Int -> ...`",
+        "型注釈を追加してください。例: `fn {name}: Int -> ...`",
+    ),
     "typ.for-iterable": ("for iterable must be List, got {type}", "for の対象は List でなければなりませんが、{type} でした"),
     "label.for-iterable": ("iterable must be List[T]", "走査対象は List[T] でなければならない"),
     "typ.only-name-assign": (

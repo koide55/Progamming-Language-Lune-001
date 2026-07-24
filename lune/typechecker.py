@@ -503,7 +503,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                         severity="warning",
                         message=t("typ.cannot-infer-param", name=param.name),
                         primary=Label(param.span, t("label.param-falls-back")) if param.span is not None else None,
-                        hints=[f"add a type annotation, e.g. `fn {param.name}: Int -> ...`"],
+                        hints=[t("hint.annotate-param", name=param.name)],
                     )
                 )
         params = tuple(params_list)
