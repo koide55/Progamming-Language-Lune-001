@@ -69,14 +69,28 @@ def _verify(original: ast.ModuleFile, formatted: str, filename: str) -> None:
 def _strip_spans(node):
     """Recursively rebuild a node/value with all `span` fields dropped.
 
-    A block with no statements is normalized to its result expression: the two
-    are semantically identical, but the parser produces a bare expression for an
-    inline body (`= e`) and a `BlockExpr` for an indented one (`=` then `e`), and
-    the formatter canonicalizes to the indented form. Treating them as equal lets
-    the meaning-preservation check accept that reshaping.
+    Blocks are normalized before comparison, since the formatter reshapes them
+    in two semantically neutral ways:
+
+    - A block whose result is itself a block is flattened (the inner statements
+      run after the outer ones and scope over exactly the rest of the block
+      either way). The parser desugars `let x = v in body` to a nested block,
+      so e.g. `let x = 1 in let y = 2 in x + y` re-parses flat once the
+      formatter has emitted it as a sequence of statements.
+    - A block with no statements is normalized to its result expression: the
+      parser produces a bare expression for an inline body (`= e`) and a
+      `BlockExpr` for an indented one (`=` then `e`), and the formatter
+      canonicalizes to the indented form.
     """
-    if isinstance(node, ast.BlockExpr) and not node.statements and node.result is not None:
-        return _strip_spans(node.result)
+    if isinstance(node, ast.BlockExpr):
+        statements = list(node.statements)
+        result = node.result
+        while isinstance(result, ast.BlockExpr):
+            statements.extend(result.statements)
+            result = result.result
+        if not statements and result is not None:
+            return _strip_spans(result)
+        node = ast.BlockExpr(statements, result, span=node.span)
     if isinstance(node, ast.Node):
         values = {}
         for f in dataclasses.fields(node):
