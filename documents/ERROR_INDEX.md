@@ -4,7 +4,7 @@
 
 コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を
 `lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。
-発行されうる全コードに詳解があることはテストで保証される（現在 29 コード）。
+発行されうる全コードに詳解があることはテストで保証される（現在 29 コード）。日本語版: `ERROR_INDEX_JA.md`。
 
 - [`LAY0001`](#lay0001) — inconsistent indentation
 - [`LAY0002`](#lay0002) — unmatched closing delimiter

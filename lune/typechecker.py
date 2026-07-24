@@ -7,6 +7,7 @@ from itertools import product
 from . import nodes as ast
 from .diagnostics import Diagnostic, DiagnosticError, Fix, Label, SourceSpan
 from .parser import parse_source
+from .messages import t
 
 
 def _closest(name: str, candidates) -> str | None:
@@ -17,7 +18,7 @@ def _closest(name: str, candidates) -> str | None:
 def suggestion_hints(name: str, candidates) -> list[str]:
     """A `did you mean \\`x\\`?` hint for the closest candidate name, if any."""
     match = _closest(name, candidates)
-    return [f"did you mean `{match}`?"] if match else []
+    return [t("hint.did-you-mean", name=match)] if match else []
 
 
 def name_suggestion(name: str, candidates, span: SourceSpan | None) -> tuple[list[str], list[Fix]]:
@@ -25,8 +26,8 @@ def name_suggestion(name: str, candidates, span: SourceSpan | None) -> tuple[lis
     match = _closest(name, candidates)
     if match is None:
         return [], []
-    hints = [f"did you mean `{match}`?"]
-    fixes = [Fix(span, match, f"replace with `{match}`")] if span is not None else []
+    hints = [t("hint.did-you-mean", name=match)]
+    fixes = [Fix(span, match, t("fix.replace-with", name=match))] if span is not None else []
     return hints, fixes
 
 
@@ -198,21 +199,21 @@ class TypeEnv:
             return self.values[name]
         if self.parent is not None:
             return self.parent.lookup_value(name)
-        raise LuneTypeError(f"undefined name: {name}")
+        raise LuneTypeError(t("typ.undefined-name", name=name))
 
     def lookup_constructor(self, name: str) -> ConstructorInfo:
         if name in self.constructors:
             return self.constructors[name]
         if self.parent is not None:
             return self.parent.lookup_constructor(name)
-        raise LuneTypeError(f"undefined constructor: {name}")
+        raise LuneTypeError(t("typ.undefined-constructor", name=name))
 
     def lookup_record(self, name: str) -> RecordInfo:
         if name in self.records:
             return self.records[name]
         if self.parent is not None:
             return self.parent.lookup_record(name)
-        raise LuneTypeError(f"undefined record type: {name}")
+        raise LuneTypeError(t("typ.undefined-record-type", name=name))
 
     def lookup_type(self, name: str) -> TypeInfo | None:
         if name in self.types:
@@ -341,7 +342,7 @@ def predeclare_decl(decl: ast.Decl, env: TypeEnv) -> None:
         fields: list[RecordFieldInfo] = []
         for field in decl.fields:
             if field.name in seen:
-                raise LuneTypeError(f"duplicate record field: {field.name}", "REC0001", field.span, "field is declared more than once")
+                raise LuneTypeError(t("rec.duplicate-field", field=field.name), "REC0001", field.span, t("label.duplicate-field"))
             seen.add(field.name)
             fields.append(RecordFieldInfo(field.name, type_from_ast(field.type, decl.type_params), field.is_strict))
         env.define_record(RecordInfo(decl.name, tuple(decl.type_params), tuple(fields)))
@@ -362,7 +363,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         expected = type_from_ast(decl.type) if decl.type is not None else None
         value_type = infer_expr(decl.value, env, expected)
         if expected is not None:
-            require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), f"this expression has type {value_type!r}")
+            require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), t("label.expression-has-type", type=repr(value_type)))
             value_type = expected
         bind_pattern_types(decl.pattern, value_type, env)
         check_pattern_irrefutable(decl.pattern, value_type, env, "let")
@@ -374,7 +375,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         require_value_assignable(value_type, expected, "var annotation")
         env.define_value(decl.name, expected)
         return
-    raise LuneTypeError(f"unsupported declaration: {type(decl).__name__}")
+    raise LuneTypeError(t("typ.unsupported-declaration", kind=type(decl).__name__))
 
 
 def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
@@ -385,20 +386,20 @@ def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
         try:
             body_type = infer_expr(decl.body, local)
         except LuneTypeError as exc:
-            if exc.diagnostic.message == f"undefined name: {decl.name}":
+            if exc.diagnostic.message == t("typ.undefined-name", name=decl.name):
                 raise LuneTypeError(
-                    f"recursive function requires a return type annotation: {decl.name}",
+                    t("typ.recursive-return-type", name=decl.name),
                     "TYP0011",
                     decl.span,
-                    "the function calls itself before its type is known",
-                    [f"add a return type, e.g. `def {decl.name}(...): T = ...`"],
+                    t("label.recursive-return-type"),
+                    [t("hint.recursive-return-type", name=decl.name)],
                 ) from exc
             raise
         env.define_value(decl.name, FunctionType(tuple(required_type(param.type, f"parameter {param.name}") for param in decl.params), body_type, tuple(decl.type_params)))
         return
     expected = type_from_ast(decl.return_type, decl.type_params)
     body_type = infer_expr(decl.body, local, expected)
-    require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), f"function body has type {body_type!r}")
+    require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), t("label.function-body-has-type", type=repr(body_type)))
 
 
 def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) -> ValueType:
@@ -435,10 +436,10 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             return env.lookup_value(expr.name)
         except LuneTypeError as exc:
             raise LuneTypeError(
-                f"undefined name: {expr.name}",
+                t("typ.undefined-name", name=expr.name),
                 "TYP0001",
                 expr.span,
-                "name is not defined",
+                t("label.name-not-defined"),
                 *name_suggestion(expr.name, visible_value_names(env), expr.span),
             ) from exc
     if isinstance(expr, ast.NullExpr):
@@ -465,7 +466,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             if contains_type_var(element):
                 return Type("List", (common_type([ensure_type(item_type) for item_type in item_types]),))
             for item, item_type in zip(expr.items, item_types, strict=True):
-                require_value_assignable(item_type, element, "list element", getattr(item, "span", None), f"this element has type {item_type!r}")
+                require_value_assignable(item_type, element, "list element", getattr(item, "span", None), t("label.element-has-type", type=repr(item_type)))
             return expected
         if not expr.items:
             return Type("List", (ANY,))
@@ -484,8 +485,8 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                     Diagnostic(
                         code="TYP0010",
                         severity="warning",
-                        message=f"cannot infer type of parameter {param.name}",
-                        primary=Label(param.span, "parameter type falls back to Any") if param.span is not None else None,
+                        message=t("typ.cannot-infer-param", name=param.name),
+                        primary=Label(param.span, t("label.param-falls-back")) if param.span is not None else None,
                         hints=[f"add a type annotation, e.g. `fn {param.name}: Int -> ...`"],
                     )
                 )
@@ -545,10 +546,10 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             item_type = iterable_type.args[0]
         else:
             raise LuneTypeError(
-                f"for iterable must be List, got {iterable_type!r}",
+                t("typ.for-iterable", type=repr(iterable_type)),
                 "TYP0006",
                 getattr(expr.iterable, "span", None),
-                "iterable must be List[T]",
+                t("label.for-iterable"),
             )
         local = env.child()
         bind_pattern_types(expr.pattern, item_type, local)
@@ -601,7 +602,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         return BOTTOM
     if isinstance(expr, ast.AssignExpr):
         if not isinstance(expr.target, ast.NameExpr):
-            raise LuneTypeError("only name assignment is supported by the type checker")
+            raise LuneTypeError(t("typ.only-name-assign"))
         target_type = ensure_type(env.lookup_value(expr.target.name))
         value_type = ensure_type(infer_expr(expr.value, env))
         require_assignable(value_type, target_type, "assignment")
@@ -617,10 +618,10 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             return ANY
         if receiver_type.name != "Nullable" or not receiver_type.args:
             raise LuneTypeError(
-                f"?. expects a nullable receiver, got {receiver_type!r}",
+                t("typ.safe-nav-receiver", type=repr(receiver_type)),
                 "TYP0003",
                 expr.span,
-                "this expression is not nullable",
+                t("label.not-nullable"),
             )
         member_type = infer_member_type(receiver_type.args[0], expr.name, env, expr.span)
         if isinstance(member_type, Type):
@@ -628,7 +629,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
                 return member_type
             return Type("Nullable", (member_type,))
         return member_type
-    raise LuneTypeError(f"unsupported expression: {type(expr).__name__}")
+    raise LuneTypeError(t("typ.unsupported-expression", kind=type(expr).__name__))
 
 
 def infer_member_type(receiver_type: Type, name: str, env: TypeEnv, span: SourceSpan | None) -> ValueType:
@@ -639,7 +640,7 @@ def infer_member_type(receiver_type: Type, name: str, env: TypeEnv, span: Source
     field_type = lookup_record_field_type(receiver_type, name, env, span)
     if field_type is not None:
         return field_type
-    raise LuneTypeError(f"unsupported member access on {receiver_type!r}: {name}")
+    raise LuneTypeError(t("typ.unsupported-member", type=repr(receiver_type), name=name))
 
 
 def _null_check_target(condition: ast.Expr, env: TypeEnv) -> tuple[str, Type, bool] | None:
@@ -691,10 +692,10 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
     expected = flatten_function_type(expected)
     if len(expr.params) > len(expected.params):
         raise LuneTypeError(
-            f"lambda takes {len(expr.params)} parameters, but expected type has {len(expected.params)}",
+            t("typ.lambda-params", got=len(expr.params), expected=len(expected.params)),
             "TYP0005",
             expr.span,
-            "too many lambda parameters",
+            t("label.lambda-params"),
         )
     local = env.child()
     param_types: list[ValueType] = []
@@ -707,7 +708,7 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
                     annotated,
                     f"parameter {param.name}",
                     param.span,
-                    f"annotation {annotated!r} does not accept expected {expected_param!r}",
+                    t("label.annotation-rejects-expected", annotation=repr(annotated), expected=repr(expected_param)),
                 )
             param_type: ValueType = annotated
         else:
@@ -723,7 +724,7 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
             body_expected,
             "lambda body",
             getattr(expr.body, "span", None),
-            f"lambda body has type {body_type!r}",
+            t("label.lambda-body-has-type", type=repr(body_type)),
         )
         result: ValueType = body_expected
     else:
@@ -735,7 +736,7 @@ def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, s
     if isinstance(callee_type, RecordConstructorType):
         return infer_record_constructor_call(callee_type, args, env, span)
     if not isinstance(callee_type, FunctionType):
-        raise LuneTypeError(f"value is not callable: {callee_type!r}", "TYP0004", span, "this value is not callable")
+        raise LuneTypeError(t("typ.not-callable", type=repr(callee_type)), "TYP0004", span, t("label.not-callable"))
     callee_type = flatten_function_type(callee_type)
     if callee_type.variadic:
         substitutions: dict[str, Type] = {}
@@ -745,9 +746,9 @@ def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, s
             unify_value(expected, actual, substitutions)
         return substitute_value(callee_type.result, substitutions)
     if len(args) > len(callee_type.params):
-        raise LuneTypeError(f"expected at most {len(callee_type.params)} arguments, got {len(args)}", "TYP0005", span, "wrong number of arguments")
+        raise LuneTypeError(t("typ.arity-most", max=len(callee_type.params), got=len(args)), "TYP0005", span, t("label.wrong-arg-count"))
     if len(args) < len(callee_type.params) and not callee_type.partial:
-        raise LuneTypeError(f"expected {len(callee_type.params)} arguments, got {len(args)}", "TYP0005", span, "wrong number of arguments")
+        raise LuneTypeError(t("typ.arity-exact", expected=len(callee_type.params), got=len(args)), "TYP0005", span, t("label.wrong-arg-count"))
     substitutions: dict[str, Type] = {}
     # two-pass checking (LOCAL_TYPE_INFERENCE_SPEC.md section 6): non-lambda
     # arguments resolve type variables first, then lambdas are checked against
@@ -783,26 +784,26 @@ def infer_record_constructor_call(
     for arg in args:
         if arg.name is None:
             raise LuneTypeError(
-                f"{constructor_type.name} requires named record fields",
+                t("rec.named-fields", record=constructor_type.name),
                 "REC0006",
                 arg.span or span,
-                "use field = value",
+                t("label.named-fields"),
             )
         field = by_name.get(arg.name)
         if field is None:
             raise LuneTypeError(
-                f"unexpected record field for {constructor_type.name}: {arg.name}",
+                t("rec.unexpected-field", record=constructor_type.name, field=arg.name),
                 "REC0005",
                 arg.span or span,
-                "this field is not declared by the record",
+                t("label.unexpected-field"),
                 suggestion_hints(arg.name, by_name),
             )
         if arg.name in seen:
             raise LuneTypeError(
-                f"duplicate record initializer field: {arg.name}",
+                t("rec.duplicate-init", field=arg.name),
                 "REC0004",
                 arg.span or span,
-                "field is initialized more than once",
+                t("label.duplicate-init"),
             )
         seen.add(arg.name)
         actual = ensure_type(infer_expr(arg.value, env))
@@ -810,10 +811,10 @@ def infer_record_constructor_call(
     missing = [field.name for field in constructor_type.fields if field.name not in seen]
     if missing:
         raise LuneTypeError(
-            f"missing record field for {constructor_type.name}: {missing[0]}",
+            t("rec.missing-field", record=constructor_type.name, field=missing[0]),
             "REC0003",
             span,
-            "record construction is missing a required field",
+            t("label.missing-field"),
         )
     return substitute(constructor_type.result, substitutions)
 
@@ -830,10 +831,10 @@ def lookup_record_field_type(receiver_type: Type, field_name: str, env: TypeEnv,
         if field.name == field_name:
             return substitute(field.type, substitutions)
     raise LuneTypeError(
-        f"unknown record field: {receiver_type.name}.{field_name}",
+        t("rec.unknown-field", record=receiver_type.name, field=field_name),
         "REC0002",
         span,
-        "field is not declared by this record",
+        t("label.unknown-field"),
         suggestion_hints(field_name, [field.name for field in info.fields]),
     )
 
@@ -856,10 +857,10 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
             return left
         if left.name != "Nullable" or not left.args:
             raise LuneTypeError(
-                f"?? expects a nullable left operand, got {left!r}",
+                t("typ.null-coalesce-left", type=repr(left)),
                 "TYP0003",
                 expr.span,
-                "this expression is not nullable",
+                t("label.not-nullable"),
             )
         inner = left.args[0]
         right_nullable = right.name == "Nullable" or right == NULL
@@ -890,7 +891,7 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
         require_numeric(left, expr.op)
         require_assignable(right, left, expr.op)
         return BOOL
-    raise LuneTypeError(f"unsupported binary operator: {expr.op}")
+    raise LuneTypeError(t("typ.unsupported-binary-op", op=expr.op))
 
 
 def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> None:
@@ -910,13 +911,13 @@ def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> 
         substitutions: dict[str, Type] = {}
         unify(info.result, value_type, substitutions)
         if len(pattern.args) != len(info.fields):
-            raise LuneTypeError(f"constructor pattern {pattern.name} expects {len(info.fields)} fields, got {len(pattern.args)}")
+            raise LuneTypeError(t("typ.ctor-pattern-arity", name=pattern.name, expected=len(info.fields), got=len(pattern.args)))
         for subpattern, field_type in zip(pattern.args, info.fields, strict=True):
             bind_pattern_types(subpattern, substitute(field_type, substitutions), env)
         return
     if isinstance(pattern, ast.TuplePattern):
         if value_type.name != "Tuple" or len(value_type.args) != len(pattern.items):
-            raise LuneTypeError(f"tuple pattern cannot match {value_type!r}")
+            raise LuneTypeError(t("typ.tuple-pattern", type=repr(value_type)))
         for subpattern, item_type in zip(pattern.items, value_type.args, strict=True):
             bind_pattern_types(subpattern, item_type, env)
         return
@@ -929,7 +930,7 @@ def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> 
         require_assignable(value_type, expected, "typed pattern")
         bind_pattern_types(pattern.pattern, expected, env)
         return
-    raise LuneTypeError(f"unsupported pattern: {type(pattern).__name__}")
+    raise LuneTypeError(t("typ.unsupported-pattern", kind=type(pattern).__name__))
 
 
 # --- match exhaustiveness (TYP0007), see documents/MATCH_EXHAUSTIVENESS_SPEC.md ---
@@ -1121,22 +1122,22 @@ def _report_unreachable(case: ast.MatchCase, env: TypeEnv) -> None:
         Diagnostic(
             code="TYP0009",
             severity="warning",
-            message=f"unreachable match case: {render_pattern(case.pattern)}",
-            primary=Label(case.span, "this case can never match") if case.span is not None else None,
-            hints=["remove this case, or move it before the cases that cover it"],
+            message=t("typ.unreachable-case", pattern=render_pattern(case.pattern)),
+            primary=Label(case.span, t("label.unreachable-case")) if case.span is not None else None,
+            hints=[t("hint.unreachable-case")],
         )
     )
 
 
 def _report_non_exhaustive(expr: ast.MatchExpr, missing: str) -> None:
-    hints = [f"add a case for {missing}, or a wildcard case `| _ -> ...`"]
+    hints = [t("hint.add-case", witness=missing)]
     if any(case.guard is not None for case in expr.cases):
-        hints.append("guarded cases do not count toward exhaustiveness")
+        hints.append(t("hint.guarded-cases"))
     raise LuneTypeError(
-        f"non-exhaustive match: missing case {missing}",
+        t("typ.non-exhaustive", witness=missing),
         "TYP0007",
         expr.span,
-        f"pattern {missing} is not covered",
+        t("label.non-exhaustive", witness=missing),
         hints,
     )
 
@@ -1227,13 +1228,13 @@ def check_pattern_irrefutable(pattern: ast.Pattern, value_type: ValueType, env: 
         return
     rendered = render_pattern(pattern)
     raise LuneTypeError(
-        f"refutable pattern in {context} binding: {rendered}",
+        t("typ.refutable-pattern", context=context, pattern=rendered),
         "TYP0008",
         getattr(pattern, "span", None),
-        "this pattern can fail to match",
+        t("label.refutable-pattern"),
         [
-            f"the pattern does not cover {witness[0]}",
-            f"use `match` to handle all cases of {value_type!r}",
+            t("hint.refutable-uncovered", witness=witness[0]),
+            t("hint.refutable-use-match", type=repr(value_type)),
         ],
     )
 
@@ -1246,7 +1247,7 @@ def type_from_ast(node: ast.TypeNode | None, type_params: list[str] | tuple[str,
     if isinstance(node, ast.TypeApply):
         base = type_from_ast(node.base, type_params)
         if not isinstance(base, Type):
-            raise LuneTypeError(f"unsupported generic type base: {base!r}")
+            raise LuneTypeError(t("typ.unsupported-generic-base", type=repr(base)))
         return Type(base.name, tuple(type_from_ast(arg, type_params) for arg in node.args))
     if isinstance(node, ast.TupleType):
         if not node.items:
@@ -1255,11 +1256,11 @@ def type_from_ast(node: ast.TypeNode | None, type_params: list[str] | tuple[str,
     if isinstance(node, ast.NullableType):
         inner = type_from_ast(node.inner, type_params)
         if not isinstance(inner, Type):
-            raise LuneTypeError(f"function type cannot be nullable in v0.1: {inner!r}")
+            raise LuneTypeError(t("typ.nullable-fn", type=repr(inner)))
         return Type("Nullable", (inner,))
     if isinstance(node, ast.FunctionType):
         return function_type_from_ast(node, type_params)
-    raise LuneTypeError(f"unsupported type syntax: {type(node).__name__}")
+    raise LuneTypeError(t("typ.unsupported-type-syntax", kind=type(node).__name__))
 
 
 def function_type_from_ast(node: ast.FunctionType, type_params: list[str] | tuple[str, ...] = ()) -> FunctionType:
@@ -1280,13 +1281,13 @@ def function_params_from_ast(node: ast.TypeNode, type_params: list[str] | tuple[
 
 def required_type(node: ast.TypeNode | None, label: str) -> ValueType:
     if node is None:
-        raise LuneTypeError(f"{label} requires a type annotation in v0.1")
+        raise LuneTypeError(t("typ.annotation-required", label=label))
     return type_from_ast(node)
 
 
 def ensure_type(value_type: ValueType) -> Type:
     if isinstance(value_type, FunctionType | RecordConstructorType):
-        raise LuneTypeError(f"expected value type, got function type {value_type!r}")
+        raise LuneTypeError(t("typ.expected-value-type", type=repr(value_type)))
     return value_type
 
 
@@ -1328,7 +1329,7 @@ def unify(expected: Type, actual: Type, substitutions: dict[str, Type]) -> None:
         require_assignable(actual, existing, f"type parameter {expected.name}")
         return
     if expected.name != actual.name or len(expected.args) != len(actual.args):
-        raise LuneTypeError(f"expected {expected!r}, got {actual!r}")
+        raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)))
     for expected_arg, actual_arg in zip(expected.args, actual.args, strict=True):
         unify(expected_arg, actual_arg, substitutions)
 
@@ -1337,16 +1338,16 @@ def unify_value(expected: ValueType, actual: ValueType, substitutions: dict[str,
     if isinstance(expected, RecordConstructorType) or isinstance(actual, RecordConstructorType):
         if expected == ANY or actual == ANY:
             return
-        raise LuneTypeError(f"expected {expected!r}, got {actual!r}")
+        raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)))
     if isinstance(expected, FunctionType):
         expected = flatten_function_type(expected)
         actual = flatten_function_type(actual) if isinstance(actual, FunctionType) else actual
         if actual == ANY:
             return
         if not isinstance(actual, FunctionType):
-            raise LuneTypeError(f"expected {expected!r}, got {actual!r}")
+            raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)))
         if len(expected.params) != len(actual.params):
-            raise LuneTypeError(f"expected {len(expected.params)} function parameters, got {len(actual.params)}")
+            raise LuneTypeError(t("typ.fn-param-count", expected=len(expected.params), actual=len(actual.params)))
         for expected_param, actual_param in zip(expected.params, actual.params, strict=True):
             unify_value(expected_param, actual_param, substitutions)
         unify_value(expected.result, actual.result, substitutions)
@@ -1355,7 +1356,7 @@ def unify_value(expected: ValueType, actual: ValueType, substitutions: dict[str,
         actual = flatten_function_type(actual)
         if expected == ANY:
             return
-        raise LuneTypeError(f"expected {expected!r}, got {actual!r}")
+        raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)))
     unify(expected, actual, substitutions)
 
 
@@ -1426,7 +1427,7 @@ def require_assignable(
         for actual_arg, expected_arg in zip(actual.args, expected.args, strict=True):
             require_assignable(actual_arg, expected_arg, context)
         return
-    raise LuneTypeError(f"{context}: expected {expected!r}, got {actual!r}", "TYP0003", span, label)
+    raise LuneTypeError(t("typ.context-expected-got", context=context, expected=repr(expected), actual=repr(actual)), "TYP0003", span, label)
 
 
 def require_value_assignable(
@@ -1439,12 +1440,12 @@ def require_value_assignable(
     try:
         unify_value(expected, actual, {})
     except LuneTypeError as exc:
-        raise LuneTypeError(f"{context}: expected {expected!r}, got {actual!r}", "TYP0003", span, label) from exc
+        raise LuneTypeError(t("typ.context-expected-got", context=context, expected=repr(expected), actual=repr(actual)), "TYP0003", span, label) from exc
 
 
 def require_numeric(typ: Type, context: str) -> None:
     if typ not in {INT, FLOAT, BOTTOM, ANY}:
-        raise LuneTypeError(f"{context}: expected numeric type, got {typ!r}")
+        raise LuneTypeError(t("typ.expected-numeric", context=context, type=repr(typ)))
 
 
 def require_comparable(left: Type, right: Type, context: str) -> None:
@@ -1459,7 +1460,7 @@ def require_comparable(left: Type, right: Type, context: str) -> None:
     if left_inner == right_inner:
         return
     if left != right:
-        raise LuneTypeError(f"{context}: cannot compare {left!r} and {right!r}")
+        raise LuneTypeError(t("typ.cannot-compare", context=context, left=repr(left), right=repr(right)))
 
 
 def common_type(types: list[Type]) -> Type:
@@ -1477,5 +1478,5 @@ def common_type(types: list[Type]) -> Type:
             continue
         if typ == BOTTOM:
             continue
-        raise LuneTypeError(f"branch type mismatch: {current!r} vs {typ!r}")
+        raise LuneTypeError(t("typ.branch-mismatch", current=repr(current), other=repr(typ)))
     return current

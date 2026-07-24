@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import unittest
 
-from lune.evaluator import DataValue, LuneRuntimeError, RecordValue, ThunkState, eval_source, force_value, format_value
+from lune.evaluator import (
+    DataValue,
+    LuneRuntimeError,
+    RecordValue,
+    ThunkState,
+    eval_source,
+    force_value,
+    format_value,
+    preview_value,
+)
 
 
 class EvaluatorTests(unittest.TestCase):
@@ -53,6 +62,73 @@ let thunk = fn -> 42
 let answer = thunk()
 """
         self.assertEqual(self.value_of(source, "answer"), 42)
+
+    def test_format_value_named_function_uses_fn_notation(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("greet")), "<fn greet>")
+
+    def test_format_value_partial_application_keeps_function_name(self) -> None:
+        source = """
+def add(x: Int, y: Int): Int =
+    x + y
+
+let inc = add(1)
+let unapplied = add()
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("inc")), "<fn add>")
+        self.assertEqual(format_value(env.lookup_raw("unapplied")), "<fn add>")
+
+    def test_format_value_lambda_has_no_name(self) -> None:
+        env = eval_source("let f = fn x -> x\n")
+        self.assertEqual(format_value(env.lookup_raw("f")), "<fn>")
+
+    def test_format_value_builtin_function(self) -> None:
+        env = eval_source("let answer = 42\n")
+        self.assertEqual(format_value(env.lookup_raw("println")), "<fn println>")
+
+    def test_format_value_constructor_values(self) -> None:
+        source = """
+type Pair =
+    | MkPair(a: Int, b: Int)
+
+let partial = MkPair(1)
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("MkPair")), "<fn MkPair>")
+        self.assertEqual(format_value(env.lookup_raw("partial")), "<fn MkPair>")
+        self.assertEqual(format_value(env.lookup_raw("Some")), "<fn Some>")
+
+    def test_format_value_record_constructor(self) -> None:
+        source = """
+record Person:
+    name: String
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("Person")), "<fn Person>")
+
+    def test_function_value_repr_is_short(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+"""
+        env = eval_source(source)
+        self.assertEqual(repr(env.lookup_raw("greet")), "<fn greet>")
+        self.assertEqual(repr(env.lookup_raw("println")), "<fn println>")
+        self.assertEqual(repr(env.lookup_raw("Some")), "<fn Some>")
+
+    def test_preview_value_uses_fn_notation(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+"""
+        env = eval_source(source)
+        self.assertEqual(preview_value(env.lookup_raw("greet")), "<fn greet>")
+        self.assertEqual(preview_value(env.lookup_raw("println")), "<fn println>")
 
     def test_partial_application_preserves_lazy_arguments(self) -> None:
         source = """
@@ -462,6 +538,71 @@ let b = f(null)
 """
         self.assertEqual(self.value_of(source, "a"), 42)
         self.assertEqual(self.value_of(source, "b"), 0)
+
+    def test_tuple_equality_is_structural(self) -> None:
+        self.assertIs(self.value_of("let r = (1, 2) == (1, 2)\n", "r"), True)
+        self.assertIs(self.value_of("let r = (1, 2) == (1, 3)\n", "r"), False)
+        self.assertIs(self.value_of("let r = (1, 2) == (1, 2, 3)\n", "r"), False)
+        self.assertIs(self.value_of("let t = (1, 2)\nlet r = t == t\n", "r"), True)
+
+    def test_list_equality_is_structural(self) -> None:
+        self.assertIs(self.value_of("let r = [1, 2] == [1, 2]\n", "r"), True)
+        self.assertIs(self.value_of("let r = [1, 2] == [1, 3]\n", "r"), False)
+        self.assertIs(self.value_of("let r = [1, 2] == [1, 2, 3]\n", "r"), False)
+        self.assertIs(self.value_of("let r = [] == []\n", "r"), True)
+        self.assertIs(self.value_of("let r = [[1], [2]] == [[1], [2]]\n", "r"), True)
+
+    def test_inequality_is_structural(self) -> None:
+        self.assertIs(self.value_of("let r = [1, 2] != [1, 2]\n", "r"), False)
+        self.assertIs(self.value_of("let r = (1, 2) != (1, 3)\n", "r"), True)
+
+    def test_constructor_value_equality_is_structural(self) -> None:
+        source = """
+type Option[T] =
+    | Some(value: T)
+    | None
+
+let a = Some(1) == Some(1)
+let b = Some(1) == Some(2)
+let c = None == None
+let d = Some(1) == None
+"""
+        self.assertIs(self.value_of(source, "a"), True)
+        self.assertIs(self.value_of(source, "b"), False)
+        self.assertIs(self.value_of(source, "c"), True)
+        self.assertIs(self.value_of(source, "d"), False)
+
+    def test_record_equality_is_structural(self) -> None:
+        source = """
+record User:
+    name: String
+    age: Int
+
+let a = User(name = "Ada", age = 36) == User(name = "Ada", age = 36)
+let b = User(name = "Ada", age = 36) == User(name = "Ada", age = 37)
+"""
+        self.assertIs(self.value_of(source, "a"), True)
+        self.assertIs(self.value_of(source, "b"), False)
+
+    def test_equality_forces_lazy_elements(self) -> None:
+        self.assertIs(self.value_of("let r = [1, 1 + 1] == [1, 2]\n", "r"), True)
+        self.assertIs(self.value_of("let r = take(repeat(7), 3) == [7, 7, 7]\n", "r"), True)
+
+    def test_equality_stops_at_first_mismatch(self) -> None:
+        # heads differ, so the crash() elements must never be forced
+        self.assertIs(self.value_of("let r = [1, crash()] == [2, crash()]\n", "r"), False)
+
+    def test_equality_handles_long_lists_without_recursion_error(self) -> None:
+        self.assertIs(self.value_of("let r = range(1, 3000) == range(1, 3000)\n", "r"), True)
+
+    def test_equality_does_not_conflate_bool_and_int(self) -> None:
+        # the typechecker rejects this comparison, but the evaluator should not
+        # inherit Python's true == 1 behaviour either
+        self.assertIs(self.value_of("let r = true == 1\n", "r"), False)
+
+    def test_function_equality_is_identity(self) -> None:
+        self.assertIs(self.value_of("let f = fn x -> x\nlet r = f == f\n", "r"), True)
+        self.assertIs(self.value_of("let f = fn x -> x\nlet g = fn x -> x\nlet r = f == g\n", "r"), False)
 
 
 if __name__ == "__main__":

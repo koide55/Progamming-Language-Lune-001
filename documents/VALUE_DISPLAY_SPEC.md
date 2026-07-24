@@ -3,7 +3,7 @@
 Version: 0.1 draft  
 Related: `REPL_SPEC.md`, `STANDARD_LIBRARY_SPEC.md`, `LIST_LITERAL_SPEC.md`, `RECORD_FIELD_SPEC.md`
 
-この文書は Lune v0.1 の REPL、CLI `--eval`、`show`、`print`、`println` で使う値表示ルールを定義する。
+この文書は Lune v0.1 の REPL、CLI `--eval`、`show`、`print`、`println` で使う値表示ルールを定義する。ただし `print` / `println` は例外として、`String` 引数を引用符なしの生の内容で出力する（`STANDARD_LIBRARY_SPEC.md` §7 を参照）。`String` 以外の引数は本文書のルールに従う。
 
 ## 1. 目的
 
@@ -63,7 +63,30 @@ None
 
 レコード表示では record type name は省略し、フィールド名と値を優先する。
 
-## 4. 遅延評価との関係
+## 4. 関数値
+
+関数値の表示では、内部実装（パラメータ list、本体 AST、クロージャ環境）を出力しない。名前だけを `<fn 名前>` の形で示す。
+
+```text
+def greet(...) の greet          <fn greet>
+部分適用された greet             <fn greet>
+ラムダ fn x -> x                <fn>
+ビルトイン println               <fn println>
+コンストラクタ Some              <fn Some>
+部分適用コンストラクタ Cons(1)    <fn Cons>
+レコードコンストラクタ Person     <fn Person>
+```
+
+ルール:
+
+- 名前を持つ関数値（`def` 定義、ビルトイン、コンストラクタ、レコードコンストラクタ）は `<fn 名前>`。
+- 無名のラムダは `<fn>`。
+- 部分適用は元の関数、コンストラクタの名前を引き継ぐ。
+- `< >` 囲みは再入力可能な構文ではないことを示す（`:thunks` の `<thunk>` と同じ規約）。
+
+この表記は `show`、`print`、`println`、REPL の値表示、CLI `--eval`、`:thunks` や `:trace` のプレビュー表示で共通とする。
+
+## 5. 遅延評価との関係
 
 表示は値を観測する操作なので、表示に必要な部分を force する。
 
@@ -71,5 +94,6 @@ None
 - リスト表示は finite list の spine と各要素を表示に必要な分だけ force する。
 - レコード表示は表示対象の全フィールドを force する。
 - ADT 表示は表示対象のフィールドを force する。
+- 関数値の表示は名前のみを使うので、本体やクロージャ環境を force しない。
 
 表示したくない遅延計算がある場合は、値全体ではなく必要なフィールドや要素だけを取り出して表示する。

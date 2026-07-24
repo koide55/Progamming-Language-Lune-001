@@ -1,8 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .explanations import has_explanation
+from .messages import t
+
+
+def display_filename(filename: str) -> str:
+    """Absolute paths under the current directory render relative (rustc-style).
+
+    Paths outside the cwd, and virtual names like `<repl:1>`, pass through.
+    """
+    path = Path(filename)
+    if not path.is_absolute():
+        return filename
+    try:
+        return str(path.relative_to(Path.cwd()))
+    except ValueError:
+        return filename
 
 
 @dataclass(frozen=True)
@@ -18,7 +34,7 @@ class SourceSpan:
         return cls(filename, line, column, line, max(column + width, column + 1))
 
     def format(self) -> str:
-        return f"{self.filename}:{self.start_line}:{self.start_column}"
+        return f"{display_filename(self.filename)}:{self.start_line}:{self.start_column}"
 
 
 @dataclass(frozen=True)
@@ -98,7 +114,7 @@ def format_diagnostic(
     for hint in diagnostic.hints:
         lines.append(f"   = hint: {hint}")
     if explain_hint and has_explanation(diagnostic.code):
-        lines.append(f"   = help: run `lune explain {diagnostic.code}` for a detailed explanation")
+        lines.append(f"   = help: {t('diag.explain-footer', code=diagnostic.code)}")
     return "\n".join(lines)
 
 

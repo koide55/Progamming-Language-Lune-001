@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import pathlib
 import unittest
 
@@ -117,6 +119,37 @@ let flipped = not(false)
         self.assertEqual(force_value(env.lookup_raw("kept")), 1)
         self.assertEqual(force_value(env.lookup_raw("flipped")), True)
 
+    def test_show_function_values_use_short_form(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+
+let named = show(greet)
+let partial = show(greet())
+let anonymous = show(fn x -> x)
+let builtin = show(println)
+let constructor = show(Some)
+"""
+        env = eval_source(source)
+        self.assertEqual(force_value(env.lookup_raw("named")), "<fn greet>")
+        self.assertEqual(force_value(env.lookup_raw("partial")), "<fn greet>")
+        self.assertEqual(force_value(env.lookup_raw("anonymous")), "<fn>")
+        self.assertEqual(force_value(env.lookup_raw("builtin")), "<fn println>")
+        self.assertEqual(force_value(env.lookup_raw("constructor")), "<fn Some>")
+
+    def test_println_prints_function_values_with_short_form(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+
+let main = println(greet(), fn x -> x, println)
+"""
+        env = eval_source(source)
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            force_value(env.lookup_raw("main"))
+        self.assertEqual(buffer.getvalue(), "<fn greet> <fn> <fn println>\n")
+
     def test_stdlib_sample_typechecks(self) -> None:
         env = check_source((ROOT / "samples" / "stdlib.lune").read_text(encoding="utf-8"))
         self.assertEqual(env.lookup_value("optionValue"), INT)
@@ -204,6 +237,33 @@ let c: List[Int] = take(repeat(5), 3)
 
     def test_cycle_of_empty_is_empty(self) -> None:
         self.assertEqual(self.list_to_py(self.value_of("let xs = cycle([])\n", "xs")), [])
+
+    def stdout_of(self, source: str, name: str) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.value_of(source, name)
+        return out.getvalue()
+
+    def test_println_prints_string_without_quotes(self) -> None:
+        output = self.stdout_of('let r = println("hello, world")\n', "r")
+        self.assertEqual(output, "hello, world\n")
+
+    def test_println_resolves_escapes_in_string(self) -> None:
+        output = self.stdout_of('let r = println("a\\nb")\n', "r")
+        self.assertEqual(output, "a\nb\n")
+
+    def test_print_prints_string_without_newline(self) -> None:
+        output = self.stdout_of('let r = print("hi")\n', "r")
+        self.assertEqual(output, "hi")
+
+    def test_println_uses_show_for_non_strings(self) -> None:
+        self.assertEqual(self.stdout_of("let r = println(42)\n", "r"), "42\n")
+        self.assertEqual(self.stdout_of("let r = println([1, 2])\n", "r"), "(1 2)\n")
+        self.assertEqual(self.stdout_of('let r = println(Some("ok"))\n', "r"), 'Some("ok")\n')
+
+    def test_println_show_keeps_quoted_form(self) -> None:
+        output = self.stdout_of('let r = println(show("Ada"))\n', "r")
+        self.assertEqual(output, '"Ada"\n')
 
     def test_combinators_typecheck(self) -> None:
         env = check_source(

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .tokens import KEYWORDS, LuneSyntaxError, Span, Token, TokenKind
+from .messages import t
 
 
 @dataclass(frozen=True)
@@ -82,18 +83,18 @@ def lex(source: str, filename: str = "<input>") -> list[Token]:
         indent = len(processed) - len(processed.lstrip(" "))
         if processed[:indent].find("\t") != -1:
             raise LuneSyntaxError(
-                "tabs are not allowed in indentation",
+                t("lex.tabs-in-indentation"),
                 Span(filename, line_number, 1),
                 code="LXL0004",
-                label="use spaces for indentation",
-                hints=["replace tabs with spaces"],
+                label=t("lex.use-spaces"),
+                hints=[t("lex.replace-tabs")],
             )
         tokens.append(Token(TokenKind.LINE_START, "", Span(filename, line_number, 1), indent))
         _lex_code(processed[indent:], filename, line_number, indent + 1, tokens)
         tokens.append(Token(TokenKind.NEWLINE_RAW, "", Span(filename, line_number, len(line) + 1)))
 
     if in_block_comment:
-        raise LuneSyntaxError("unterminated block comment", Span(filename, source.count("\n") + 1, 1), code="LXL0003")
+        raise LuneSyntaxError(t("lex.unterminated-block-comment"), Span(filename, source.count("\n") + 1, 1), code="LXL0003")
     tokens.append(Token(TokenKind.EOF, "", Span(filename, source.count("\n") + 1, 1)))
     return tokens
 
@@ -146,7 +147,7 @@ def _strip_comments(
         i += 1
 
     if in_string:
-        raise LuneSyntaxError("unterminated string literal", Span(filename, line_number, len(line)), code="LXL0002")
+        raise LuneSyntaxError(t("lex.unterminated-string"), Span(filename, line_number, len(line)), code="LXL0002")
     return "".join(out), in_block_comment
 
 
@@ -209,7 +210,7 @@ def _lex_code(code: str, filename: str, line_number: int, base_column: int, toke
         if ch == "'":
             text, value, end = _read_string(code, i, filename, line_number, col, quote="'")
             if len(value) != 1:
-                raise LuneSyntaxError("character literal must contain exactly one character", span, code="LXL0002")
+                raise LuneSyntaxError(t("lex.char-literal-one"), span, code="LXL0002")
             tokens.append(Token(TokenKind.CHAR_LITERAL, text, span, value))
             i = end
             continue
@@ -220,7 +221,7 @@ def _lex_code(code: str, filename: str, line_number: int, base_column: int, toke
             i += 1
             continue
 
-        raise LuneSyntaxError(f"unexpected character {ch!r}", span, code="LXL0001", label="unexpected character")
+        raise LuneSyntaxError(t("lex.unexpected-character", ch=repr(ch)), span, code="LXL0001", label=t("label.unexpected-character"))
 
 
 def _is_ident_start(ch: str) -> bool:
@@ -283,4 +284,4 @@ def _read_string(
                 continue
         value.append(ch)
         i += 1
-    raise LuneSyntaxError("unterminated string literal", Span(filename, line_number, column), code="LXL0002")
+    raise LuneSyntaxError(t("lex.unterminated-string"), Span(filename, line_number, column), code="LXL0002")

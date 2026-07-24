@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .tokens import LuneSyntaxError, Token, TokenKind
+from .messages import t
 
 
 OPENERS = {TokenKind.LPAREN, TokenKind.LBRACKET, TokenKind.LBRACE}
@@ -28,10 +29,10 @@ def apply_layout(raw_tokens: list[Token]) -> list[Token]:
                         output.append(Token(TokenKind.DEDENT, "", token.span, indent))
                     if indent_stack[-1] != indent:
                         raise LuneSyntaxError(
-                            "indentation does not match any outer indentation level",
+                            t("lay.bad-indentation"),
                             token,
                             code="LAY0001",
-                            label="indentation does not match an outer level",
+                            label=t("label.bad-indentation"),
                         )
             continue
 
@@ -53,7 +54,7 @@ def apply_layout(raw_tokens: list[Token]) -> list[Token]:
         elif token.kind in CLOSERS:
             depth -= 1
             if depth < 0:
-                raise LuneSyntaxError("unmatched closing delimiter", token, code="LAY0002", label="unmatched closing delimiter")
+                raise LuneSyntaxError(t("lay.unmatched-delimiter"), token, code="LAY0002", label=t("label.unmatched-delimiter"))
 
         output.append(token)
 

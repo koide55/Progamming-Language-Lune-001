@@ -4,6 +4,7 @@ from . import nodes as ast
 from .layout import apply_layout
 from .lexer import lex
 from .tokens import LuneSyntaxError, Token, TokenKind
+from .messages import t
 
 
 ASSIGNMENT_OPS = {
@@ -134,7 +135,7 @@ class Parser:
             return self.parse_type_decl()
         if self.peek().kind == TokenKind.RECORD:
             return self.parse_record_decl()
-        raise self.error(f"expected top-level declaration, got {self.peek().kind.name}")
+        raise self.error(t("prs.expected-top-level", got=self.peek().kind.name))
 
     def parse_modifiers(self) -> list[str]:
         values = []
@@ -239,7 +240,7 @@ class Parser:
                 # A nested suite ends with DEDENT, and the layout processor may
                 # place the next outer-block token immediately after it.
                 if self.peek().span.column != block_column:
-                    raise self.error("expected newline or end of block")
+                    raise self.error(t("prs.expected-newline"))
 
         result = items[-1] if items and isinstance(items[-1], ast.Expr) else None
         statements = items[:-1] if result is not None else items
@@ -383,7 +384,7 @@ class Parser:
             type_node = self.parse_type()
             args = self.parse_argument_list_parens()
             return ast.NewExpr(type_node, args, span=token_span(start))
-        raise self.error(f"expected expression, got {token.kind.name}")
+        raise self.error(t("prs.expected-expression", got=token.kind.name))
 
     def parse_if_expr(self) -> ast.IfExpr:
         start = self.expect(TokenKind.IF)
@@ -618,7 +619,7 @@ class Parser:
             if name[:1].isupper():
                 return ast.ConstructorPattern(name, [], span=token_span(start))
             return ast.NamePattern(name, span=token_span(start))
-        raise self.error(f"expected pattern, got {token.kind.name}")
+        raise self.error(t("prs.expected-pattern", got=token.kind.name))
 
     def parse_type(self) -> ast.TypeNode:
         left = self.parse_type_atom()
@@ -688,7 +689,7 @@ class Parser:
         name_token = self.expect(TokenKind.IDENT)
         type_node = self.parse_type_annotation()
         if require_type and type_node is None:
-            raise self.error("parameter requires a type annotation")
+            raise self.error(t("prs.param-annotation"))
         return ast.Param(name_token.lexeme, type_node, strict, span=token_span(name_token))
 
     def parse_return_type(self) -> ast.TypeNode | None:
@@ -740,10 +741,10 @@ class Parser:
         token = self.peek()
         if token.kind != kind:
             raise LuneSyntaxError(
-                f"expected {kind.name}, got {token.kind.name}",
+                t("prs.expected-token", expected=kind.name, got=token.kind.name),
                 token,
                 code="PRS0002",
-                label=f"expected {kind.name}",
+                label=t("label.expected-token", expected=kind.name),
             )
         return self.advance()
 
@@ -757,4 +758,4 @@ class Parser:
         return self.tokens[idx]
 
     def error(self, message: str) -> LuneSyntaxError:
-        return LuneSyntaxError(message, self.peek(), code="PRS0001", label="unexpected token")
+        return LuneSyntaxError(message, self.peek(), code="PRS0001", label=t("label.unexpected-token"))
