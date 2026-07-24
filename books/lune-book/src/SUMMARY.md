@@ -11,7 +11,7 @@
 - [値・型・式](02-values-types-expressions.md)
 - [関数](03-functions.md)
 - [遅延評価 — Lune の心臓部](04-lazy-evaluation.md)
-- [代数的データ型とパターンマッチ]()
+- [代数的データ型とパターンマッチ](05-adts-and-match.md)
 - [レコード]()
 - [null 安全]()
 - [リストとストリーム]()

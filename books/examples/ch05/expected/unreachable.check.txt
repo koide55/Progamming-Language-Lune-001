@@ -1,0 +1,8 @@
+warning[TYP0009]: unreachable match case: Red
+  --> unreachable.lune:10:9
+   |
+10 |         | Red -> 2
+   |         ^ this case can never match
+   = hint: remove this case, or move it before the cases that cover it
+   = help: run `lune explain TYP0009` for a detailed explanation
+type check OK

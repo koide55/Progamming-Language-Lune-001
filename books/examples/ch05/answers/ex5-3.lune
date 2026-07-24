@@ -1,0 +1,18 @@
+module answers
+
+# 演習 5-3: 検査の結果を、成功と失敗の両方の情報ごと型にする。
+type Checked =
+    | Valid(value: Int)
+    | Invalid(reason: String)
+
+def check(n: Int): Checked =
+    if n >= 0 then Valid(n) else Invalid("negative")
+
+def report(c: Checked): String =
+    match c:
+        | Valid(v) -> "ok: " + show(v)
+        | Invalid(reason) -> "rejected: " + reason
+
+let good = report(check(5))
+
+let bad = report(check(-3))

@@ -1,0 +1,17 @@
+module answers
+
+# 演習 5-2: 信号機の次の色。網羅性検査が全色の考慮を保証する。
+type Light =
+    | Red
+    | Yellow
+    | Green
+
+def next(light: Light): Light =
+    match light:
+        | Red -> Green()
+        | Green -> Yellow()
+        | Yellow -> Red()
+
+let afterRed = next(Red())
+
+let afterTwo = next(next(Red()))

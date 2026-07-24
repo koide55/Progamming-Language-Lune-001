@@ -74,6 +74,22 @@ fix_is() {
     fi
 }
 
+# --check が警告付きで成功し、出力が期待ファイルと一致すること
+check_warn_is() { # file expect
+    local out
+    if ! out=$("$LUNE" --check "$1" 2>&1); then
+        ng "--check $1: unexpectedly failed"
+        return
+    fi
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
+        ok
+    else
+        ng "--check $1: warning output differs from $2"
+        printf '%s\n' "$out" | diff -u "$2" - | head -20
+    fi
+}
+
 # --eval が失敗し、診断出力が期待ファイルと一致すること
 eval_diag_is() { # file binding expect
     local out
@@ -194,6 +210,32 @@ check_ok answers/ex4-2.lune
 eval_is answers/ex4-2.lune shortCircuited expected/ex4-2.shortCircuited.txt
 
 fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune answers/ex4-2.lune
+
+# ----- 第5章 -----
+cd "$BOOKS_DIR/examples/ch05"
+
+check_ok shape.lune
+eval_is shape.lune circleArea expected/shape.circleArea.txt
+eval_is shape.lune rectArea expected/shape.rectArea.txt
+eval_is shape.lune squareness expected/shape.squareness.txt
+
+diag_is missing.lune expected/missing.check.txt
+diag_is refutable.lune expected/refutable.check.txt
+check_warn_is unreachable.lune expected/unreachable.check.txt
+
+check_ok answers/ex5-2.lune
+eval_is answers/ex5-2.lune afterRed expected/ex5-2.afterRed.txt
+eval_is answers/ex5-2.lune afterTwo expected/ex5-2.afterTwo.txt
+
+check_ok answers/ex5-3.lune
+eval_is answers/ex5-3.lune good expected/ex5-3.good.txt
+eval_is answers/ex5-3.lune bad expected/ex5-3.bad.txt
+
+check_ok answers/ex5-4.lune
+eval_is answers/ex5-4.lune some expected/ex5-4.some.txt
+eval_is answers/ex5-4.lune none expected/ex5-4.none.txt
+
+fmt_ok shape.lune missing.lune refutable.lune unreachable.lune answers/ex5-2.lune answers/ex5-3.lune answers/ex5-4.lune
 
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"

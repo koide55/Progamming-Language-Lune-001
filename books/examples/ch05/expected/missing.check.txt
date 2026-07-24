@@ -1,0 +1,7 @@
+error[TYP0007]: non-exhaustive match: missing case Some(false)
+  --> missing.lune:5:5
+  |
+5 |     match o:
+  |     ^^^^^ pattern Some(false) is not covered
+   = hint: add a case for Some(false), or a wildcard case `| _ -> ...`
+   = help: run `lune explain TYP0007` for a detailed explanation
