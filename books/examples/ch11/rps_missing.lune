@@ -1,0 +1,13 @@
+module bad
+
+type Hand =
+    | Rock
+    | Paper
+    | Scissors
+
+# 勝ち筋は3つとも書いた。しかし……
+def beats(a: Hand, b: Hand): Bool =
+    match (a, b):
+        | (Rock, Scissors) -> true
+        | (Paper, Rock) -> true
+        | (Scissors, Paper) -> true

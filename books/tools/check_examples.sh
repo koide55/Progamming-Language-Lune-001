@@ -324,6 +324,26 @@ eval_is answers/ex8-4.lune first10 expected/ex8-4.first10.txt
 
 fmt_ok infinite.lune fib.lune primes.lune answers/ex8-2.lune answers/ex8-3.lune answers/ex8-4.lune
 
+# ----- 第11章 -----
+cd "$BOOKS_DIR/examples/ch11"
+
+diag_is typos.lune expected/typos.check.txt
+fix_is typos.lune expected/typos.fix.txt
+
+check_ok rps.lune
+eval_is rps.lune win expected/rps.win.txt
+eval_is rps.lune lose expected/rps.lose.txt
+eval_is rps.lune draw expected/rps.draw.txt
+
+diag_is rps_missing.lune expected/rps_missing.check.txt
+
+check_ok answers/ex11-3.lune
+eval_is answers/ex11-3.lune won expected/ex11-3.won.txt
+eval_is answers/ex11-3.lune lost expected/ex11-3.lost.txt
+eval_is answers/ex11-3.lune tied expected/ex11-3.tied.txt
+
+fmt_ok typos.lune rps.lune rps_missing.lune answers/ex11-3.lune
+
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"
 [ "$fail" -eq 0 ]

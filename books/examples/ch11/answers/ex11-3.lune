@@ -1,0 +1,28 @@
+module answers
+
+# 演習 11-3: 勝敗判定。beats を部品に、3値を if/elif で振り分ける。
+type Hand =
+    | Rock
+    | Paper
+    | Scissors
+
+def beats(a: Hand, b: Hand): Bool =
+    match (a, b):
+        | (Rock, Scissors) -> true
+        | (Paper, Rock) -> true
+        | (Scissors, Paper) -> true
+        | _ -> false
+
+def judge(a: Hand, b: Hand): String =
+    if beats(a, b):
+        "win"
+    elif beats(b, a):
+        "lose"
+    else:
+        "draw"
+
+let won = judge(Rock(), Scissors())
+
+let lost = judge(Rock(), Paper())
+
+let tied = judge(Rock(), Rock())
