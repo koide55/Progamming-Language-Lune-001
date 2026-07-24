@@ -103,6 +103,28 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "annotation {annotation} does not accept expected {expected}",
         "注釈 {annotation} は期待される型 {expected} を受け付けない",
     ),
+    # --- typechecker: context strings (fill the {context} slot of the type
+    #     errors above and the {label} slot of typ.annotation-required;
+    #     operator contexts like `??` or `&&` stay raw — symbols need no
+    #     translation) ---
+    "ctx.let-annotation": ("let annotation", "let の型注釈"),
+    "ctx.var-annotation": ("var annotation", "var の型注釈"),
+    "ctx.list-element": ("list element", "リストの要素"),
+    "ctx.unary-minus": ("unary -", "単項 -"),
+    "ctx.unary-not": ("unary !", "単項 !"),
+    "ctx.if-condition": ("if condition", "if の条件"),
+    "ctx.elif-condition": ("elif condition", "elif の条件"),
+    "ctx.while-condition": ("while condition", "while の条件"),
+    "ctx.match-guard": ("match guard", "match のガード"),
+    "ctx.branch": ("branch", "分岐"),
+    "ctx.assignment": ("assignment", "代入"),
+    "ctx.lambda-body": ("lambda body", "ラムダ本体"),
+    "ctx.literal-pattern": ("literal pattern", "リテラルパターン"),
+    "ctx.typed-pattern": ("typed pattern", "型付きパターン"),
+    "ctx.return-type-of": ("return type of {name}", "{name} の戻り値型"),
+    "ctx.parameter": ("parameter {name}", "引数 {name}"),
+    "ctx.type-parameter": ("type parameter {name}", "型パラメータ {name}"),
+    "label.condition-must-be-bool": ("condition must be Bool", "条件は Bool でなければならない"),
     "typ.expected-numeric": (
         "{context}: expected numeric type, got {type}",
         "{context}: 数値型が必要ですが、{type} が見つかりました",

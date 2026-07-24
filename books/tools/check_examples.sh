@@ -223,6 +223,13 @@ diag_is missing.lune expected/missing.check.txt
 diag_is refutable.lune expected/refutable.check.txt
 check_warn_is unreachable.lune expected/unreachable.check.txt
 
+check_ok maybediv.lune
+eval_is maybediv.lune half expected/maybediv.half.txt
+eval_is maybediv.lune broke expected/maybediv.broke.txt
+eval_is maybediv.lune nothing expected/maybediv.nothing.txt
+eval_is maybediv.lune ratio expected/maybediv.ratio.txt
+eval_is maybediv.lune viaNull expected/maybediv.viaNull.txt
+
 check_ok answers/ex5-2.lune
 eval_is answers/ex5-2.lune afterRed expected/ex5-2.afterRed.txt
 eval_is answers/ex5-2.lune afterTwo expected/ex5-2.afterTwo.txt
@@ -235,7 +242,7 @@ check_ok answers/ex5-4.lune
 eval_is answers/ex5-4.lune some expected/ex5-4.some.txt
 eval_is answers/ex5-4.lune none expected/ex5-4.none.txt
 
-fmt_ok shape.lune missing.lune refutable.lune unreachable.lune answers/ex5-2.lune answers/ex5-3.lune answers/ex5-4.lune
+fmt_ok shape.lune missing.lune refutable.lune unreachable.lune maybediv.lune answers/ex5-2.lune answers/ex5-3.lune answers/ex5-4.lune
 
 # ----- 第6章 -----
 cd "$BOOKS_DIR/examples/ch06"

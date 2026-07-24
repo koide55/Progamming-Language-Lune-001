@@ -10,7 +10,7 @@ from pathlib import Path
 from lune.cli import main
 from lune.messages import LANGUAGES, MESSAGES, get_language, set_language, t
 from lune.repl import ReplSession
-from lune.typechecker import LuneTypeError, name_suggestion
+from lune.typechecker import LuneTypeError, name_suggestion, required_type
 
 KEY_RE = re.compile(r"""\bt\(\s*['"]([a-z0-9.\-]+)['"]""")
 LUNE_DIR = Path(__file__).resolve().parent.parent / "lune"
@@ -73,6 +73,61 @@ class MessageCatalogTests(unittest.TestCase):
                 assert primary is not None
                 self.assertEqual(primary.message, expected_label)
 
+    def test_japanese_context_in_type_errors(self) -> None:
+        """The context prefix of type-error messages must follow the active language."""
+        set_language("ja")
+        cases = [
+            ('let x: Int = "hello"', "let の型注釈: Int が必要ですが、String が見つかりました"),
+            ("var x: Int = true", "var の型注釈: Int が必要ですが、Bool が見つかりました"),
+            ('let xs: List[Int] = [1, "two"]', "リストの要素: Int が必要ですが、String が見つかりました"),
+            ("let n = -true", "単項 -: 数値型が必要ですが、Bool が見つかりました"),
+            ("let b = !1", "単項 !: Bool が必要ですが、Int が見つかりました"),
+            ("let y = if 1 then 2 else 3", "if の条件: Bool が必要ですが、Int が見つかりました"),
+            (
+                'def f(n: Int): Int =\n    if n > 0:\n        1\n    elif "s":\n        2\n    else:\n        3\n',
+                "elif の条件: Bool が必要ですが、String が見つかりました",
+            ),
+            (
+                "def f(): Unit =\n    while 1:\n        ()\n",
+                "while の条件: Bool が必要ですが、Int が見つかりました",
+            ),
+            (
+                'def f(n: Int): Int =\n    match n:\n        | x if "s" -> 1\n        | _ -> 2\n',
+                "match のガード: Bool が必要ですが、String が見つかりました",
+            ),
+            (
+                'def g(): Unit =\n    var i = 0\n    i = "s"\n',
+                "代入: Int が必要ですが、String が見つかりました",
+            ),
+            ("let f: Int -> Int = fn x -> true", "ラムダ本体: Int が必要ですが、Bool が見つかりました"),
+            (
+                'def f(n: Int): Int =\n    match n:\n        | "s" -> 1\n        | _ -> 2\n',
+                "リテラルパターン: Int が必要ですが、String が見つかりました",
+            ),
+            (
+                "def f(n: Int): Int =\n    match n:\n        | (x: String) -> 1\n        | _ -> 2\n",
+                "型付きパターン: String が必要ですが、Int が見つかりました",
+            ),
+            ('def f(n: Int): Int = "no"', "f の戻り値型: Int が必要ですが、String が見つかりました"),
+            (
+                'def pick[T](x: T, y: T): T = x\nlet z = pick(1, "two")\n',
+                "型パラメータ T: Int が必要ですが、String が見つかりました",
+            ),
+        ]
+        for source, expected_message in cases:
+            with self.subTest(source=source):
+                session = ReplSession()
+                with self.assertRaises(LuneTypeError) as ctx:
+                    session.submit(source)
+                self.assertEqual(ctx.exception.diagnostic.message, expected_message)
+
+    def test_japanese_annotation_required_label(self) -> None:
+        """typ.annotation-required's {label} slot is fed from the ctx catalog."""
+        set_language("ja")
+        with self.assertRaises(LuneTypeError) as ctx:
+            required_type(None, t("ctx.parameter", name="x"))
+        self.assertEqual(ctx.exception.diagnostic.message, "v0.1 では 引数 x に型注釈が必要です")
+
     def test_japanese_did_you_mean(self) -> None:
         set_language("ja")
         hints, fixes = name_suggestion("cont", ["count"], None)
@@ -95,7 +150,8 @@ class MessageCatalogTests(unittest.TestCase):
             with redirect_stderr(err):
                 code = main([str(path), "--check", "--lang", "ja"])
         self.assertEqual(code, 1)
-        self.assertIn("が必要ですが", err.getvalue())
+        self.assertIn("let の型注釈: Int が必要ですが", err.getvalue())  # localized context
+        self.assertNotIn("let annotation", err.getvalue())
         self.assertIn("--lang ja", err.getvalue())  # localized explain footer
         self.assertIn("^^^^ この式の型は Bool", err.getvalue())  # localized caret label
         self.assertNotIn("this expression has type", err.getvalue())
