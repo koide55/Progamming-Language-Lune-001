@@ -839,9 +839,9 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
             raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="%")])
         return left % right
     if expr.op == "==":
-        return left == right
+        return values_equal(left, right)
     if expr.op == "!=":
-        return left != right
+        return not values_equal(left, right)
     if expr.op == "<":
         return left < right
     if expr.op == "<=":
@@ -1030,6 +1030,56 @@ def deep_force(value: Value) -> Value:
         for item in value.items:
             deep_force(item)
     return value
+
+
+def values_equal(left: Value, right: Value) -> bool:
+    """Structural equality for `==` / `!=`.
+
+    Forces both sides only as far as the comparison needs, left to right,
+    and stops at the first mismatch — so comparing two infinite lists only
+    diverges when no mismatch is ever found. Uses an explicit stack instead
+    of recursion so long list spines don't hit Python's recursion limit.
+    """
+    stack: list[tuple[Value, Value]] = [(left, right)]
+    while stack:
+        a, b = stack.pop()
+        a = force_value(a)
+        b = force_value(b)
+        # bool first: Python would otherwise conflate true == 1.
+        if isinstance(a, bool) or isinstance(b, bool):
+            if not (isinstance(a, bool) and isinstance(b, bool) and a == b):
+                return False
+            continue
+        if a is None or b is None:
+            if a is not b:
+                return False
+            continue
+        if isinstance(a, TupleValue) and isinstance(b, TupleValue):
+            if len(a.items) != len(b.items):
+                return False
+            stack.extend(zip(reversed(a.items), reversed(b.items), strict=True))
+            continue
+        if isinstance(a, DataValue) and isinstance(b, DataValue):
+            if a.constructor != b.constructor or len(a.fields) != len(b.fields):
+                return False
+            stack.extend(zip(reversed(a.fields), reversed(b.fields), strict=True))
+            continue
+        if isinstance(a, RecordValue) and isinstance(b, RecordValue):
+            if a.name != b.name or a.field_order != b.field_order:
+                return False
+            stack.extend((a.fields[name], b.fields[name]) for name in reversed(a.field_order))
+            continue
+        # Functions and constructors have no structural equality: without this
+        # guard, dataclass eq would call two same-shaped lambdas equal.
+        callable_kinds = (FunctionValue, BuiltinFunction, ConstructorValue, PartialConstructorValue, RecordConstructorValue)
+        if isinstance(a, callable_kinds) or isinstance(b, callable_kinds):
+            if a is not b:
+                return False
+            continue
+        # Scalars (Int, Double, String, Unit) compare by value.
+        if a != b:
+            return False
+    return True
 
 
 def truthy(value: Value) -> bool:

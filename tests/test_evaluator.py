@@ -463,6 +463,71 @@ let b = f(null)
         self.assertEqual(self.value_of(source, "a"), 42)
         self.assertEqual(self.value_of(source, "b"), 0)
 
+    def test_tuple_equality_is_structural(self) -> None:
+        self.assertIs(self.value_of("let r = (1, 2) == (1, 2)\n", "r"), True)
+        self.assertIs(self.value_of("let r = (1, 2) == (1, 3)\n", "r"), False)
+        self.assertIs(self.value_of("let r = (1, 2) == (1, 2, 3)\n", "r"), False)
+        self.assertIs(self.value_of("let t = (1, 2)\nlet r = t == t\n", "r"), True)
+
+    def test_list_equality_is_structural(self) -> None:
+        self.assertIs(self.value_of("let r = [1, 2] == [1, 2]\n", "r"), True)
+        self.assertIs(self.value_of("let r = [1, 2] == [1, 3]\n", "r"), False)
+        self.assertIs(self.value_of("let r = [1, 2] == [1, 2, 3]\n", "r"), False)
+        self.assertIs(self.value_of("let r = [] == []\n", "r"), True)
+        self.assertIs(self.value_of("let r = [[1], [2]] == [[1], [2]]\n", "r"), True)
+
+    def test_inequality_is_structural(self) -> None:
+        self.assertIs(self.value_of("let r = [1, 2] != [1, 2]\n", "r"), False)
+        self.assertIs(self.value_of("let r = (1, 2) != (1, 3)\n", "r"), True)
+
+    def test_constructor_value_equality_is_structural(self) -> None:
+        source = """
+type Option[T] =
+    | Some(value: T)
+    | None
+
+let a = Some(1) == Some(1)
+let b = Some(1) == Some(2)
+let c = None == None
+let d = Some(1) == None
+"""
+        self.assertIs(self.value_of(source, "a"), True)
+        self.assertIs(self.value_of(source, "b"), False)
+        self.assertIs(self.value_of(source, "c"), True)
+        self.assertIs(self.value_of(source, "d"), False)
+
+    def test_record_equality_is_structural(self) -> None:
+        source = """
+record User:
+    name: String
+    age: Int
+
+let a = User(name = "Ada", age = 36) == User(name = "Ada", age = 36)
+let b = User(name = "Ada", age = 36) == User(name = "Ada", age = 37)
+"""
+        self.assertIs(self.value_of(source, "a"), True)
+        self.assertIs(self.value_of(source, "b"), False)
+
+    def test_equality_forces_lazy_elements(self) -> None:
+        self.assertIs(self.value_of("let r = [1, 1 + 1] == [1, 2]\n", "r"), True)
+        self.assertIs(self.value_of("let r = take(repeat(7), 3) == [7, 7, 7]\n", "r"), True)
+
+    def test_equality_stops_at_first_mismatch(self) -> None:
+        # heads differ, so the crash() elements must never be forced
+        self.assertIs(self.value_of("let r = [1, crash()] == [2, crash()]\n", "r"), False)
+
+    def test_equality_handles_long_lists_without_recursion_error(self) -> None:
+        self.assertIs(self.value_of("let r = range(1, 3000) == range(1, 3000)\n", "r"), True)
+
+    def test_equality_does_not_conflate_bool_and_int(self) -> None:
+        # the typechecker rejects this comparison, but the evaluator should not
+        # inherit Python's true == 1 behaviour either
+        self.assertIs(self.value_of("let r = true == 1\n", "r"), False)
+
+    def test_function_equality_is_identity(self) -> None:
+        self.assertIs(self.value_of("let f = fn x -> x\nlet r = f == f\n", "r"), True)
+        self.assertIs(self.value_of("let f = fn x -> x\nlet g = fn x -> x\nlet r = f == g\n", "r"), False)
+
 
 if __name__ == "__main__":
     unittest.main()
