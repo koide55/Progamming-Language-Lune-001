@@ -1,0 +1,25 @@
+module maybediv
+
+# 期待型 Option[Double] が分岐へ分配され、None / Some の型引数を確定する。
+def maybeDiv(x: Int, y: Int): Option[Double] =
+    if y == 0 then None else Some(x / y)
+
+# match の各腕にも期待型が分配される。Err の T、Ok の E も同様に確定する。
+def safeDiv(x: Int, y: Int): Result[Double, String] =
+    match y:
+        | 0 -> Err("div by zero")
+        | _ -> Ok(x / y)
+
+# 先取り (第7章): null 許容型でも同じ仕組みで分岐が合流する。
+def nullDiv(x: Int, y: Int): Double? =
+    if y == 0 then null else x / y
+
+let nothing: Option[Double] = None
+
+let half = maybeDiv(1, 2)
+
+let broke = maybeDiv(1, 0)
+
+let ratio = safeDiv(9, 2)
+
+let viaNull = nullDiv(9, 2)

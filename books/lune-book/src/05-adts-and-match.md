@@ -41,7 +41,7 @@ lune> g
 Green : Color
 ```
 
-v0.1 では、フィールドなしのコンストラクタも**呼び出して**値にします（`Green()`）。例外はプレリュードの `None` で、これは最初から値として登録されているため裸で使えます。
+v0.1 では、フィールドなしのコンストラクタも**呼び出して**値にします（`Green()`）。例外はプレリュードの `None` と `Nil`（リストの終端、第8章）で、これらは最初から値として登録されているため裸で使えます。
 
 > **用語メモ** — `Shape` のような「どれか一つ」の型を**直和型**と呼びます。タプルやレコードのような「全部持つ」型（直積型）と対になる概念で、両方を組み合わせて作る型がいわゆる代数的データ型です。設計の使い分けは第6章の終わりで整理します。
 
@@ -254,41 +254,68 @@ Ok(40) : Result[Int, E]
 
 `optionMap` は「あれば変換、なければそのまま `None`」、`unwrapOr` は「成功なら中身、失敗ならデフォルト」。例外を投げる代わりに**失敗を値として運ぶ** — これが関数型の定番のエラー処理で、第13章のケーススタディで本格的に使います。
 
-> **v0.1 の既知の制限: 分岐から Some/None を返せない** — 実は現在の型検査器は、ジェネリックなコンストラクタの型引数を文脈から確定できません。そのため、次のような自然なコードがまだ書けません。
+自分の関数から返してみましょう。整数の割り算は 0 では割れないので、結果を「失敗を値として運ぶ」型 `Option[Double]` で包みます。
+
+```text
+lune> def maybeDiv(x: Int, y: Int): Option[Double] =
+...     if y == 0 then None else Some(x / y)
+...
+ok
+lune> maybeDiv(1, 2)
+Some(0.5) : Option[Double]
+lune> maybeDiv(1, 0)
+None : Option[Double]
+```
+
+さりげないコードですが、型検査器が静かに良い仕事をしています。`None` は単体では「中身の型が何か」を知りません。裸のまま打つと、型引数が未確定で残ることが見えます。
+
+```text
+lune> None
+None : Option[T]
+```
+
+先ほどの `resultMap(Ok(20), ...)` の結果に `E` が残っていたのも同じ理由です — `Ok(20)` からは成功側の型しか分かりません。では `maybeDiv` の中の `None` はなぜ `Option[Double]` になれたのか。関数の返り値注釈 `Option[Double]` が**期待型**として `if` の両分岐に配られ、未確定だった `T` をそこで確定させるからです。期待型は `let` の型注釈からも流れます。
+
+```text
+lune> let nothing: Option[Double] = None
+ok
+lune> nothing
+None : Option[Double]
+```
+
+期待型は `match` の腕にも配られます。0 除算を「理由つきの失敗」として返すなら `Result` で。`maybediv.lune`:
+
+```lune
+# match の各腕にも期待型が分配される。Err の T、Ok の E も同様に確定する。
+def safeDiv(x: Int, y: Int): Result[Double, String] =
+    match y:
+        | 0 -> Err("div by zero")
+        | _ -> Ok(x / y)
+```
+
+```console
+$ lune --eval ratio maybediv.lune
+Ok(4.5)
+```
+
+`Err("div by zero")` からは失敗側の型しか、`Ok(x / y)` からは成功側の型しか分かりませんが、期待型 `Result[Double, String]` が残りの型引数を埋めてくれます。
+
+> **先取り: null 許容型でも同じ** — この「期待型が分岐に配られて合流する」仕組みは、第7章で学ぶ null 許容型 `T?` でも働きます。
 >
-> ```text,diagnostic
-> lune> def maybeDiv(x: Int, y: Int): Option[Double] =
-> ...     if y == 0 then None else Some(x / y)
-> ...
-> error[TYP0003]: branch type mismatch: Option[T] vs Option[Double]
->    = help: run `lune explain TYP0003` for a detailed explanation
+> ```lune
+> # 先取り (第7章): null 許容型でも同じ仕組みで分岐が合流する。
+> def nullDiv(x: Int, y: Int): Double? =
+>     if y == 0 then null else x / y
 > ```
 >
-> `None` の `T` が `Double` だと推論されないのです。当面の書き方は2つあります。
->
-> 1. **自分用の単相な結果型を作る**（この章の道具で完結します）:
->
->    ```lune
->    type Checked =
->        | Valid(value: Int)
->        | Invalid(reason: String)
->
->    def check(n: Int): Checked =
->        if n >= 0 then Valid(n) else Invalid("negative")
->    ```
->
->    型引数がなければ何の問題もありません。演習 5-3 で練習します。
->
-> 2. **null 許容型 `T?` を使う**（第7章。こちらにも書き方のコツがあります）。
->
-> この制限は言語側の改修候補として認識されています。解消されたら、本書のこの節も書き直される予定です。
+> `null` の分岐と `Double` の分岐が `Double?` へ合流して、型検査を通ります。`Option` と `T?` の使い分けは第7章で整理します。
 
 ## まとめ
 
 | 概念 | 一言で |
 | --- | --- |
 | `type T = \| A(...) \| B(...)` | 直和型。値は必ずどれか一つのコンストラクタ |
-| フィールドなしコンストラクタ | `Green()` と呼んで値にする（プレリュードの `None` だけは裸で値） |
+| フィールドなしコンストラクタ | `Green()` と呼んで値にする（プレリュードの `None` / `Nil` だけは裸で値） |
 | `match` | 形の検査と分解を同時に行う式 |
 | パターン | リテラル / 名前 / `_` / タプル / コンストラクタ / ガード `if` |
 | `TYP0007` | ケース漏れ。**反例つき**で教えてくれる |
@@ -296,6 +323,7 @@ Ok(40) : Result[Int, E]
 | `TYP0008` | `let` に失敗しうるパターンは置けない |
 | `type Option[T] = ...` | ジェネリック ADT。関数側は `def f[T](...)` |
 | `Option` / `Result` | プレリュード提供。`getOrElse` / `optionMap` / `unwrapOr` / `resultMap` |
+| 期待型 | 返り値注釈や `let` 注釈が分岐へ配られ、`None` / `Err(...)` の型引数を確定 |
 
 ## 演習問題
 
@@ -340,7 +368,7 @@ Yellow
 
 </details>
 
-**演習 5-3**（★★） 整数を検査して、0以上なら値を、負なら理由を返す仕組みを作ってください。5.6節の制限があるため `Result` ではなく、自分用の単相な結果型を定義すること。
+**演習 5-3**（★★） 整数を検査して、0以上なら値を、負なら理由を返す仕組みを作ってください。プレリュードの `Result[Int, String]` でも書けますが、ここでは自分用の結果型（型引数なし）を定義すること。コンストラクタ名を自分のドメインの言葉にできる、という ADT の利点を味わう練習です。
 
 <details><summary>解答</summary>
 
@@ -370,7 +398,7 @@ $ lune --eval bad ex5-3.lune
 "rejected: negative"
 ```
 
-「成功にも失敗にも運びたい情報がある」とき、Bool や特別な値（-1 など）ではなく型で表す — ADT 設計のいちばん実用的な型紙です。
+「成功にも失敗にも運びたい情報がある」とき、Bool や特別な値（-1 など）ではなく型で表す — ADT 設計のいちばん実用的な型紙です。5.6節の仕組みがあるので `Result[Int, String]` を使う版もそのまま書けますが、自分用の型なら `Valid` / `Invalid` という**ドメインの言葉**が `match` の腕や診断にそのまま現れます。
 
 </details>
 
@@ -394,6 +422,9 @@ def myGetOrElse[T](option: MyOption[T], defaultValue: T): T =
 let some = myGetOrElse(MySome(42), 0)
 
 let none = myGetOrElse(MyNone(), 0)
+
+# 期待型による確定 (5.6節) は自作のジェネリック ADT にも働く。
+let empty: MyOption[Int] = MyNone()
 ```
 
 ```console
@@ -403,7 +434,7 @@ $ lune --eval none ex5-4.lune
 0
 ```
 
-ジェネリック**関数**の引数位置では型引数がきちんと単一化されるので（`MySome(42)` から `T = Int`）、この形は制限に引っかかりません。
+型引数の決まり方が2通り見えます。`MySome(42)` の `T = Int` は**引数から**決まり、`MyNone()` の `T` はもう一方の引数 `0` との単一化で決まります。また、5.6節の期待型による確定は自作のジェネリック ADT にも働くので、`let empty: MyOption[Int] = MyNone()` のように注釈から確定させることもできます。
 
 </details>
 
@@ -417,4 +448,4 @@ $ lune --eval none ex5-4.lune
 
 ---
 
-**より正確には** — ADT と `match` の構文は `documents/LANGUAGE_SPEC.md` §10–11、網羅性検査と witness の算法は `documents/MATCH_EXHAUSTIVENESS_SPEC.md`、`Option`/`Result` の全 API は `documents/STANDARD_LIBRARY_SPEC.md` §4–5。なお仕様書には OR パターン（`| 0 | 1 ->`）が載っていますが v0.1 では未実装です。この章のコード例は `books/examples/ch05/` にあり、すべて実際の CLI で検証されています。
+**より正確には** — ADT と `match` の構文は `documents/LANGUAGE_SPEC.md` §10–11、網羅性検査と witness の算法は `documents/MATCH_EXHAUSTIVENESS_SPEC.md`、`Option`/`Result` の全 API は `documents/STANDARD_LIBRARY_SPEC.md` §4–5、期待型がコンストラクタの型引数を確定する規則は `documents/LOCAL_TYPE_INFERENCE_SPEC.md` §5.3・§5.6。なお仕様書には OR パターン（`| 0 | 1 ->`）が載っていますが v0.1 では未実装です。この章のコード例は `books/examples/ch05/` にあり、すべて実際の CLI で検証されています。

@@ -175,7 +175,7 @@ module primes
 def sieve(xs: List[Int]): List[Int] =
     match xs:
         | Cons(p, rest) -> Cons(p, sieve(filter(rest, fn n: Int -> n % p != 0)))
-        | Nil -> xs
+        | Nil -> Nil
 
 let primes = sieve(naturalsFrom(2))
 
@@ -191,7 +191,7 @@ $ lune --eval first10 primes.lune
 
 - リストを `match` で直接 `Cons(p, rest)` に分解しています（`head`/`tail` より素直です）。
 - 返す `Cons(p, ...)` の第2引数 — 再帰呼び出し `sieve(...)` — は**遅延フィールドに入る**ので、無限の再帰なのに止まりません。次の素数は、誰かが要求したときに初めて漉されます。
-- `| Nil -> xs` は第5章の既知の制限への実戦的な回避です。裸の `Nil` を返すと型変数が確定できないので、「空リストならその空リスト自身を返す」ことで型を `List[Int]` に保っています。
+- `| Nil -> Nil` の右辺の裸の `Nil` は、単体では型引数が未確定でした（第5章 5.6節の `None : Option[T]` と同じ）。ここでは返り値注釈 `List[Int]` が期待型として腕へ配られ、`T = Int` を確定させています。
 
 > **壊してみよう** — `take` の引数順を間違えると、型がすぐに教えてくれます。
 >

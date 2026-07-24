@@ -13,3 +13,6 @@ def myGetOrElse[T](option: MyOption[T], defaultValue: T): T =
 let some = myGetOrElse(MySome(42), 0)
 
 let none = myGetOrElse(MyNone(), 0)
+
+# 期待型による確定 (5.6節) は自作のジェネリック ADT にも働く。
+let empty: MyOption[Int] = MyNone()
