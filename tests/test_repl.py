@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import io
+import os
+import sys
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
 
+from lune.cli import main
+from lune.messages import set_language
 from lune.repl import ReplSession, repl_main
 from lune.typechecker import LuneTypeError
 
@@ -155,6 +161,45 @@ def add(x: Int, y: Int): Int =
         self.assertEqual(code, 0)
         self.assertIn("3 : Int", stdout.getvalue())
         self.assertEqual(stderr.getvalue(), "")
+
+
+class CliReplFallbackTests(unittest.TestCase):
+    """`lune` starts the REPL when no file/subcommand remains after global flags."""
+
+    def tearDown(self) -> None:
+        set_language("en")
+
+    def _run_main(self, argv: list[str], input_text: str, lune_lang: str | None = None) -> tuple[int, str, str]:
+        stdin = io.StringIO(input_text)
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch.dict(os.environ):
+            os.environ.pop("LUNE_LANG", None)
+            if lune_lang is not None:
+                os.environ["LUNE_LANG"] = lune_lang
+            with mock.patch.object(sys, "stdin", stdin), redirect_stdout(stdout), redirect_stderr(stderr):
+                code = main(argv)
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_no_args_starts_repl(self) -> None:
+        code, out, err = self._run_main([], "1 + 2\n:q\n")
+        self.assertEqual(code, 0)
+        self.assertIn("Lune v0.1 REPL", out)
+        self.assertIn("3 : Int", out)
+        self.assertEqual(err, "")
+
+    def test_lang_only_starts_repl_in_japanese(self) -> None:
+        code, out, err = self._run_main(["--lang", "ja"], "1 + 2\n:lang\n:q\n")
+        self.assertEqual(code, 0)
+        self.assertIn("3 : Int", out)
+        self.assertIn("language is ja", out)
+        self.assertEqual(err, "")
+
+    def test_lune_lang_env_sets_repl_language(self) -> None:
+        code, out, err = self._run_main([], ":lang\nnosuch\n:q\n", lune_lang="ja")
+        self.assertEqual(code, 0)
+        self.assertIn("language is ja", out)
+        self.assertIn("未定義の名前: nosuch", err)
 
 
 if __name__ == "__main__":

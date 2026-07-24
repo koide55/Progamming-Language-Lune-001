@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import io
+import os
 import re
 import tempfile
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
+from unittest import mock
 
 from lune.cli import main
 from lune.messages import LANGUAGES, MESSAGES, get_language, set_language, t
@@ -155,6 +157,36 @@ class MessageCatalogTests(unittest.TestCase):
         self.assertIn("--lang ja", err.getvalue())  # localized explain footer
         self.assertIn("^^^^ この式の型は Bool", err.getvalue())  # localized caret label
         self.assertNotIn("this expression has type", err.getvalue())
+
+    def _check_bad_file(self, extra_argv: list[str], lune_lang: str | None) -> tuple[int, str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.lune"
+            path.write_text("let x: Int = true\n", encoding="utf-8")
+            err = io.StringIO()
+            with mock.patch.dict(os.environ):
+                os.environ.pop("LUNE_LANG", None)
+                if lune_lang is not None:
+                    os.environ["LUNE_LANG"] = lune_lang
+                with redirect_stderr(err):
+                    code = main([str(path), "--check", *extra_argv])
+        return code, err.getvalue()
+
+    def test_lune_lang_env_sets_default_language(self) -> None:
+        code, output = self._check_bad_file([], lune_lang="ja")
+        self.assertEqual(code, 1)
+        self.assertIn("let の型注釈: Int が必要ですが", output)
+        self.assertNotIn("let annotation", output)
+
+    def test_lang_flag_overrides_lune_lang_env(self) -> None:
+        code, output = self._check_bad_file(["--lang", "en"], lune_lang="ja")
+        self.assertEqual(code, 1)
+        self.assertIn("let annotation: expected Int, got Bool", output)
+        self.assertNotIn("が必要ですが", output)
+
+    def test_invalid_lune_lang_falls_back_to_english(self) -> None:
+        code, output = self._check_bad_file([], lune_lang="fr")
+        self.assertEqual(code, 1)  # not the exit code 2 of an invalid --lang
+        self.assertIn("let annotation: expected Int, got Bool", output)
 
     def test_repl_lang_command(self) -> None:
         session = ReplSession()

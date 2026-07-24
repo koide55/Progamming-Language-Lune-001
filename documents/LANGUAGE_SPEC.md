@@ -876,7 +876,7 @@ module path:
 ./bin/lune fix --write src/main.lune   # 提案された修正を自動適用（詳細は ERROR_DIAGNOSTICS_SPEC.md §9.5）
 ```
 
-`fmt` / `fix` は `--write`（その場書き換え）と `--check`（未整形/修正候補があれば終了コード 1）を持つ。引数なしの `./bin/lune` は REPL を起動する（`REPL_SPEC.md`）。
+`fmt` / `fix` は `--write`（その場書き換え）と `--check`（未整形/修正候補があれば終了コード 1）を持つ。引数なし（またはグローバル `--lang` のみ）の `./bin/lune` は REPL を起動する。診断の既定言語は環境変数 `LUNE_LANG` で設定でき、`--lang` フラグが優先する（`REPL_SPEC.md` §1.1）。
 
 ## 20. エラー表示
 

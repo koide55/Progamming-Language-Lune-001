@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import pprint
 import sys
 
@@ -193,12 +194,17 @@ def _extract_lang(argv: list[str]) -> tuple[list[str], str | None]:
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
+    env_lang = os.environ.get("LUNE_LANG")
+    if env_lang is not None:
+        set_language(env_lang)  # invalid values fall back to "en"
     argv, lang = _extract_lang(argv)
     if lang is not None:
         if lang not in LANGUAGES:
             print(f"error: unsupported language {lang!r} (supported: {', '.join(LANGUAGES)})", file=sys.stderr)
             return 2
         set_language(lang)
+    if not argv:
+        return repl_main(sys.stdin, sys.stdout, sys.stderr)
     if argv and argv[0] == "explain":
         return explain_command(argv[1:])
     if argv and argv[0] == "fmt":
