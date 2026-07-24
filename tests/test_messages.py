@@ -54,6 +54,25 @@ class MessageCatalogTests(unittest.TestCase):
             session.submit("let x: Int = true")
         self.assertIn("が必要ですが", ctx.exception.diagnostic.message)
 
+    def test_japanese_caret_labels(self) -> None:
+        """The label under the source caret must follow the active language."""
+        set_language("ja")
+        cases = [
+            ('let x: Int = "hello"', "この式の型は String"),
+            ('def f(n: Int): Int = "no"', "関数本体の型は String"),
+            ('let xs: List[Int] = [1, "two"]', "この要素の型は String"),
+            ("let f: Int -> Int = fn x -> true", "ラムダ本体の型は Bool"),
+            ("let g: Int -> Int = fn x: Bool -> 1", "注釈 Bool は期待される型 Int を受け付けない"),
+        ]
+        for source, expected_label in cases:
+            with self.subTest(source=source):
+                session = ReplSession()
+                with self.assertRaises(LuneTypeError) as ctx:
+                    session.submit(source)
+                primary = ctx.exception.diagnostic.primary
+                assert primary is not None
+                self.assertEqual(primary.message, expected_label)
+
     def test_japanese_did_you_mean(self) -> None:
         set_language("ja")
         hints, fixes = name_suggestion("cont", ["count"], None)
@@ -78,6 +97,8 @@ class MessageCatalogTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("が必要ですが", err.getvalue())
         self.assertIn("--lang ja", err.getvalue())  # localized explain footer
+        self.assertIn("^^^^ この式の型は Bool", err.getvalue())  # localized caret label
+        self.assertNotIn("this expression has type", err.getvalue())
 
     def test_repl_lang_command(self) -> None:
         session = ReplSession()

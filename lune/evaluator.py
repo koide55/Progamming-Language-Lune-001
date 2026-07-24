@@ -188,12 +188,18 @@ class FunctionValue:
     body: ast.Expr
     env: Env
 
+    def __repr__(self) -> str:
+        return format_value(self)
+
 
 @dataclass(frozen=True)
 class BuiltinFunction:
     name: str
     func: Callable[[list[Value]], Value]
     force_args: bool = True
+
+    def __repr__(self) -> str:
+        return format_value(self)
 
 
 @dataclass(frozen=True)
@@ -205,6 +211,9 @@ class ConstructorValue:
     def arity(self) -> int:
         return len(self.fields)
 
+    def __repr__(self) -> str:
+        return format_value(self)
+
 
 @dataclass(frozen=True)
 class PartialConstructorValue:
@@ -215,11 +224,17 @@ class PartialConstructorValue:
     def remaining_fields(self) -> list[ast.Param]:
         return self.constructor.fields[len(self.bound_fields) :]
 
+    def __repr__(self) -> str:
+        return format_value(self)
+
 
 @dataclass(frozen=True)
 class RecordConstructorValue:
     name: str
     fields: list[ast.RecordField]
+
+    def __repr__(self) -> str:
+        return format_value(self)
 
 
 @dataclass(frozen=True)
@@ -846,9 +861,9 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
             raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="%")])
         return left % right
     if expr.op == "==":
-        return left == right
+        return values_equal(left, right)
     if expr.op == "!=":
-        return left != right
+        return not values_equal(left, right)
     if expr.op == "<":
         return left < right
     if expr.op == "<=":
@@ -1039,8 +1054,69 @@ def deep_force(value: Value) -> Value:
     return value
 
 
+def values_equal(left: Value, right: Value) -> bool:
+    """Structural equality for `==` / `!=`.
+
+    Forces both sides only as far as the comparison needs, left to right,
+    and stops at the first mismatch — so comparing two infinite lists only
+    diverges when no mismatch is ever found. Uses an explicit stack instead
+    of recursion so long list spines don't hit Python's recursion limit.
+    """
+    stack: list[tuple[Value, Value]] = [(left, right)]
+    while stack:
+        a, b = stack.pop()
+        a = force_value(a)
+        b = force_value(b)
+        # bool first: Python would otherwise conflate true == 1.
+        if isinstance(a, bool) or isinstance(b, bool):
+            if not (isinstance(a, bool) and isinstance(b, bool) and a == b):
+                return False
+            continue
+        if a is None or b is None:
+            if a is not b:
+                return False
+            continue
+        if isinstance(a, TupleValue) and isinstance(b, TupleValue):
+            if len(a.items) != len(b.items):
+                return False
+            stack.extend(zip(reversed(a.items), reversed(b.items), strict=True))
+            continue
+        if isinstance(a, DataValue) and isinstance(b, DataValue):
+            if a.constructor != b.constructor or len(a.fields) != len(b.fields):
+                return False
+            stack.extend(zip(reversed(a.fields), reversed(b.fields), strict=True))
+            continue
+        if isinstance(a, RecordValue) and isinstance(b, RecordValue):
+            if a.name != b.name or a.field_order != b.field_order:
+                return False
+            stack.extend((a.fields[name], b.fields[name]) for name in reversed(a.field_order))
+            continue
+        # Functions and constructors have no structural equality: without this
+        # guard, dataclass eq would call two same-shaped lambdas equal.
+        callable_kinds = (FunctionValue, BuiltinFunction, ConstructorValue, PartialConstructorValue, RecordConstructorValue)
+        if isinstance(a, callable_kinds) or isinstance(b, callable_kinds):
+            if a is not b:
+                return False
+            continue
+        # Scalars (Int, Double, String, Unit) compare by value.
+        if a != b:
+            return False
+    return True
+
+
 def truthy(value: Value) -> bool:
     return bool(force_value(value))
+
+
+def _format_callable(value: Value) -> str | None:
+    """Spec: VALUE_DISPLAY_SPEC.md §4 — callables display as `<fn name>` / `<fn>`."""
+    if isinstance(value, (FunctionValue, BuiltinFunction)):
+        return f"<fn {value.name}>" if value.name else "<fn>"
+    if isinstance(value, (ConstructorValue, RecordConstructorValue)):
+        return f"<fn {value.name}>"
+    if isinstance(value, PartialConstructorValue):
+        return f"<fn {value.constructor.name}>"
+    return None
 
 
 def format_value(value: Value) -> str:
@@ -1068,6 +1144,9 @@ def format_value(value: Value) -> str:
         if len(value.items) == 1:
             return f"({items},)"
         return f"({items})"
+    rendered_callable = _format_callable(value)
+    if rendered_callable is not None:
+        return rendered_callable
     return repr(value)
 
 
@@ -1110,10 +1189,9 @@ def preview_value(value: Value, depth: int = _PREVIEW_DEPTH) -> str:
             return "(…)"
         items = ", ".join(preview_value(item, depth - 1) for item in value.items)
         return f"({items},)" if len(value.items) == 1 else f"({items})"
-    if isinstance(value, FunctionValue):
-        return f"<function {value.name or 'fn'}>"
-    if isinstance(value, BuiltinFunction):
-        return f"<builtin {value.name}>"
+    rendered_callable = _format_callable(value)
+    if rendered_callable is not None:
+        return rendered_callable
     if isinstance(value, (int, float)):
         return repr(value)
     return f"<{type(value).__name__}>"

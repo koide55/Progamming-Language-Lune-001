@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import pathlib
 import unittest
-from contextlib import redirect_stdout
 
 from lune.evaluator import DataValue, eval_source, force_value, format_value
 from lune.typechecker import INT, STRING, Type, check_source
@@ -119,6 +119,37 @@ let flipped = not(false)
         self.assertEqual(force_value(env.lookup_raw("kept")), 1)
         self.assertEqual(force_value(env.lookup_raw("flipped")), True)
 
+    def test_show_function_values_use_short_form(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+
+let named = show(greet)
+let partial = show(greet())
+let anonymous = show(fn x -> x)
+let builtin = show(println)
+let constructor = show(Some)
+"""
+        env = eval_source(source)
+        self.assertEqual(force_value(env.lookup_raw("named")), "<fn greet>")
+        self.assertEqual(force_value(env.lookup_raw("partial")), "<fn greet>")
+        self.assertEqual(force_value(env.lookup_raw("anonymous")), "<fn>")
+        self.assertEqual(force_value(env.lookup_raw("builtin")), "<fn println>")
+        self.assertEqual(force_value(env.lookup_raw("constructor")), "<fn Some>")
+
+    def test_println_prints_function_values_with_short_form(self) -> None:
+        source = """
+def greet(name: String): String =
+    "hello, " + name
+
+let main = println(greet(), fn x -> x, println)
+"""
+        env = eval_source(source)
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            force_value(env.lookup_raw("main"))
+        self.assertEqual(buffer.getvalue(), "<fn greet> <fn> <fn println>\n")
+
     def test_stdlib_sample_typechecks(self) -> None:
         env = check_source((ROOT / "samples" / "stdlib.lune").read_text(encoding="utf-8"))
         self.assertEqual(env.lookup_value("optionValue"), INT)
@@ -209,7 +240,7 @@ let c: List[Int] = take(repeat(5), 3)
 
     def stdout_of(self, source: str, name: str) -> str:
         out = io.StringIO()
-        with redirect_stdout(out):
+        with contextlib.redirect_stdout(out):
             self.value_of(source, name)
         return out.getvalue()
 

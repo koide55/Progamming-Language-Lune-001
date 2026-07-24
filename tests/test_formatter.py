@@ -43,6 +43,25 @@ class FormatterTests(unittest.TestCase):
     def test_inline_def_body_becomes_canonical_block(self) -> None:
         self.assertEqual(fmt("def f(a: Int): Int = a\n"), "def f(a: Int): Int =\n    a\n")
 
+    def test_let_in_becomes_block(self) -> None:
+        self.assertEqual(
+            fmt("let a = let x = 40 in x + 2\n"),
+            "let a =\n    let x = 40\n    x + 2\n",
+        )
+
+    def test_nested_let_in_becomes_flat_block(self) -> None:
+        self.assertEqual(
+            fmt("let a = let x = 1.0 in let y = 2.0 in x + y\n"),
+            "let a =\n    let x = 1.0\n    let y = 2.0\n    x + y\n",
+        )
+
+    def test_nested_let_in_with_shadowing(self) -> None:
+        # Flattening keeps shadowing semantics: both forms evaluate `x` to 2.
+        self.assertEqual(
+            fmt("let a = let x = 1 in let x = 2 in x\n"),
+            "let a =\n    let x = 1\n    let x = 2\n    x\n",
+        )
+
     def test_preserves_leading_and_trailing_comments(self) -> None:
         out = fmt("# leading\nlet x = 1  # trailing\n")
         self.assertIn("# leading", out)
