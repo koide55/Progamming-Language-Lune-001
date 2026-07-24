@@ -352,7 +352,7 @@ def predeclare_decl(decl: ast.Decl, env: TypeEnv) -> None:
             fields.append(RecordFieldInfo(field.name, type_from_ast(field.type, decl.type_params), field.is_strict))
         env.define_record(RecordInfo(decl.name, tuple(decl.type_params), tuple(fields)))
     elif isinstance(decl, ast.FunctionDecl):
-        param_types = tuple(required_type(param.type, f"parameter {param.name}") for param in decl.params)
+        param_types = tuple(required_type(param.type, t("ctx.parameter", name=param.name)) for param in decl.params)
         if decl.return_type is None:
             return
         env.define_value(decl.name, FunctionType(param_types, type_from_ast(decl.return_type, decl.type_params), tuple(decl.type_params)))
@@ -368,7 +368,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         expected = type_from_ast(decl.type) if decl.type is not None else None
         value_type = infer_expr(decl.value, env, expected)
         if expected is not None:
-            require_value_assignable(value_type, expected, "let annotation", getattr(decl.value, "span", None), t("label.expression-has-type", type=repr(value_type)))
+            require_value_assignable(value_type, expected, t("ctx.let-annotation"), getattr(decl.value, "span", None), t("label.expression-has-type", type=repr(value_type)))
             value_type = expected
         bind_pattern_types(decl.pattern, value_type, env)
         check_pattern_irrefutable(decl.pattern, value_type, env, "let")
@@ -377,7 +377,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
         annotated = type_from_ast(decl.type) if decl.type is not None else None
         value_type = infer_expr(decl.value, env, annotated)
         expected = annotated if annotated is not None else value_type
-        require_value_assignable(value_type, expected, "var annotation")
+        require_value_assignable(value_type, expected, t("ctx.var-annotation"))
         env.define_value(decl.name, expected)
         return
     raise LuneTypeError(t("typ.unsupported-declaration", kind=type(decl).__name__))
@@ -386,7 +386,7 @@ def check_decl(decl: ast.Decl, env: TypeEnv) -> None:
 def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
     local = env.child()
     for param in decl.params:
-        local.define_value(param.name, required_type(param.type, f"parameter {param.name}"))
+        local.define_value(param.name, required_type(param.type, t("ctx.parameter", name=param.name)))
     if decl.return_type is None:
         try:
             body_type = infer_expr(decl.body, local)
@@ -400,11 +400,11 @@ def check_function_decl(decl: ast.FunctionDecl, env: TypeEnv) -> None:
                     [t("hint.recursive-return-type", name=decl.name)],
                 ) from exc
             raise
-        env.define_value(decl.name, FunctionType(tuple(required_type(param.type, f"parameter {param.name}") for param in decl.params), body_type, tuple(decl.type_params)))
+        env.define_value(decl.name, FunctionType(tuple(required_type(param.type, t("ctx.parameter", name=param.name)) for param in decl.params), body_type, tuple(decl.type_params)))
         return
     expected = type_from_ast(decl.return_type, decl.type_params)
     body_type = infer_expr(decl.body, local, expected)
-    require_value_assignable(body_type, expected, f"return type of {decl.name}", getattr(decl.body, "span", None), t("label.function-body-has-type", type=repr(body_type)))
+    require_value_assignable(body_type, expected, t("ctx.return-type-of", name=decl.name), getattr(decl.body, "span", None), t("label.function-body-has-type", type=repr(body_type)))
 
 
 def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) -> ValueType:
@@ -482,7 +482,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             if contains_type_var(element):
                 return Type("List", (common_type([ensure_type(item_type) for item_type in item_types]),))
             for item, item_type in zip(expr.items, item_types, strict=True):
-                require_value_assignable(item_type, element, "list element", getattr(item, "span", None), t("label.element-has-type", type=repr(item_type)))
+                require_value_assignable(item_type, element, t("ctx.list-element"), getattr(item, "span", None), t("label.element-has-type", type=repr(item_type)))
             return expected
         if not expr.items:
             return Type("List", (ANY,))
@@ -514,15 +514,15 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
     if isinstance(expr, ast.UnaryExpr):
         value_type = ensure_type(infer_expr(expr.expr, env))
         if expr.op == "-":
-            require_numeric(value_type, "unary -")
+            require_numeric(value_type, t("ctx.unary-minus"))
             return value_type
         if expr.op == "!":
-            require_assignable(value_type, BOOL, "unary !")
+            require_assignable(value_type, BOOL, t("ctx.unary-not"))
             return BOOL
     if isinstance(expr, ast.BinaryExpr):
         return infer_binary(expr, env)
     if isinstance(expr, ast.IfExpr):
-        require_assignable(ensure_type(infer_expr(expr.condition, env)), BOOL, "if condition")
+        require_assignable(ensure_type(infer_expr(expr.condition, env)), BOOL, t("ctx.if-condition"))
         # Flow-narrow a nullable `x` in the branches of `if x != null` / `x == null`.
         then_env, else_env = narrow_if_branches(expr.condition, env)
         if isinstance(expected, FunctionType):
@@ -530,14 +530,14 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             # apply, so each branch is checked against the expected type instead
             branch_value = infer_expr(expr.then_branch, then_env, expected)
             for condition, branch in expr.elif_branches:
-                require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
+                require_assignable(ensure_type(infer_expr(condition, env)), BOOL, t("ctx.elif-condition"))
                 infer_expr(branch, env, expected)
             if expr.else_branch is not None:
                 infer_expr(expr.else_branch, else_env, expected)
             return branch_value
         branches = [(ensure_type(infer_expr(expr.then_branch, then_env, expected)), getattr(expr.then_branch, "span", None))]
         for condition, branch in expr.elif_branches:
-            require_assignable(ensure_type(infer_expr(condition, env)), BOOL, "elif condition")
+            require_assignable(ensure_type(infer_expr(condition, env)), BOOL, t("ctx.elif-condition"))
             branches.append((ensure_type(infer_expr(branch, env, expected)), getattr(branch, "span", None)))
         if expr.else_branch is not None:
             branches.append((ensure_type(infer_expr(expr.else_branch, else_env, expected)), getattr(expr.else_branch, "span", None)))
@@ -548,9 +548,9 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         require_assignable(
             ensure_type(infer_expr(expr.condition, env)),
             BOOL,
-            "while condition",
+            t("ctx.while-condition"),
             getattr(expr.condition, "span", None),
-            "condition must be Bool",
+            t("label.condition-must-be-bool"),
         )
         infer_expr(expr.body, env.child())
         return UNIT
@@ -593,7 +593,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             else:
                 bind_pattern_types(case.pattern, scrutinee_type, local)
             if case.guard is not None:
-                require_assignable(ensure_type(infer_expr(case.guard, local)), BOOL, "match guard")
+                require_assignable(ensure_type(infer_expr(case.guard, local)), BOOL, t("ctx.match-guard"))
             result_types.append((ensure_type(infer_expr(case.body, local, expected)), getattr(case.body, "span", None)))
         check_match_exhaustiveness(expr, scrutinee_type, env)
         return merge_branch_types(result_types, expected) if result_types else BOTTOM
@@ -621,7 +621,7 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
             raise LuneTypeError(t("typ.only-name-assign"))
         target_type = ensure_type(env.lookup_value(expr.target.name))
         value_type = ensure_type(infer_expr(expr.value, env))
-        require_assignable(value_type, target_type, "assignment")
+        require_assignable(value_type, target_type, t("ctx.assignment"))
         return target_type
     if isinstance(expr, ast.MemberExpr):
         receiver_type = ensure_type(infer_expr(expr.receiver, env))
@@ -722,7 +722,7 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
                 require_value_assignable(
                     expected_param,
                     annotated,
-                    f"parameter {param.name}",
+                    t("ctx.parameter", name=param.name),
                     param.span,
                     t("label.annotation-rejects-expected", annotation=repr(annotated), expected=repr(expected_param)),
                 )
@@ -738,7 +738,7 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
         require_value_assignable(
             body_type,
             body_expected,
-            "lambda body",
+            t("ctx.lambda-body"),
             getattr(expr.body, "span", None),
             t("label.lambda-body-has-type", type=repr(body_type)),
         )
@@ -925,7 +925,7 @@ def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> 
         env.define_value(pattern.name, value_type)
         return
     if isinstance(pattern, ast.LiteralPattern):
-        require_assignable(literal_type(pattern.value), value_type, "literal pattern")
+        require_assignable(literal_type(pattern.value), value_type, t("ctx.literal-pattern"))
         return
     if isinstance(pattern, ast.ConstructorPattern):
         info = env.lookup_constructor(pattern.name)
@@ -948,7 +948,7 @@ def bind_pattern_types(pattern: ast.Pattern, value_type: Type, env: TypeEnv) -> 
         return
     if isinstance(pattern, ast.TypedPattern):
         expected = type_from_ast(pattern.type)
-        require_assignable(value_type, expected, "typed pattern")
+        require_assignable(value_type, expected, t("ctx.typed-pattern"))
         bind_pattern_types(pattern.pattern, expected, env)
         return
     raise LuneTypeError(t("typ.unsupported-pattern", kind=type(pattern).__name__))
@@ -1347,7 +1347,7 @@ def unify(expected: Type, actual: Type, substitutions: dict[str, Type]) -> None:
         if existing is None:
             substitutions[expected.name] = actual
             return
-        require_assignable(actual, existing, f"type parameter {expected.name}")
+        require_assignable(actual, existing, t("ctx.type-parameter", name=expected.name))
         return
     if expected.name != actual.name or len(expected.args) != len(actual.args):
         raise LuneTypeError(t("typ.expected-got", expected=repr(expected), actual=repr(actual)))
@@ -1523,7 +1523,7 @@ def merge_branch_types(branches: list[tuple[Type, SourceSpan | None]], expected:
     """
     if isinstance(expected, Type) and expected != ANY and not contains_type_var(expected):
         for branch_type, span in branches:
-            require_assignable(branch_type, expected, "branch", span, t("label.expression-has-type", type=repr(branch_type)))
+            require_assignable(branch_type, expected, t("ctx.branch"), span, t("label.expression-has-type", type=repr(branch_type)))
         return expected
     return common_type([branch_type for branch_type, _span in branches])
 
