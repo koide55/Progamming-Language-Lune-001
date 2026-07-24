@@ -18,6 +18,11 @@ BOOKS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$BOOKS_DIR/.." && pwd)"
 LUNE="$REPO_ROOT/bin/lune"
 
+# 本書の表記規約（第1章「表記について」）どおり、診断は LUNE_LANG=ja の
+# 日本語出力で検証する。まだ英語の診断を掲載している章は、章の先頭で
+# LUNE_LANG=en に切り替える（日本語化が済んだら削除する）。
+export LUNE_LANG=ja
+
 pass=0
 fail=0
 
@@ -146,6 +151,7 @@ fmt_ok hello.lune temperature.lune answers/ex1-2.lune answers/ex1-3.lune answers
 
 # ----- 第2章 -----
 cd "$BOOKS_DIR/examples/ch02"
+export LUNE_LANG=en  # TODO: 第2章以降の診断は未日本語化。移行したら外す
 
 check_ok grade.lune
 eval_is grade.lune result expected/grade.result.txt

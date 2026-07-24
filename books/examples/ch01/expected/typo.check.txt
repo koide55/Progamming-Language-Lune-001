@@ -1,7 +1,7 @@
-error[TYP0001]: undefined name: greting
+error[TYP0001]: 未定義の名前: greting
   --> typo.lune:5:20
   |
 5 | let main = println(greting)
-  |                    ^^^^^^^ name is not defined
-   = hint: did you mean `greeting`?
-   = help: run `lune explain TYP0001` for a detailed explanation
+  |                    ^^^^^^^ この名前は定義されていない
+   = hint: もしかして `greeting` ですか?
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください
