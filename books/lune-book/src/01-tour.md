@@ -101,13 +101,13 @@ type check OK
 
 ```console
 $ lune --eval main hello.lune
-"hello, world"
+hello, world
 ()
 ```
 
 2行表示されました。1行目は `println` が出力した文字列です。2行目の `()` は `main` 自体の値 — `println` の戻り値である `Unit` 値です（`--eval` は評価した束縛の値を最後に表示します）。
 
-文字列が引用符付きで出力されたことに気づいたでしょうか。`println` は値を Lune の標準表示形式（`show` 形式）で出力するので、`String` は `"..."` と表示されます。表示の規則は第2章で整理します。
+`println` は `String` を**生の内容のまま**出力します。引用符は付かず、`"a\nb"` のようなエスケープは実際の改行として出力されます。一方、`String` 以外の値は Lune の標準表示形式（`show` 形式）で表示されます。文字列を引用符付きの `show` 形式で表示したいときは `println(show(value))` と書きます。表示の規則は第2章で整理します。
 
 ## 1.4 if は式である
 
