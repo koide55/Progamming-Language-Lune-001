@@ -324,6 +324,28 @@ eval_is answers/ex8-4.lune first10 expected/ex8-4.first10.txt
 
 fmt_ok infinite.lune fib.lune primes.lune answers/ex8-2.lune answers/ex8-3.lune answers/ex8-4.lune
 
+# ----- 第9章 -----
+cd "$BOOKS_DIR/examples/ch09"
+
+check_ok counter.lune
+eval_is counter.lune answer expected/counter.answer.txt
+
+check_ok fortotal.lune
+eval_is fortotal.lune total expected/fortotal.total.txt
+
+check_ok io.lune
+eval_is io.lune run expected/io.run.txt
+
+diag_is badfor.lune expected/badfor.check.txt
+
+check_ok answers/ex9-1.lune
+eval_is answers/ex9-1.lune product expected/ex9-1.product.txt
+
+check_ok answers/ex9-2.lune
+eval_is answers/ex9-2.lune run expected/ex9-2.run.txt
+
+fmt_ok counter.lune fortotal.lune io.lune badfor.lune answers/ex9-1.lune answers/ex9-2.lune
+
 # ----- 第11章 -----
 cd "$BOOKS_DIR/examples/ch11"
 

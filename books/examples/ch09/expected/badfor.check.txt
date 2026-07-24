@@ -1,0 +1,6 @@
+error[TYP0006]: for の対象は List でなければなりませんが、Int でした
+  --> badfor.lune:5:14
+  |
+5 |     for x in 42:
+  |              ^^ 走査対象は List[T] でなければならない
+   = help: 詳しくは `lune explain TYP0006 --lang ja` を実行してください

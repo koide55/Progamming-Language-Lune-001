@@ -15,7 +15,7 @@
 - [レコード](06-records.md)
 - [null 安全](07-null-safety.md)
 - [リストとストリーム](08-lists-and-streams.md)
-- [命令的に書く — var・while・for・IO]()
+- [命令的に書く — var・while・for・IO](09-imperative.md)
 - [モジュール]()
 
 # 第III部 コンパイラと道具

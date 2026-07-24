@@ -1,0 +1,19 @@
+module answers
+
+# 演習 9-2: FizzBuzz。判定は純粋な関数に、出力は IO の for に分ける。
+def fizzbuzz(n: Int): String =
+    if n % 15 == 0:
+        "FizzBuzz"
+    elif n % 3 == 0:
+        "Fizz"
+    elif n % 5 == 0:
+        "Buzz"
+    else:
+        show(n)
+
+def main(): Unit =
+    IO:
+        for i in range(1, 16):
+            println(fizzbuzz(i))
+
+let run = main()
