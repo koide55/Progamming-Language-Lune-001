@@ -10,8 +10,6 @@ else
     export PYTHONPATH="$ROOT_DIR"
 fi
 
-if [ "$#" -eq 0 ]; then
-    exec python3 -m lune.cli --repl
-fi
-
+# lune.cli starts the REPL itself when no file/subcommand remains after
+# global flags (e.g. `lune`, `lune --lang ja`); LUNE_LANG passes through exec.
 exec python3 -m lune.cli "$@"

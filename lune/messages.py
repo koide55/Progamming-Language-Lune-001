@@ -7,7 +7,10 @@ key — parity is enforced by tests/test_messages.py, which also scans the
 source tree so that a `t("...")` call with an unknown key cannot ship.
 
 The active language is process-wide state, set once at the entry points
-(CLI `--lang`, REPL `:lang`, playground selector) via `set_language`.
+(CLI `--lang`, REPL `:lang`, playground selector) via `set_language`. The
+CLI entry point also honors the `LUNE_LANG` environment variable (en/ja)
+as the default; an explicit `--lang` flag overrides it, and invalid values
+fall back to English.
 """
 
 from __future__ import annotations

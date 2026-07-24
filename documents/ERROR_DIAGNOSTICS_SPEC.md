@@ -134,7 +134,8 @@ runtime エラーは、再帰サンクの force（専用コード `RUN0005`、hi
 診断のメッセージ・caret 注（label）・hint は、すべてメッセージカタログ `lune/messages.py` の `t(key, **params)` を通して生成される（英語・日本語の対訳）。言語はプロセス全体の状態で、入口で一度だけ選ぶ:
 
 - CLI: グローバル `--lang en|ja`（どのサブコマンドでも可。例: `lune --check --lang ja file.lune`）
-- REPL: `:lang en|ja`（`:explain` の既定言語もこれに追従する）
+- CLI: 環境変数 `LUNE_LANG=en|ja` — エントリポイントで読む既定言語。`--lang` フラグが優先する。不正値は黙って `en` に落とす（`--lang` の不正値が終了コード 2 でエラーになるのとは異なる）。
+- REPL: `:lang en|ja`（`:explain` の既定言語もこれに追従する。セッションの初期言語は上記 CLI の規則で決まる）
 - Playground: 「言語」セレクタ
 
 テスト `tests/test_messages.py` が「ソース中で使われる全キーがカタログに存在し、未使用キーがなく、全キーに日本語訳があり、英日のプレースホルダが一致すること」を強制する。`= help:` フッタも言語化される（日本語では `--lang ja` 付きの再実行を案内する）。
