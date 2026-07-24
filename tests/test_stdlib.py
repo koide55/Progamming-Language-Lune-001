@@ -223,6 +223,28 @@ let c: List[Int] = take(repeat(5), 3)
         src = "def lt5(n: Int): Bool =\n    n < 5\nlet xs = take(dropWhile(naturalsFrom(1), lt5), 3)\n"
         self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [5, 6, 7])
 
+    def test_take_after_drop_on_infinite_stream(self) -> None:
+        # drop returns the (still lazy) tail of the stream; take must force it
+        # to WHNF instead of reading fields off the unevaluated LazyValue.
+        src = "let xs = take(drop(naturalsFrom(1), 1), 3)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [2, 3, 4])
+
+    def test_head_after_drop_on_infinite_stream(self) -> None:
+        src = "let x = head(drop(naturalsFrom(1), 1))\n"
+        self.assertEqual(format_value(self.value_of(src, "x")), "Some(2)")
+
+    def test_take_after_drop_on_finite_list(self) -> None:
+        src = "let xs = take(drop([1, 2, 3, 4, 5], 2), 2)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [3, 4])
+        src = "let xs = take(drop(range(1, 10), 2), 2)\n"
+        self.assertEqual(self.list_to_py(self.value_of(src, "xs")), [3, 4])
+
+    def test_drop_does_not_force_dropped_elements(self) -> None:
+        # drop walks the spine of the dropped prefix but must not force the
+        # element values themselves.
+        src = "let x = head(drop([crash(), 2], 1))\n"
+        self.assertEqual(format_value(self.value_of(src, "x")), "Some(2)")
+
     def test_zip_pairs_and_stops_at_shorter(self) -> None:
         src = "let xs = zip(naturalsFrom(1), [10, 20])\n"
         self.assertEqual(format_value(self.value_of(src, "xs")), "((1, 10) (2, 20))")

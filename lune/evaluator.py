@@ -1035,8 +1035,10 @@ def prepare_runtime_constructor_args(constructor: ConstructorValue, bound_fields
 
 
 def force_value(value: Value) -> Value:
-    if isinstance(value, Thunk | LazyValue):
-        return value.force()
+    # Loop until WHNF: forcing one wrapper can yield another (e.g. a Thunk
+    # for `drop(...)` evaluates to the LazyValue tail of the source list).
+    while isinstance(value, Thunk | LazyValue):
+        value = value.force()
     return value
 
 
