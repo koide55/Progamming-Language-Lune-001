@@ -1,0 +1,17 @@
+# デモ1・デモ2で REPL に貼り付ける入力 (1行ずつ)
+# 起動: ./bin/lune --repl
+
+# --- デモ1: 無限リストと :thunks ---
+let nats = naturalsFrom(1)
+:thunks nats
+take(nats, 5)
+:thunks nats
+
+# --- デモ2: :trace で強制の瞬間を見る ---
+:trace on
+take(map(naturalsFrom(1), fn x: Int -> x * x), 3)
+
+# --- デモ2b: メモ化も見える ---
+let y = 1 + 1
+y
+y
