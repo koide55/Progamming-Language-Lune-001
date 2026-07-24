@@ -1,0 +1,4 @@
+module cycle_a
+import cycle_b
+
+let a = fromB + 1

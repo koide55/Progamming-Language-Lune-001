@@ -58,7 +58,7 @@ diag_is() {
         ng "--check $1: unexpectedly passed"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -85,7 +85,7 @@ check_warn_is() { # file expect
         ng "--check $1: unexpectedly failed"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -101,7 +101,7 @@ eval_diag_is() { # file binding expect
         ng "--eval $2 $1: unexpectedly succeeded"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
         ok
     else
@@ -345,6 +345,47 @@ check_ok answers/ex9-2.lune
 eval_is answers/ex9-2.lune run expected/ex9-2.run.txt
 
 fmt_ok counter.lune fortotal.lune io.lune badfor.lune answers/ex9-1.lune answers/ex9-2.lune
+
+# ----- 第10章 -----
+cd "$BOOKS_DIR/examples/ch10"
+
+check_ok main.lune
+eval_is main.lune area expected/main.area.txt
+eval_is main.lune banner expected/main.banner.txt
+
+diag_is cycle_a.lune expected/cycle_a.check.txt
+diag_is badname.lune expected/badname.check.txt
+diag_is missing.lune expected/missing.check.txt
+
+# --module-path 付きの解決（付けないと MOD0001 になることも確認する）
+if lune --check usesshared.lune > /dev/null 2>&1; then
+    ng "--check usesshared.lune: unexpectedly passed without --module-path"
+else
+    ok
+fi
+check_ok_args() { # args... file
+    local out
+    if out=$(lune "$@" 2>&1); then ok; else ng "$*: $out"; fi
+}
+check_ok_args --module-path lib --check usesshared.lune
+eval_is_args() { # expect -- args...
+    local expect="$1"
+    shift 2
+    local out
+    out=$(lune "$@" 2>&1)
+    if printf '%s\n' "$out" | diff -u "$expect" - > /dev/null; then
+        ok
+    else
+        ng "$*: differs from $expect"
+        printf '%s\n' "$out" | diff -u "$expect" - | head -20
+    fi
+}
+eval_is_args expected/usesshared.answer.txt -- --module-path lib --eval answer usesshared.lune
+
+check_ok answers/shop_main.lune
+eval_is answers/shop_main.lune sum expected/shop_main.sum.txt
+
+fmt_ok main.lune geometry.lune util/text.lune cycle_a.lune cycle_b.lune badname.lune mismatch.lune missing.lune usesshared.lune lib/shared.lune answers/shop/items.lune answers/shop_main.lune
 
 # ----- 第11章 -----
 cd "$BOOKS_DIR/examples/ch11"

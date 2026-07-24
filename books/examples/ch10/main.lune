@@ -1,0 +1,7 @@
+module main
+import geometry
+import util.text
+
+let area = circleArea(1.0)
+
+let banner = shout("area")

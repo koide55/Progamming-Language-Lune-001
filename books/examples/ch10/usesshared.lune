@@ -1,0 +1,4 @@
+module usesshared
+import shared
+
+let answer = magic

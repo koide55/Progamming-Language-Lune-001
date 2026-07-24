@@ -1,0 +1,12 @@
+module shop.items
+
+# 演習 10-2: データとその操作をモジュールに切り出す。
+record Item:
+    name: String
+    price: Int
+
+def priceOf(item: Item): Int =
+    item.price
+
+def total(items: List[Item]): Int =
+    fold(map(items, priceOf), 0, fn a x -> a + x)
