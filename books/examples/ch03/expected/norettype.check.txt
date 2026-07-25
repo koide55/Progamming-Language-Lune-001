@@ -1,7 +1,7 @@
-error[TYP0011]: recursive function requires a return type annotation: fact
+error[TYP0011]: 再帰関数には戻り値型の注釈が必要です: fact
   --> norettype.lune:3:1
   |
 3 | def fact(n: Int) =
-  | ^^^ the function calls itself before its type is known
-   = hint: add a return type, e.g. `def fact(...): T = ...`
-   = help: run `lune explain TYP0011` for a detailed explanation
+  | ^^^ 型が確定する前に関数が自分自身を呼んでいる
+   = hint: 戻り値型を追加してください。例: `def fact(...): T = ...`
+   = help: 詳しくは `lune explain TYP0011 --lang ja` を実行してください

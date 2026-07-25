@@ -66,13 +66,13 @@ fn x: Int -> x * 2     # 型注釈付き
 
 ```text
 lune> let f = fn x -> x * 2
-warning[TYP0010]: cannot infer type of parameter x
+warning[TYP0010]: 引数 x の型を推論できません
   --> <repl:19>:1:12
   |
 1 | let f = fn x -> x * 2
-  |            ^ parameter type falls back to Any
-   = hint: add a type annotation, e.g. `fn x: Int -> ...`
-   = help: run `lune explain TYP0010` for a detailed explanation
+  |            ^ 引数の型が Any にフォールバックする
+   = hint: 型注釈を追加してください。例: `fn x: Int -> ...`
+   = help: 詳しくは `lune explain TYP0010 --lang ja` を実行してください
 ok
 ```
 
@@ -145,7 +145,7 @@ lune> map([1, 2, 3], plusTen)
 (11 12 13) : List[Int]
 ```
 
-なお、渡し**すぎ**は今までどおりエラーです（`TYP0005`、「expected **at most** 1 arguments」という言い回しの理由がこれで分かりますね）。また、部分適用で渡した引数も通常の呼び出しと同じくサンクとして捕まります — 遅延評価は部分適用の中でも一貫しています。
+なお、渡し**すぎ**は今までどおりエラーです（`TYP0005`、「引数は**最大** 1 個」という言い回しの理由がこれで分かりますね）。また、部分適用で渡した引数も通常の呼び出しと同じくサンクとして捕まります — 遅延評価は部分適用の中でも一貫しています。
 
 ## 3.6 パイプライン |> — データの流れを書く
 
@@ -218,13 +218,13 @@ $ lune --check norettype.lune
 ```
 
 ```text,diagnostic
-error[TYP0011]: recursive function requires a return type annotation: fact
+error[TYP0011]: 再帰関数には戻り値型の注釈が必要です: fact
   --> norettype.lune:3:1
   |
 3 | def fact(n: Int) =
-  | ^^^ the function calls itself before its type is known
-   = hint: add a return type, e.g. `def fact(...): T = ...`
-   = help: run `lune explain TYP0011` for a detailed explanation
+  | ^^^ 型が確定する前に関数が自分自身を呼んでいる
+   = hint: 戻り値型を追加してください。例: `def fact(...): T = ...`
+   = help: 詳しくは `lune explain TYP0011 --lang ja` を実行してください
 ```
 
 理由も診断が教えてくれています。本体の型を推論し終わる前に `fact(n - 1)` が現れるので、型検査は `fact` の型を先に知っておく必要があるのです。第4章で見たとおり、再帰していいのは関数だけ（値の再帰は `RUN0005`）、そして再帰関数には型の看板が必須 — この2つで再帰は安全に使えます。
@@ -237,12 +237,12 @@ error[TYP0011]: recursive function requires a return type annotation: fact
 > lune> let x = 42
 > ok
 > lune> x(1)
-> error[TYP0004]: value is not callable: Int
+> error[TYP0004]: 呼び出せない値です: Int
 >   --> <repl:21>:1:20
 >   |
 > 1 | x(1)
->   |                    ^ this value is not callable
->    = help: run `lune explain TYP0004` for a detailed explanation
+>   |                    ^ この値は呼び出せない
+>    = help: 詳しくは `lune explain TYP0004 --lang ja` を実行してください
 > ```
 >
 > 「`Int` は呼べない」— 括弧の付けすぎ（`f(x)(y)` のつもりが `f(x, y)` だった、の逆）で出会うことが多い診断です。
@@ -354,11 +354,11 @@ $ lune --eval answer ex3-4.lune
 
 </details>
 
-**演習 3-5**（★・逆転問題） `TYP0004`（value is not callable）を出す最小のコードを書いてください。
+**演習 3-5**（★・逆転問題） `TYP0004`（呼び出せない値です）を出す最小のコードを書いてください。
 
 <details><summary>解答</summary>
 
-最小は `42(1)` です（`error[TYP0004]: value is not callable: Int`）。数値・文字列・タプルなど、関数でない値に `(...)` を付ければ出ます。逆に `greet()` のような**引数不足**が `TYP0004` にも `TYP0005` にもならない理由を説明できれば、この章は卒業です。
+最小は `42(1)` です（`error[TYP0004]: 呼び出せない値です: Int`）。数値・文字列・タプルなど、関数でない値に `(...)` を付ければ出ます。逆に `greet()` のような**引数不足**が `TYP0004` にも `TYP0005` にもならない理由を説明できれば、この章は卒業です。
 
 </details>
 
