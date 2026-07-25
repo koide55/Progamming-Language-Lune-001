@@ -151,7 +151,6 @@ fmt_ok hello.lune temperature.lune answers/ex1-2.lune answers/ex1-3.lune answers
 
 # ----- 第2章 -----
 cd "$BOOKS_DIR/examples/ch02"
-export LUNE_LANG=en  # TODO: 第2章以降の診断は未日本語化。移行したら外す
 
 check_ok grade.lune
 eval_is grade.lune result expected/grade.result.txt
@@ -170,6 +169,7 @@ fmt_ok grade.lune answers/ex2-3.lune answers/ex2-4.lune
 
 # ----- 第3章 -----
 cd "$BOOKS_DIR/examples/ch03"
+export LUNE_LANG=en  # TODO: 第3章以降の診断は未日本語化。移行したら外す
 
 check_ok pipeline.lune
 eval_is pipeline.lune result expected/pipeline.result.txt

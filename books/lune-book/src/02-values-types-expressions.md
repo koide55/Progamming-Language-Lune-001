@@ -73,11 +73,11 @@ lune> 7 % 2
 
 ```text
 lune> 1 + 2.0
-error[TYP0003]: +: expected Int, got Double
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: +: Int が必要ですが、Double が見つかりました
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 lune> 1 == 1.0
-error[TYP0003]: ==: cannot compare Int and Double
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: ==: Int と Double は比較できません
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 暗黙の型変換で「だいたい合ってる」結果を返すより、書き手にどちらの世界で計算したいのかを決めてもらう — Lune はその立場です。`2.0` か `2` か、リテラルの側を揃えてください。
@@ -90,8 +90,8 @@ true : Bool
 lune> "a" == "a"
 true : Bool
 lune> "a" < "b"
-error[TYP0003]: <: expected numeric type, got String
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: <: 数値型が必要ですが、String が見つかりました
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 複合値 — タプル、リスト、そして第5章で学ぶ ADT の値 — も `==` で比べられます。比較は**構造的**です。別々に作った値でも、中身が等しければ等しい値です。
@@ -111,8 +111,8 @@ true : Bool
 
 ```text
 lune> (1, 2) == (1, 2, 3)
-error[TYP0003]: ==: cannot compare Tuple[Int, Int] and Tuple[Int, Int, Int]
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: ==: Tuple[Int, Int] と Tuple[Int, Int, Int] は比較できません
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 論理演算子は `&&`（かつ）と `||`（または）、否定は関数 `not` です。`&&` は `||` より強く結びつきます。そして第4章で見た遅延評価のおかげで、どちらも**短絡**します — 左だけで答えが決まるなら、右は評価されません。
@@ -141,11 +141,11 @@ lune> if 5 > 3 then "big" else "small"
 
 ```text
 lune> if 1 then 2 else 3
-error[TYP0003]: if condition: expected Bool, got Int
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: if の条件: Bool が必要ですが、Int が見つかりました
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 lune> if true then 1 else "a"
-error[TYP0003]: branch type mismatch: Int vs String
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: 分岐の型が一致しません: Int と String
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 C のように「0 は偽」ではありません。`if x % 2` ではなく `if x % 2 == 1` と書きます。
@@ -225,12 +225,12 @@ $ lune --check annot.lune
 ```
 
 ```text,diagnostic
-error[TYP0003]: let annotation: expected Int, got String
+error[TYP0003]: let の型注釈: Int が必要ですが、String が見つかりました
   --> annot.lune:3:14
   |
 3 | let n: Int = "hello"
-  |              ^^^^^^^ this expression has type String
-   = help: run `lune explain TYP0003` for a detailed explanation
+  |              ^^^^^^^ この式の型は String
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 では、どこで注釈を書き、どこで省けるのか。v0.1 の目安はこうです。
@@ -272,23 +272,23 @@ lune> b
 > `let x = $1` と書くと、Lune の知らない文字でエラーになります。
 >
 > ```text,diagnostic
-> error[LXL0001]: unexpected character '$'
+> error[LXL0001]: 予期しない文字 '$'
 >   --> lex.lune:3:9
 >   |
 > 3 | let x = $1
->   |         ^ unexpected character
->    = help: run `lune explain LXL0001` for a detailed explanation
+>   |         ^ 予期しない文字
+>    = help: 詳しくは `lune explain LXL0001 --lang ja` を実行してください
 > ```
 >
 > 理由なく行頭を字下げすると、レイアウト規則に引っかかります。
 >
 > ```text,diagnostic
-> error[PRS0001]: expected top-level declaration, got INDENT
+> error[PRS0001]: トップレベル宣言が必要ですが、INDENT が見つかりました
 >   --> indent.lune:4:1
 >   |
 > 4 |   let b = 2
->   | ^ unexpected token
->    = help: run `lune explain PRS0001` for a detailed explanation
+>   | ^ 予期しないトークン
+>    = help: 詳しくは `lune explain PRS0001 --lang ja` を実行してください
 > ```
 >
 > Lune のインデントは Python と同じく構文の一部です。ブロックを作るのは `=` や `:` の後だけ、と覚えてください。
@@ -391,8 +391,8 @@ $ lune --eval swapped ex2-4.lune
 `false : Bool`（中身の並びが違う）、`true : Bool`（別々に作ったリストでも中身が同じなら等しい — 構造的等価）、そして3つ目は `true`/`false` ではなく**型エラー**です。
 
 ```text,diagnostic
-error[TYP0003]: ==: cannot compare Tuple[Int, Int] and Tuple[Int, Int, Int]
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: ==: Tuple[Int, Int] と Tuple[Int, Int, Int] は比較できません
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 ```
 
 要素数が違うタプルは違う型なので、「等しいか」を聞くこと自体ができません。`==` の答えが返るのは同じ型どうしだけ — 「比較できないものは実行前に弾く」という、`1 == 1.0` と同じ設計です。

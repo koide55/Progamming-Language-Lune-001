@@ -1,6 +1,6 @@
-error[TYP0003]: let annotation: expected Int, got String
+error[TYP0003]: let の型注釈: Int が必要ですが、String が見つかりました
   --> annot.lune:3:14
   |
 3 | let n: Int = "hello"
-  |              ^^^^^^^ this expression has type String
-   = help: run `lune explain TYP0003` for a detailed explanation
+  |              ^^^^^^^ この式の型は String
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください

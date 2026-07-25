@@ -1,6 +1,6 @@
-error[LXL0001]: unexpected character '$'
+error[LXL0001]: 予期しない文字 '$'
   --> lex.lune:3:9
   |
 3 | let x = $1
-  |         ^ unexpected character
-   = help: run `lune explain LXL0001` for a detailed explanation
+  |         ^ 予期しない文字
+   = help: 詳しくは `lune explain LXL0001 --lang ja` を実行してください

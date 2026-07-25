@@ -1,6 +1,6 @@
-error[PRS0001]: expected top-level declaration, got INDENT
+error[PRS0001]: トップレベル宣言が必要ですが、INDENT が見つかりました
   --> indent.lune:4:1
   |
 4 |   let b = 2
-  | ^ unexpected token
-   = help: run `lune explain PRS0001` for a detailed explanation
+  | ^ 予期しないトークン
+   = help: 詳しくは `lune explain PRS0001 --lang ja` を実行してください
