@@ -1,2 +1,2 @@
-error[TYP0003]: expected Int, got Nullable[Int]
-   = help: run `lune explain TYP0003` for a detailed explanation
+error[TYP0003]: Int が必要ですが、Nullable[Int] が見つかりました
+   = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
