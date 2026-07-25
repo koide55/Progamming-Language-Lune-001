@@ -257,6 +257,79 @@ let answer =
         with self.assertRaises(LuneTypeError):
             check_source(source)
 
+    def test_compound_assignment_keeps_the_target_type(self) -> None:
+        # `x op= e` is typed as `x = x op e` (SYNTAX_SPEC.md section 14.1)
+        for op in ("+=", "-=", "*=", "%="):
+            source = f"""
+let answer =
+    var x = 10
+    x {op} 5
+    x
+"""
+            with self.subTest(op=op):
+                self.assertEqual(check_source(source).lookup_value("answer"), INT)
+
+    def test_compound_assignment_is_an_expression_of_the_target_type(self) -> None:
+        source = """
+let answer =
+    var x = 10
+    let y: Int = x += 5
+    y
+"""
+        self.assertEqual(check_source(source).lookup_value("answer"), INT)
+
+    def test_compound_division_assignment_rejects_int_target(self) -> None:
+        # `/` yields Double even for Int / Int, so `x /= 2` cannot target an Int
+        source = """
+let answer =
+    var x = 10
+    x /= 2
+    x
+"""
+        with self.assertRaisesRegex(LuneTypeError, r"compound assignment `/=`: expected Int, got Double") as ctx:
+            check_source(source)
+        # the diagnostic points at the assignment
+        self.assertEqual(ctx.exception.diagnostic.primary.span.start_line, 4)
+
+    def test_compound_division_assignment_accepts_double_target(self) -> None:
+        source = """
+let answer =
+    var x = 7.0
+    x /= 2.0
+    x
+"""
+        self.assertEqual(check_source(source).lookup_value("answer"), FLOAT)
+
+    def test_compound_assignment_concatenates_strings(self) -> None:
+        source = """
+let answer =
+    var s = "ab"
+    s += "cd"
+    s
+"""
+        self.assertEqual(check_source(source).lookup_value("answer"), STRING)
+
+    def test_compound_assignment_rejects_non_numeric_target(self) -> None:
+        # the diagnostic names the operator the user wrote, not the desugared one
+        source = """
+let answer =
+    var flag = true
+    flag += true
+    flag
+"""
+        with self.assertRaisesRegex(LuneTypeError, r"\+=: expected numeric type, got Bool"):
+            check_source(source)
+
+    def test_compound_assignment_rejects_mismatched_operand(self) -> None:
+        source = """
+let answer =
+    var x = 10
+    x += 1.5
+    x
+"""
+        with self.assertRaisesRegex(LuneTypeError, r"\+=: expected Int, got Double"):
+            check_source(source)
+
     def test_checks_for_loop_as_unit(self) -> None:
         source = """
 let loop =

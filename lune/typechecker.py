@@ -620,8 +620,19 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         if not isinstance(expr.target, ast.NameExpr):
             raise LuneTypeError(t("typ.only-name-assign"))
         target_type = ensure_type(env.lookup_value(expr.target.name))
-        value_type = ensure_type(infer_expr(expr.value, env))
-        require_assignable(value_type, target_type, t("ctx.assignment"))
+        if expr.op == "=":
+            value_type = ensure_type(infer_expr(expr.value, env))
+            require_assignable(value_type, target_type, t("ctx.assignment"), expr.span)
+            return target_type
+        # `x op= e` assigns the result of `x op e`, so it is typed by
+        # infer_binary rather than by the bare right-hand side: `x /= 2` on an
+        # Int target is a type error because `/` yields Double
+        # (documents/SYNTAX_SPEC.md section 14.1).
+        compound = ast.desugar_compound_assign(expr)
+        if compound is None:
+            raise LuneTypeError(t("typ.unsupported-binary-op", op=expr.op))
+        value_type = ensure_type(infer_binary(compound, env, expr.op))
+        require_assignable(value_type, target_type, t("ctx.compound-assignment", op=expr.op), expr.span)
         return target_type
     if isinstance(expr, ast.MemberExpr):
         receiver_type = ensure_type(infer_expr(expr.receiver, env))
@@ -860,7 +871,11 @@ def lookup_record_field_type(receiver_type: Type, field_name: str, env: TypeEnv,
     )
 
 
-def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
+def infer_binary(expr: ast.BinaryExpr, env: TypeEnv, op_label: str | None = None) -> ValueType:
+    # `op_label` names the operator in the diagnostics; it differs from
+    # `expr.op` only for a desugared compound assignment, where the user wrote
+    # `+=` rather than the `+` being typed here.
+    label = op_label or expr.op
     if expr.op == "|>":
         # `x |> f` is sugar for `f(x)` (LANGUAGE_FUTURE_SPEC.md section 4).
         # The evaluator applies the right operand to the left (evaluator.py
@@ -890,27 +905,27 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
             require_assignable(right_inner, inner, "??", expr.span)
         return Type("Nullable", (inner,)) if right_nullable else inner
     if expr.op in {"&&", "||"}:
-        require_assignable(ensure_type(infer_expr(expr.left, env)), BOOL, expr.op)
-        require_assignable(ensure_type(infer_expr(expr.right, env)), BOOL, expr.op)
+        require_assignable(ensure_type(infer_expr(expr.left, env)), BOOL, label)
+        require_assignable(ensure_type(infer_expr(expr.right, env)), BOOL, label)
         return BOOL
     left = ensure_type(infer_expr(expr.left, env))
     right = ensure_type(infer_expr(expr.right, env))
     if expr.op in {"+", "-", "*", "/", "%"}:
         if expr.op == "+" and left == STRING and right == STRING:
             return STRING
-        require_numeric(left, expr.op)
-        require_assignable(right, left, expr.op)
+        require_numeric(left, label)
+        require_assignable(right, left, label)
         if expr.op == "/":
             # runtime "/" always performs true division (evaluator.py eval_binary),
             # so the result is Double even for Int / Int.
             return FLOAT
         return left
     if expr.op in {"==", "!="}:
-        require_comparable(left, right, expr.op)
+        require_comparable(left, right, label)
         return BOOL
     if expr.op in {"<", "<=", ">", ">="}:
-        require_numeric(left, expr.op)
-        require_assignable(right, left, expr.op)
+        require_numeric(left, label)
+        require_assignable(right, left, label)
         return BOOL
     raise LuneTypeError(t("typ.unsupported-binary-op", op=expr.op))
 

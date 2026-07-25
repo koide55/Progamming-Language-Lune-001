@@ -985,7 +985,16 @@ def eval_member(receiver: Value, name: str) -> Value:
 def eval_assign(expr: ast.AssignExpr, env: Env) -> Value:
     if not isinstance(expr.target, ast.NameExpr):
         raise LuneRuntimeError(t("run.only-var-assign"))
-    value = force_value(eval_expr(expr.value, env))
+    if expr.op == "=":
+        value = force_value(eval_expr(expr.value, env))
+    else:
+        # `x op= e` computes `x op e`, so it goes through eval_binary: the
+        # operator semantics and the RUN0006 division-by-zero diagnostics stay
+        # in one place (documents/SYNTAX_SPEC.md section 14.1).
+        compound = ast.desugar_compound_assign(expr)
+        if compound is None:
+            raise LuneRuntimeError(t("run.unsupported-binary-op", op=expr.op))
+        value = force_value(eval_binary(compound, env))
     env.set(expr.target.name, value)
     return value
 
