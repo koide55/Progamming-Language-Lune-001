@@ -78,6 +78,18 @@ fix_is() {
     fi
 }
 
+# lune fmt の出力が期待ファイルと一致すること（整形結果そのものを紙面に載せる場合）
+fmt_is() { # file expect
+    local out
+    out=$(lune fmt "$1" 2>&1)
+    if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
+        ok
+    else
+        ng "fmt $1: differs from $2"
+        printf '%s\n' "$out" | diff -u "$2" - | head -20
+    fi
+}
+
 # --check が警告付きで成功し、出力が期待ファイルと一致すること
 check_warn_is() { # file expect
     local out
@@ -406,6 +418,19 @@ eval_is answers/ex11-3.lune lost expected/ex11-3.lost.txt
 eval_is answers/ex11-3.lune tied expected/ex11-3.tied.txt
 
 fmt_ok typos.lune rps.lune rps_missing.lune answers/ex11-3.lune
+
+# ----- 第12章 -----
+cd "$BOOKS_DIR/examples/ch12"
+
+check_ok tidy.lune
+eval_is tidy.lune answer expected/tidy.answer.txt
+fmt_is messy.lune expected/messy.fmt.txt
+
+check_ok answers/ex12-3.lune
+eval_is answers/ex12-3.lune tripled expected/ex12-3.tripled.txt
+eval_is answers/ex12-3.lune doubled expected/ex12-3.doubled.txt
+
+fmt_ok tidy.lune answers/ex12-3.lune
 
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"
