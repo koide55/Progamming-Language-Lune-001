@@ -251,7 +251,6 @@ fmt_ok shape.lune missing.lune refutable.lune unreachable.lune maybediv.lune ans
 
 # ----- 第6章 -----
 cd "$BOOKS_DIR/examples/ch06"
-export LUNE_LANG=en  # TODO: 第6章以降の診断は未日本語化。移行したら外す
 
 check_ok user.lune
 eval_is user.lune hello expected/user.hello.txt
@@ -272,6 +271,7 @@ fmt_ok user.lune items.lune typofield.lune answers/ex6-2.lune answers/ex6-3.lune
 
 # ----- 第7章 -----
 cd "$BOOKS_DIR/examples/ch07"
+export LUNE_LANG=en  # TODO: 第7章以降の診断は未日本語化。移行したら外す
 
 check_ok orzero.lune
 eval_is orzero.lune unwrapped expected/orzero.unwrapped.txt
