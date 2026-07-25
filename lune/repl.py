@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import sys
 from typing import TextIO
 
 from . import nodes as ast
-from .diagnostics import DiagnosticError, SourceMap, format_diagnostic, format_exception
+from .diagnostics import (
+    Diagnostic,
+    DiagnosticError,
+    SourceMap,
+    SourceSpan,
+    format_diagnostic,
+    format_exception,
+)
 from .evaluator import (
     Env,
     LazyValue,
@@ -26,6 +33,8 @@ from .typechecker import TypeEnv, check_module_into, initial_type_env
 
 
 REPL_VALUE = "__repl_value"
+# A bare expression is parsed as a declaration; spans must be mapped back afterwards.
+EXPRESSION_WRAPPER = f"let {REPL_VALUE} = "
 DECLARATION_PREFIXES = (
     "module ",
     "import ",
@@ -63,6 +72,19 @@ class ReplSession:
             return self.run_command(source.strip())
 
         module, is_expr = self._parse_input(source, filename)
+        if not is_expr:
+            return self._run(module, is_expr)
+        try:
+            result = self._run(module, is_expr)
+        except DiagnosticError as exc:
+            exc.diagnostic = _unwrap_expression_spans(exc.diagnostic, filename)
+            raise
+        return replace(
+            result,
+            warnings=tuple(_unwrap_expression_spans(warning, filename) for warning in result.warnings),
+        )
+
+    def _run(self, module: ast.ModuleFile, is_expr: bool) -> ReplResult:
         type_snapshot = _clone_type_env(self.type_env)
         warning_start = len(self.type_env.warnings)
         try:
@@ -157,8 +179,11 @@ class ReplSession:
         try:
             return parse_source(normalized, filename), False
         except LuneSyntaxError:
-            wrapped = f"let {REPL_VALUE} = {source}\n"
-            return parse_source(wrapped, filename), True
+            try:
+                return parse_source(EXPRESSION_WRAPPER + normalized, filename), True
+            except LuneSyntaxError as exc:
+                exc.diagnostic = _unwrap_expression_spans(exc.diagnostic, filename)
+                raise
 
 
 def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
@@ -218,6 +243,38 @@ def _describe_binding(name: str, value: object) -> str:
     if value.state == ThunkState.EVALUATING:
         return f"{name} : evaluating"
     return f"{name} : unevaluated"
+
+
+def _unwrap_expression_spans(diagnostic: Diagnostic, filename: str) -> Diagnostic:
+    """Map spans off the `let __repl_value = ` wrapper and back onto what the user typed.
+
+    Expression input is parsed wrapped but rendered unwrapped, so spans over the wrapped
+    text would otherwise point past the end of the source snippet. The wrapper adds no
+    newline, so only columns on the first line move.
+    """
+    if diagnostic.primary is None and not diagnostic.fixes:
+        return diagnostic
+    primary = diagnostic.primary
+    if primary is not None:
+        primary = replace(primary, span=_unwrap_span(primary.span, filename))
+    return replace(
+        diagnostic,
+        primary=primary,
+        fixes=[replace(fix, span=_unwrap_span(fix.span, filename)) for fix in diagnostic.fixes],
+    )
+
+
+def _unwrap_span(span: SourceSpan, filename: str) -> SourceSpan:
+    if span.filename != filename:
+        return span
+    offset = len(EXPRESSION_WRAPPER)
+    start_column = span.start_column - offset if span.start_line == 1 else span.start_column
+    end_column = span.end_column - offset if span.end_line == 1 else span.end_column
+    return replace(
+        span,
+        start_column=max(start_column, 1),
+        end_column=max(end_column, 1),
+    )
 
 
 def _ensure_trailing_newline(source: str) -> str:

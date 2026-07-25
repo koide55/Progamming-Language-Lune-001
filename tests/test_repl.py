@@ -8,6 +8,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from lune.cli import main
+from lune.diagnostics import SourceMap, format_diagnostic, format_exception
 from lune.messages import set_language
 from lune.repl import ReplSession, repl_main
 from lune.typechecker import LuneTypeError
@@ -161,6 +162,77 @@ def add(x: Int, y: Int): Int =
         self.assertEqual(code, 0)
         self.assertIn("3 : Int", stdout.getvalue())
         self.assertEqual(stderr.getvalue(), "")
+
+
+class ReplSpanTests(unittest.TestCase):
+    """Expression input is parsed wrapped in `let __repl_value = `, but rendered unwrapped.
+
+    Spans must be mapped back onto the line the user typed, or every caret sits
+    len("let __repl_value = ") columns too far right.
+    """
+
+    def _render_diagnostic(self, inputs: list[str]) -> str:
+        """Feed `inputs` to one session and render the first diagnostic they produce."""
+        session = ReplSession()
+        source_map = SourceMap()
+        for index, source in enumerate(inputs, 1):
+            filename = f"<repl:{index}>"
+            source_map.add(filename, source)
+            try:
+                result = session.submit(source, filename)
+            except Exception as exc:
+                return format_exception(exc, source_map)
+            if result.warnings:
+                return format_diagnostic(result.warnings[0], source_map)
+        self.fail(f"expected a diagnostic from {inputs[-1]!r}")
+
+    def _caret_column(self, rendered: str) -> int:
+        """1-based column of the first caret, relative to the quoted source line."""
+        for line in rendered.splitlines():
+            if line.lstrip().startswith("| ") and "^" in line:
+                gutter = line.index("| ") + len("| ")
+                return line.index("^") - gutter + 1
+        self.fail(f"no caret line in:\n{rendered}")
+
+    def test_expression_caret_points_at_the_offending_token(self) -> None:
+        source = 'User("a")'
+        rendered = self._render_diagnostic(["record User:\n    name: String", source])
+        self.assertIn("error[REC0006]", rendered)
+        column = source.index('"a"') + 1
+        self.assertEqual(self._caret_column(rendered), column)
+        self.assertIn(f"--> <repl:2>:1:{column}", rendered)
+
+    def test_expression_caret_points_at_undefined_name(self) -> None:
+        source = "1 + nosuch"
+        rendered = self._render_diagnostic([source])
+        self.assertIn("error[TYP0001]", rendered)
+        column = source.index("nosuch") + 1
+        self.assertEqual(self._caret_column(rendered), column)
+        self.assertIn(f"--> <repl:1>:1:{column}", rendered)
+
+    def test_unparsable_expression_caret_points_at_the_offending_token(self) -> None:
+        # the wrapped re-parse fails too, so its span needs the same treatment
+        source = "40 + $2"
+        rendered = self._render_diagnostic([source])
+        self.assertIn("error[LXL0001]", rendered)
+        column = source.index("$") + 1
+        self.assertEqual(self._caret_column(rendered), column)
+        self.assertIn(f"--> <repl:1>:1:{column}", rendered)
+
+    def test_multiline_expression_shifts_only_the_first_line(self) -> None:
+        # the wrapper adds no newline, so lines after the first keep their columns
+        source = "match Some(1):\n    | Some(v) -> nosuch\n    | None -> 0"
+        rendered = self._render_diagnostic([source])
+        self.assertIn("error[TYP0001]", rendered)
+        column = source.splitlines()[1].index("nosuch") + 1
+        self.assertEqual(self._caret_column(rendered), column)
+        self.assertIn(f"--> <repl:1>:2:{column}", rendered)
+
+    def test_declaration_input_spans_are_untouched(self) -> None:
+        source = "let bad: Int = true"
+        rendered = self._render_diagnostic([source])
+        column = source.index("true") + 1
+        self.assertEqual(self._caret_column(rendered), column)
 
 
 class CliReplFallbackTests(unittest.TestCase):
