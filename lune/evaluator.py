@@ -721,8 +721,28 @@ def eval_block(block: ast.BlockExpr, env: Env) -> Value:
     return eval_expr(block.result, env)
 
 
+def reject_named_args(args: list[ast.Argument]) -> None:
+    """Guard the positional callees against `name = value` arguments.
+
+    The typechecker rejects these too (typechecker.py reject_named_args), but
+    `--eval` and `deepForce` reach the evaluator without a type-check pass, so
+    the positional binding needs its own gate: otherwise a label would still be
+    silently dropped and `P(y = 1, x = 2)` would still swap the two values.
+    Record construction resolves names properly and is not routed here.
+
+    Like the parallel record guard in `apply_record_constructor`, this reports
+    the generic `RUN0006`; the precise `TYP0012` belongs to the static check.
+    """
+    for arg in args:
+        if arg.name is not None:
+            raise LuneRuntimeError(t("run.named-arg", name=arg.name), hints=[t("hint.positional-only")])
+
+
 def eval_call(expr: ast.CallExpr, env: Env) -> Value:
     callee = force_value(eval_expr(expr.callee, env))
+    if isinstance(callee, RecordConstructorValue):
+        return apply_record_constructor(callee, expr.args, env)
+    reject_named_args(expr.args)
     if isinstance(callee, BuiltinFunction):
         if callee.force_args:
             args = [force_value(eval_expr(arg.value, env)) for arg in expr.args]
@@ -735,8 +755,6 @@ def eval_call(expr: ast.CallExpr, env: Env) -> Value:
     if isinstance(callee, PartialConstructorValue):
         args = prepare_constructor_args(callee.constructor, callee.bound_fields, expr.args, env)
         return apply_constructor(callee.constructor, callee.bound_fields, args)
-    if isinstance(callee, RecordConstructorValue):
-        return apply_record_constructor(callee, expr.args, env)
     if isinstance(callee, FunctionValue):
         if not expr.args and not callee.params:
             return apply_function(callee, [])

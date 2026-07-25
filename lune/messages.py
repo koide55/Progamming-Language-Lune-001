@@ -163,6 +163,15 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "typ.arity-most": ("expected at most {max} arguments, got {got}", "引数は最大 {max} 個ですが、{got} 個渡されました"),
     "typ.arity-exact": ("expected {expected} arguments, got {got}", "引数は {expected} 個のはずですが、{got} 個です"),
     "label.wrong-arg-count": ("wrong number of arguments", "引数の個数が違う"),
+    "typ.named-arg": (
+        "named arguments are not supported here: {name}",
+        "ここでは名前付き引数を使えません: {name}",
+    ),
+    "label.named-arg": ("pass this argument positionally", "位置引数として渡す"),
+    "hint.positional-only": (
+        "functions and ADT constructors take positional arguments; only records are built with `field = value`",
+        "関数と ADT のコンストラクタは位置引数で呼びます。`フィールド = 値` で構築できるのはレコードだけです",
+    ),
     "typ.lambda-params": (
         "lambda takes {got} parameters, but expected type has {expected}",
         "ラムダの引数は {got} 個ですが、期待される型では {expected} 個です",
@@ -287,6 +296,10 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "{ctor} に渡せる残りの引数は最大 {max} 個ですが、{got} 個渡されました",
     ),
     "run.named-fields": ("{ctor} requires named record fields", "{ctor} の構築には名前付きフィールドが必要です"),
+    "run.named-arg": (
+        "named arguments are not supported here: {name}",
+        "ここでは名前付き引数を使えません: {name}",
+    ),
     "run.unexpected-record-field": (
         "unexpected record field for {ctor}: {field}",
         "レコード {ctor} に宣言されていないフィールドです: {field}",

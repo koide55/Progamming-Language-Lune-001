@@ -4,7 +4,7 @@
 
 コンパイラ・評価器が発行する全診断コードの詳解カタログ。同じ内容を
 `lune explain <CODE>`、REPL の `:explain CODE`、Playground の explain ボタンでも読める。
-発行されうる全コードに詳解があることはテストで保証される（現在 29 コード）。日本語版: `ERROR_INDEX_JA.md`。
+発行されうる全コードに詳解があることはテストで保証される（現在 30 コード）。日本語版: `ERROR_INDEX_JA.md`。
 
 - [`LAY0001`](#lay0001) — inconsistent indentation
 - [`LAY0002`](#lay0002) — unmatched closing delimiter
@@ -35,6 +35,7 @@
 - [`TYP0009`](#typ0009) — unreachable match case (warning)
 - [`TYP0010`](#typ0010) — cannot infer parameter type (warning)
 - [`TYP0011`](#typ0011) — recursive function needs a return type
+- [`TYP0012`](#typ0012) — named arguments are not supported here
 
 ## LAY0001
 
@@ -542,3 +543,27 @@ def fact(n: Int) =                 # missing return type
 How to fix:
 
 Add a return type annotation, e.g. `def fact(n: Int): Int = ...`.
+
+## TYP0012
+
+**named arguments are not supported here**
+
+Only records are built by naming their fields. Functions and ADT constructors
+bind their arguments by position and can be partially applied, so a `name =`
+label has no slot to resolve against and is rejected instead of ignored.
+
+Before this was an error the label was silently dropped, which let arguments of
+the same type swap places without any diagnostic.
+
+Example that triggers it:
+
+```lune
+type Point =
+    | P(x: Int, y: Int)
+
+let p = P(y = 1, x = 2)     # silently bound x = 1, y = 2 before this check
+```
+
+How to fix:
+
+Pass the arguments positionally, in declaration order: `P(2, 1)`. Use a `record` if you want construction to be by field name.

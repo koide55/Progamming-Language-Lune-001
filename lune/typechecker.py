@@ -759,11 +759,39 @@ def check_lambda(expr: ast.LambdaExpr, expected: FunctionType, env: TypeEnv) -> 
     return FunctionType(tuple(param_types), result)
 
 
+def reject_named_args(args: list[ast.Argument], span: SourceSpan | None) -> None:
+    """Named arguments (`name = value`) only mean something for records.
+
+    The parser accepts `name = value` in every argument list, but only record
+    construction resolves arguments by name (LANGUAGE_SPEC.md section 13).
+    Functions and ADT constructors bind arguments positionally *and* curry
+    (LANGUAGE_SPEC.md sections 8.4 and 10), so a label there has no meaning to
+    honor: `Pair(right = 2)` would have to be a partial application with its
+    first slot unfilled. Silently ignoring the label is worse than rejecting it
+    — same-typed fields let `P(y = 1, x = 2)` swap values with no diagnostic at
+    all — so the label is an error rather than decoration.
+
+    Deliberately no machine-applicable `Fix`: dropping `name = ` would keep the
+    argument in the position the writer did not intend, which is exactly the
+    silent mis-binding this check exists to prevent.
+    """
+    for arg in args:
+        if arg.name is not None:
+            raise LuneTypeError(
+                t("typ.named-arg", name=arg.name),
+                "TYP0012",
+                arg.span or span,
+                t("label.named-arg"),
+                [t("hint.positional-only")],
+            )
+
+
 def infer_call(callee_type: ValueType, args: list[ast.Argument], env: TypeEnv, span: SourceSpan | None = None) -> ValueType:
     if isinstance(callee_type, RecordConstructorType):
         return infer_record_constructor_call(callee_type, args, env, span)
     if not isinstance(callee_type, FunctionType):
         raise LuneTypeError(t("typ.not-callable", type=repr(callee_type)), "TYP0004", span, t("label.not-callable"))
+    reject_named_args(args, span)
     callee_type = flatten_function_type(callee_type)
     if callee_type.variadic:
         substitutions: dict[str, Type] = {}

@@ -271,6 +271,58 @@ let age = ada.age
         self.assertEqual(force_value(env.lookup_raw("name")), "Ada")
         self.assertEqual(force_value(env.lookup_raw("age")), 36)
 
+    def test_named_adt_constructor_arguments_are_rejected(self) -> None:
+        """`--eval` skips the type-check pass, so the evaluator gates labels itself."""
+        source = """
+type Entry =
+    | Income(label: String, amount: Int)
+
+let entry = Income(label = "a", amount = 1)
+"""
+        env = eval_source(source)
+        with self.assertRaises(LuneRuntimeError) as context:
+            force_value(env.lookup_raw("entry"))
+        self.assertEqual(context.exception.diagnostic.code, "RUN0006")
+
+    def test_named_arguments_no_longer_silently_swap_same_typed_fields(self) -> None:
+        """`P(y = 1, x = 2)` used to evaluate to `P(1, 2)` — values silently swapped."""
+        source = """
+type Point =
+    | P(x: Int, y: Int)
+
+let p = P(y = 1, x = 2)
+"""
+        env = eval_source(source)
+        with self.assertRaises(LuneRuntimeError):
+            force_value(env.lookup_raw("p"))
+
+    def test_named_function_call_arguments_are_rejected(self) -> None:
+        """`sub(b = 1, a = 10)` used to evaluate as `sub(1, 10)` and return -9."""
+        source = """
+def sub(a: Int, b: Int): Int = a - b
+
+let n = sub(b = 1, a = 10)
+"""
+        env = eval_source(source)
+        with self.assertRaises(LuneRuntimeError) as context:
+            force_value(env.lookup_raw("n"))
+        self.assertEqual(context.exception.diagnostic.code, "RUN0006")
+
+    def test_positional_adt_construction_keeps_declaration_order(self) -> None:
+        source = """
+type Point =
+    | P(x: Int, y: Int)
+
+let p = P(2, 1)
+let curried = P(2)
+let q = curried(1)
+"""
+        env = eval_source(source)
+        for name in ("p", "q"):
+            value = force_value(env.lookup_raw(name))
+            self.assertIsInstance(value, DataValue)
+            self.assertEqual([force_value(field) for field in value.fields], [2, 1])
+
     def test_record_field_access_forces_only_selected_field(self) -> None:
         source = """
 record User:

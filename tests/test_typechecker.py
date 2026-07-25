@@ -214,6 +214,77 @@ let ada = User("Ada")
             check_source(source)
         self.assertEqual(context.exception.diagnostic.code, "REC0006")
 
+    def test_rejects_named_adt_constructor_arguments(self) -> None:
+        """`name = value` is record-only syntax; ADT constructors are positional."""
+        source = """
+type Entry =
+    | Income(label: String, amount: Int)
+
+let entry = Income(label = "a", amount = 1)
+"""
+        with self.assertRaises(LuneTypeError) as context:
+            check_source(source)
+        self.assertEqual(context.exception.diagnostic.code, "TYP0012")
+
+    def test_rejects_reordered_named_adt_constructor_arguments(self) -> None:
+        """Reordering by name used to fail as a confusing TYP0003 type mismatch."""
+        source = """
+type Entry =
+    | Income(label: String, amount: Int)
+
+let entry = Income(amount = 1, label = "a")
+"""
+        with self.assertRaises(LuneTypeError) as context:
+            check_source(source)
+        self.assertEqual(context.exception.diagnostic.code, "TYP0012")
+
+    def test_rejects_named_arguments_that_would_swap_same_typed_fields(self) -> None:
+        """The dangerous case: same-typed fields swapped with no type error at all."""
+        source = """
+type Point =
+    | P(x: Int, y: Int)
+
+let p = P(y = 1, x = 2)
+"""
+        with self.assertRaises(LuneTypeError) as context:
+            check_source(source)
+        diagnostic = context.exception.diagnostic
+        self.assertEqual(diagnostic.code, "TYP0012")
+        # the caret points at the offending label, not the whole call
+        assert diagnostic.primary is not None
+        self.assertEqual(diagnostic.primary.span.start_line, 5)
+        self.assertEqual(diagnostic.primary.span.start_column, 11)
+        # no machine-applicable fix: dropping `y = ` would keep the swapped order
+        self.assertEqual(diagnostic.fixes, [])
+
+    def test_rejects_named_function_call_arguments(self) -> None:
+        """Plain functions bind positionally and curry, so labels are rejected too."""
+        source = """
+def sub(a: Int, b: Int): Int = a - b
+
+let n = sub(b = 1, a = 10)
+"""
+        with self.assertRaises(LuneTypeError) as context:
+            check_source(source)
+        self.assertEqual(context.exception.diagnostic.code, "TYP0012")
+
+    def test_accepts_positional_adt_construction_and_named_record_construction(self) -> None:
+        """The asymmetry both checks enforce: ADT positional, record named."""
+        source = """
+type Point =
+    | P(x: Int, y: Int)
+
+record User:
+    name: String
+    age: Int
+
+let p = P(2, 1)
+let ada = User(age = 36, name = "Ada")
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("p"), Type("Point"))
+        self.assertEqual(env.lookup_value("ada"), Type("User"))
+
     def test_rejects_generic_adt_argument_mismatch(self) -> None:
         source = """
 type Option[T] =
