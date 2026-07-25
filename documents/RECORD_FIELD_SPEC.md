@@ -85,6 +85,24 @@ User(age = 36, name = "Ada")
 
 すべての field はちょうど 1 回指定しなければならない。
 
+### 2.2.1 named argument はレコード構築専用
+
+`名前 = 値` が意味を持つのは**レコード構築だけ**である。ADT のコンストラクタと関数呼び出しは位置引数のみを受け取り、名前付き引数は `TYP0012` で拒否する。
+
+```lune
+type Entry =
+    | Income(label: String, amount: Int)
+
+Income(label = "a", amount = 1)    # error[TYP0012]
+Income("a", 1)                     # OK
+```
+
+この非対称（レコードは名前付き必須、ADT は位置引数のみ）は意図的である。根拠は部分適用にある。ADT のコンストラクタと関数は curry されるため（`LANGUAGE_SPEC.md` §8.4, §10）、`Income(amount = 1)` は「第 1 引数が未充填の部分適用」となり、ラベルを対応させる先が存在しない。レコードは curry されず、全 field を一度に与える all-or-nothing な構築なので、名前による解決が無理なく定義できる。
+
+パーサは任意の引数リストで `名前 = 値` を受理する（`ast.Argument.name`）。名前を解決するのはレコード構築の経路だけなので、他の経路ではラベルを**黙って捨てずにエラーにする**必要がある。捨てた場合、同じ型の field が並ぶと値が診断なしで入れ違う（`Point(y = 1, x = 2)` が `Point(1, 2)` になる）。
+
+`名前 = ` を削除する machine-applicable fix は提供しない。削除すると書き手が意図しなかった位置に引数が残り、まさに防ぎたい黙った誤束縛になるためである。
+
 ### 2.3 field access
 
 ```lune
@@ -359,6 +377,8 @@ v0.1 の module loader では imported module の top-level 名が同じ global 
 | `REC0007` | record field assignment is not supported |
 
 既存の `TYP000*` と統合してもよいが、実装時には record 固有エラーとして出せる方が診断が分かりやすい。
+
+`REC0006` の裏返しは record 固有ではないため `TYP0012`（named arguments are not supported here）とする。§2.2.1 のとおり ADT のコンストラクタと関数呼び出しの両方が対象で、typechecker と evaluator の双方で拒否する（`--eval` は型チェックを経由しない）。
 
 ## 10. 実装ステップ
 

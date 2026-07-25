@@ -109,6 +109,7 @@ v0.1 で実際に発行されるコード（正は `lune/explanations.py` のカ
 | `TYP0009` | typechecker | unreachable match case (warning) |
 | `TYP0010` | typechecker | cannot infer parameter type (warning) |
 | `TYP0011` | typechecker | recursive function requires return type |
+| `TYP0012` | typechecker | named arguments are not supported here |
 | `REC0001` | record | duplicate record field |
 | `REC0002` | record | unknown record field |
 | `REC0003` | record | missing record field |
