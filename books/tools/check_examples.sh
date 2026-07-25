@@ -193,7 +193,6 @@ fmt_ok pipeline.lune hof.lune norettype.lune answers/ex3-2.lune answers/ex3-3.lu
 
 # ----- 第4章 -----
 cd "$BOOKS_DIR/examples/ch04"
-export LUNE_LANG=en  # TODO: 第4章以降の診断は未日本語化。移行したら外す
 
 check_ok myif.lune
 eval_is myif.lune taken expected/myif.taken.txt
@@ -219,6 +218,7 @@ fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune answers/ex4-
 
 # ----- 第5章 -----
 cd "$BOOKS_DIR/examples/ch05"
+export LUNE_LANG=en  # TODO: 第5章以降の診断は未日本語化。移行したら外す
 
 check_ok shape.lune
 eval_is shape.lune circleArea expected/shape.circleArea.txt
