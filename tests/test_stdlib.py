@@ -90,6 +90,20 @@ let size = length(numbers)
         self.assertEqual(self.list_to_py(env.lookup_raw("noneLeft")), [])
         self.assertEqual(force_value(env.lookup_raw("size")), 4)
 
+    def test_fold_over_empty_list_displays_the_initial_value(self) -> None:
+        # fold over [] returns the initial value untouched, so the binding is a
+        # thunk wrapping another thunk. format_value must force that chain on
+        # its own: the callers that pre-force (value_of, the REPL) hide the bug
+        # that CLI `--eval` -- which formats the raw binding -- ran into.
+        source = """
+record Stats:
+    count: Int
+let empty = Stats(count = 0)
+let emptySummary = fold([], empty, fn a x -> a)
+"""
+        env = eval_source(source)
+        self.assertEqual(format_value(env.lookup_raw("emptySummary")), "{ count = 0 }")
+
     def test_take_zero_does_not_force_list(self) -> None:
         source = """
 let answer = take(crash(), 0)

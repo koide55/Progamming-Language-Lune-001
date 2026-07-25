@@ -1149,7 +1149,12 @@ def format_value(value: Value) -> str:
     rendered_callable = _format_callable(value)
     if rendered_callable is not None:
         return rendered_callable
-    return repr(value)
+    if isinstance(value, (int, float)):
+        return repr(value)
+    # Nothing else is a Lune value. Spec: VALUE_DISPLAY_SPEC.md §4 — never let
+    # an evaluator object reach the user as a Python repr; name its shape the
+    # way preview_value does instead.
+    return f"<{type(value).__name__}>"
 
 
 _PREVIEW_DEPTH = 3
