@@ -1,8 +1,8 @@
-warning[TYP0009]: unreachable match case: Red
+warning[TYP0009]: 到達しない match ケース: Red
   --> unreachable.lune:10:9
    |
 10 |         | Red -> 2
-   |         ^ this case can never match
-   = hint: remove this case, or move it before the cases that cover it
-   = help: run `lune explain TYP0009` for a detailed explanation
+   |         ^ このケースには決して到達しない
+   = hint: このケースを削除するか、これをカバーしているケースより前に移動してください
+   = help: 詳しくは `lune explain TYP0009 --lang ja` を実行してください
 type check OK
