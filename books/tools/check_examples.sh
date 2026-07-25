@@ -19,8 +19,7 @@ REPO_ROOT="$(cd "$BOOKS_DIR/.." && pwd)"
 LUNE="$REPO_ROOT/bin/lune"
 
 # 本書の表記規約（第1章「表記について」）どおり、診断は LUNE_LANG=ja の
-# 日本語出力で検証する。まだ英語の診断を掲載している章は、章の先頭で
-# LUNE_LANG=en に切り替える（日本語化が済んだら削除する）。
+# 日本語出力で検証する。全章（第1〜8章）が日本語表示に移行済み。
 export LUNE_LANG=ja
 
 pass=0
@@ -301,9 +300,6 @@ fmt_ok orzero.lune nameof.lune maybediv.lune maybedivlet.lune missingnull.lune m
 
 # ----- 第8章 -----
 cd "$BOOKS_DIR/examples/ch08"
-# TODO: 第8章の掲載診断は未日本語化。ただしこの章に診断の期待ファイルはないため、
-# この切り替えは実質無効（記録として残す。日本語化したら外す）。
-export LUNE_LANG=en
 
 check_ok infinite.lune
 eval_is infinite.lune firstFive expected/infinite.firstFive.txt

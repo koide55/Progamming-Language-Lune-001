@@ -197,8 +197,8 @@ $ lune --eval first10 primes.lune
 >
 > ```text,diagnostic
 > lune> take(5, naturalsFrom(1))
-> error[TYP0003]: expected List[T], got Int
->    = help: run `lune explain TYP0003` for a detailed explanation
+> error[TYP0003]: List[T] が必要ですが、Int が見つかりました
+>    = help: 詳しくは `lune explain TYP0003 --lang ja` を実行してください
 > ```
 >
 > リストが先、個数が後。「リスト系の関数はリストが第1引数」という規約（8.2節の表）を思い出してください。
