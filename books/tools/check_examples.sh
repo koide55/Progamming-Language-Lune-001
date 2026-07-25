@@ -218,7 +218,6 @@ fmt_ok myif.lune trace_demo.lune box.lune point.lune recursive.lune answers/ex4-
 
 # ----- 第5章 -----
 cd "$BOOKS_DIR/examples/ch05"
-export LUNE_LANG=en  # TODO: 第5章以降の診断は未日本語化。移行したら外す
 
 check_ok shape.lune
 eval_is shape.lune circleArea expected/shape.circleArea.txt
@@ -252,6 +251,7 @@ fmt_ok shape.lune missing.lune refutable.lune unreachable.lune maybediv.lune ans
 
 # ----- 第6章 -----
 cd "$BOOKS_DIR/examples/ch06"
+export LUNE_LANG=en  # TODO: 第6章以降の診断は未日本語化。移行したら外す
 
 check_ok user.lune
 eval_is user.lune hello expected/user.hello.txt
