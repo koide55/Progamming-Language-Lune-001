@@ -121,6 +121,7 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "ctx.match-guard": ("match guard", "match のガード"),
     "ctx.branch": ("branch", "分岐"),
     "ctx.assignment": ("assignment", "代入"),
+    "ctx.compound-assignment": ("compound assignment `{op}`", "複合代入 `{op}`"),
     "ctx.lambda-body": ("lambda body", "ラムダ本体"),
     "ctx.literal-pattern": ("literal pattern", "リテラルパターン"),
     "ctx.typed-pattern": ("typed pattern", "型付きパターン"),

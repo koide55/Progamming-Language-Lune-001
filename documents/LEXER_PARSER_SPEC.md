@@ -152,6 +152,8 @@ true false null
 
 最長一致で字句解析する。たとえば `->` は `-` と `>` ではなく 1 トークン。
 
+`+= -= *= /= %=` は複合代入演算子であり、`SYNTAX_SPEC.md` 14 節の優先順位表と一致する。意味 (`x op= e` は `x = x op e`) は同 14.1 節。切り捨て除算 `//` は v0.1 に存在しないため、`//=` トークンもない。
+
 `...` は将来拡張用に予約する。初期実装では構文エラーにしてよい。
 
 ### 2.7 トークン種別
@@ -694,6 +696,8 @@ primary        110
 - `NameExpr`
 - `MemberExpr`
 - `IndexExpr`
+
+複合代入は parser では脱糖せず、演算子の字句 (`+=` など) を `AssignExpr.op` に保持する。`x op= e` を `x op e` に展開するのは evaluator と typechecker であり、両者は `nodes.desugar_compound_assign` を共有する (`SYNTAX_SPEC.md` 14.1 節)。
 
 比較演算子は非結合とする。`a < b < c` は構文エラーにする。将来 Python 風 chained comparison を導入する場合は別仕様にする。
 

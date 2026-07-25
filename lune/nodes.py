@@ -236,6 +236,32 @@ class AssignExpr(Expr):
     span: SourceSpan | None = None
 
 
+# The compound assignment operators, mapped to the binary operator they apply.
+# The parser keeps the operator lexeme on `AssignExpr.op` (`=` for a plain
+# assignment); `desugar_compound_assign` turns the compound forms back into the
+# equivalent binary expression (documents/SYNTAX_SPEC.md section 14.1).
+COMPOUND_ASSIGN_OPS: dict[str, str] = {
+    "+=": "+",
+    "-=": "-",
+    "*=": "*",
+    "/=": "/",
+    "%=": "%",
+}
+
+
+def desugar_compound_assign(expr: AssignExpr) -> BinaryExpr | None:
+    """`x op= e` as the equivalent `x op e`, or None for a plain `x = e`.
+
+    The evaluator and the type checker both route compound assignment through
+    this so that the operator semantics live in one place: their existing
+    binary-operator paths (`eval_binary` / `infer_binary`).
+    """
+    base = COMPOUND_ASSIGN_OPS.get(expr.op)
+    if base is None:
+        return None
+    return BinaryExpr(base, expr.target, expr.value, span=expr.span)
+
+
 @dataclass(frozen=True)
 class IfExpr(Expr):
     condition: Expr

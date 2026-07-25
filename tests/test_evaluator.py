@@ -317,6 +317,98 @@ let answer =
 """
         self.assertEqual(self.value_of(source, "answer"), 3)
 
+    def test_compound_assignment_applies_the_operator(self) -> None:
+        # `x op= e` means `x = x op e` (SYNTAX_SPEC.md section 14.1)
+        for op, expected in (("+=", 15), ("-=", 5), ("*=", 50), ("%=", 0)):
+            source = f"""
+let answer =
+    var x = 10
+    x {op} 5
+    x
+"""
+            with self.subTest(op=op):
+                self.assertEqual(self.value_of(source, "answer"), expected)
+
+    def test_compound_assignment_divides(self) -> None:
+        # `/` is true division, so `/=` produces a Double (the type checker
+        # rejects an Int target; see test_typechecker.py)
+        source = """
+let answer =
+    var x = 7.0
+    x /= 2.0
+    x
+"""
+        self.assertEqual(self.value_of(source, "answer"), 3.5)
+
+    def test_compound_assignment_takes_the_whole_right_hand_side(self) -> None:
+        source = """
+let answer =
+    var x = 2
+    x *= 3 + 4
+    x
+"""
+        self.assertEqual(self.value_of(source, "answer"), 14)
+
+    def test_compound_assignment_evaluates_to_the_new_value(self) -> None:
+        # `strict let` so the assignment happens here rather than when `y` is
+        # first forced
+        source = """
+let answer =
+    var x = 10
+    strict let y = x += 5
+    y * 100 + x
+"""
+        self.assertEqual(self.value_of(source, "answer"), 1515)
+
+    def test_compound_assignment_concatenates_strings(self) -> None:
+        source = """
+let answer =
+    var s = "ab"
+    s += "cd"
+    s
+"""
+        self.assertEqual(self.value_of(source, "answer"), "abcd")
+
+    def test_compound_assignment_updates_an_outer_var_in_a_loop(self) -> None:
+        source = """
+let answer =
+    var total = 0
+    var i = 1
+    while i <= 5:
+        total += i
+        i += 1
+    total
+"""
+        self.assertEqual(self.value_of(source, "answer"), 15)
+
+    def test_compound_assignment_reports_division_by_zero(self) -> None:
+        # the RUN0006 diagnostics come from eval_binary, so `/=` and `%=`
+        # report zero division exactly like `/` and `%`
+        for op in ("/=", "%="):
+            source = f"""
+let answer =
+    var x = 10
+    x {op} 0
+    x
+"""
+            with self.subTest(op=op):
+                env = eval_source(source)
+                with self.assertRaisesRegex(LuneRuntimeError, "division by zero") as ctx:
+                    force_value(env.lookup_raw("answer"))
+                self.assertEqual(ctx.exception.diagnostic.code, "RUN0006")
+                self.assertTrue(ctx.exception.diagnostic.hints)
+
+    def test_compound_assignment_to_undefined_name_fails(self) -> None:
+        source = """
+let answer =
+    var x = 1
+    y += 1
+    x
+"""
+        env = eval_source(source)
+        with self.assertRaisesRegex(LuneRuntimeError, "undefined variable: y"):
+            force_value(env.lookup_raw("answer"))
+
     def test_for_loop_iterates_list(self) -> None:
         source = """
 let answer =
