@@ -52,6 +52,7 @@ MULTI_CHAR_TOKENS = {
     "...": TokenKind.ELLIPSIS,
     "->": TokenKind.ARROW,
     "=>": TokenKind.FAT_ARROW,
+    "//": TokenKind.SLASH_SLASH,
     "==": TokenKind.EQEQ,
     "!=": TokenKind.BANGEQ,
     "<=": TokenKind.LTEQ,

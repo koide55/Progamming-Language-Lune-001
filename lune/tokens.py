@@ -95,6 +95,7 @@ class TokenKind(Enum):
 
     ARROW = auto()
     FAT_ARROW = auto()
+    SLASH_SLASH = auto()
     EQEQ = auto()
     BANGEQ = auto()
     LTEQ = auto()

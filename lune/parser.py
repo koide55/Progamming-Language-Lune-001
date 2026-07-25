@@ -33,6 +33,7 @@ INFIX = {
     TokenKind.MINUS: (70, "left"),
     TokenKind.STAR: (80, "left"),
     TokenKind.SLASH: (80, "left"),
+    TokenKind.SLASH_SLASH: (80, "left"),
     TokenKind.PERCENT: (80, "left"),
 }
 

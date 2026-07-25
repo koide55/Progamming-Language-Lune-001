@@ -895,7 +895,7 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
         return BOOL
     left = ensure_type(infer_expr(expr.left, env))
     right = ensure_type(infer_expr(expr.right, env))
-    if expr.op in {"+", "-", "*", "/", "%"}:
+    if expr.op in {"+", "-", "*", "/", "//", "%"}:
         if expr.op == "+" and left == STRING and right == STRING:
             return STRING
         require_numeric(left, expr.op)
@@ -904,6 +904,8 @@ def infer_binary(expr: ast.BinaryExpr, env: TypeEnv) -> ValueType:
             # runtime "/" always performs true division (evaluator.py eval_binary),
             # so the result is Double even for Int / Int.
             return FLOAT
+        # "//" is floor division and stays in the operand type: `Int // Int` is
+        # the way to divide integers and get an Int back (see LANGUAGE_SPEC 9.1).
         return left
     if expr.op in {"==", "!="}:
         require_comparable(left, right, expr.op)
