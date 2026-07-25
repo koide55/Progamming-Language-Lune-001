@@ -1,6 +1,6 @@
-error[TYP0001]: undefined name: x
+error[TYP0001]: 未定義の名前: x
   --> recursive.lune:3:9
   |
 3 | let x = x + 1
-  |         ^ name is not defined
-   = help: run `lune explain TYP0001` for a detailed explanation
+  |         ^ この名前は定義されていない
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください

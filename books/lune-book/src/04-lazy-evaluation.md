@@ -12,8 +12,8 @@
 lune> let boom = crash()
 ok
 lune> boom
-error[RUN0006]: crash() was evaluated
-   = help: run `lune explain RUN0006` for a detailed explanation
+error[RUN0006]: crash() が評価されました
+   = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 ```
 
 地雷を束縛した行では、何も起きませんでした。爆発したのは `boom` を**使った**瞬間です。
@@ -47,7 +47,7 @@ x : evaluated = 2
 
 ```text
 lune> :thunks boom
-boom : failed = error[RUN0006] crash() was evaluated
+boom : failed = error[RUN0006] crash() が評価されました
 ```
 
 失敗も記憶されています。この意味はあとで（4.5節）はっきりします。
@@ -182,13 +182,13 @@ ok
 lune> tickCount()
 0 : Int
 lune> bad
-error[RUN0006]: crash() was evaluated
-   = help: run `lune explain RUN0006` for a detailed explanation
+error[RUN0006]: crash() が評価されました
+   = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 lune> tickCount()
 1 : Int
 lune> bad
-error[RUN0006]: crash() was evaluated
-   = help: run `lune explain RUN0006` for a detailed explanation
+error[RUN0006]: crash() が評価されました
+   = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 lune> tickCount()
 1 : Int
 ```
@@ -229,8 +229,8 @@ lune> def strictFirst(strict a: Int, strict b: Int): Int =
 ...
 ok
 lune> strictFirst(10, crash())
-error[RUN0006]: crash() was evaluated
-   = help: run `lune explain RUN0006` for a detailed explanation
+error[RUN0006]: crash() が評価されました
+   = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 ```
 
 **strict フィールド** — コンストラクタのフィールドも通常は遅延です（`Box(crash())` を作っても爆発しない）が、`strict` を付ければ構築時に評価されます。
@@ -247,8 +247,8 @@ let p = Point(crash(), 0)
 
 ```console
 $ lune --eval p point.lune
-error[RUN0006]: crash() was evaluated
-   = help: run `lune explain RUN0006` for a detailed explanation
+error[RUN0006]: crash() が評価されました
+   = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 ```
 
 「不正な値を持った `Point` は一瞬たりとも存在させない」— データ型の設計道具として第5〜6章で再登場します。
@@ -311,12 +311,12 @@ $ lune --check recursive.lune
 ```
 
 ```text,diagnostic
-error[TYP0001]: undefined name: x
+error[TYP0001]: 未定義の名前: x
   --> recursive.lune:3:9
   |
 3 | let x = x + 1
-  |         ^ name is not defined
-   = help: run `lune explain TYP0001` for a detailed explanation
+  |         ^ この名前は定義されていない
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください
 ```
 
 しかし循環は、静的検査をすり抜けて実行時に初めて現れることもあります。v0.1 の `--eval` は型検査を通さず直接実行するので、このファイルで体験できます。無限ループになるでしょうか?
@@ -326,9 +326,9 @@ $ lune --eval x recursive.lune
 ```
 
 ```text,diagnostic
-error[RUN0005]: recursive thunk evaluation: this value's definition depends on its own result
-   = hint: recursive values cannot be computed; use a recursive function (`def`) instead, or break the reference cycle
-   = help: run `lune explain RUN0005` for a detailed explanation
+error[RUN0005]: 再帰的なサンク評価: この値の定義が自分自身の結果に依存しています
+   = hint: 再帰的な値は計算できません。再帰関数 (`def`) として書くか、参照の循環を断ち切ってください
+   = help: 詳しくは `lune explain RUN0005 --lang ja` を実行してください
 ```
 
 なりません。**即座に検出されます**。仕組みは 4.2 節のサンク状態にあります。サンクは評価に入る時、内部的に「評価中」の印を付けます。評価の途中で同じサンクをもう一度 force しようとしたら、それは定義が自分自身に戻ってきたということ — 待つだけ無駄だと分かるので、その場で `RUN0005` を報告するのです。`lune explain RUN0005` がこの仕組みごと解説してくれます。
@@ -372,11 +372,11 @@ lune> fact(5)
 > lune> let half = 1 / 0
 > ok
 > lune> half
-> error[RUN0006]: division by zero
->    = hint: the right operand of `/` evaluated to 0
->    = help: run `lune explain RUN0006` for a detailed explanation
+> error[RUN0006]: ゼロ除算です
+>    = hint: `/` の右オペランドが 0 に評価されました
+>    = help: 詳しくは `lune explain RUN0006 --lang ja` を実行してください
 > lune> :thunks half
-> half : failed = error[RUN0006] division by zero
+> half : failed = error[RUN0006] ゼロ除算です
 > ```
 >
 > 束縛では何も起きず（遅延）、使うと失敗し（force）、失敗が記憶されました（メモ化）。この章の全部が3行に入っています。
