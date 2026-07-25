@@ -116,6 +116,28 @@ let answer =
         self.assertIsInstance(decl.value.right, ast.BinaryExpr)
         self.assertEqual(decl.value.right.op, "*")
 
+    def test_floor_division_binds_like_multiplication(self) -> None:
+        tree = parse_source("let x = 1 + 7 // 2\n")
+        value = tree.declarations[0].value
+        self.assertEqual(value.op, "+")
+        self.assertIsInstance(value.right, ast.BinaryExpr)
+        self.assertEqual(value.right.op, "//")
+
+    def test_floor_division_is_left_associative(self) -> None:
+        tree = parse_source("let x = 8 // 2 // 2\n")
+        value = tree.declarations[0].value
+        self.assertEqual(value.op, "//")
+        self.assertIsInstance(value.left, ast.BinaryExpr)
+        self.assertEqual(value.left.op, "//")
+
+    def test_floor_division_lexes_as_one_token(self) -> None:
+        # `//` must not come out as two `/` tokens, and it is not a comment marker.
+        tree = parse_source("let x = 7 // 2\n")
+        value = tree.declarations[0].value
+        self.assertEqual(value.op, "//")
+        self.assertEqual(value.left.value, 7)
+        self.assertEqual(value.right.value, 2)
+
     def test_function_and_match_nodes_have_spans(self) -> None:
         tree = parse_source((ROOT / "samples" / "option.lune").read_text(encoding="utf-8"))
         fn = tree.declarations[1]

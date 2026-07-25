@@ -524,6 +524,57 @@ let count = tickCount()
         with self.assertRaisesRegex(LuneRuntimeError, "division by zero"):
             force_value(env.lookup_raw("y"))
 
+    def test_floor_division_truncates_toward_negative_infinity(self) -> None:
+        source = """
+let a = 7 // 2
+let b = -7 // 2
+let c = 7 // -2
+let d = -7 // -2
+let e = 8 // 2
+"""
+        env = eval_source(source)
+        got = [force_value(env.lookup_raw(name)) for name in "abcde"]
+        self.assertEqual(got, [3, -4, -4, 3, 4])
+        self.assertIsInstance(got[0], int)
+
+    def test_floor_division_agrees_with_modulo_on_negatives(self) -> None:
+        # `%` floors too, so a == (a // b) * b + (a % b) must hold for every sign.
+        pairs = [(7, 2), (-7, 2), (7, -2), (-7, -2), (9, 3), (-9, 3)]
+        source = "".join(
+            f"let q{i} = ({a}) // ({b})\nlet r{i} = ({a}) % ({b})\n"
+            for i, (a, b) in enumerate(pairs)
+        )
+        env = eval_source(source)
+        for i, (a, b) in enumerate(pairs):
+            quotient = force_value(env.lookup_raw(f"q{i}"))
+            remainder = force_value(env.lookup_raw(f"r{i}"))
+            self.assertEqual(quotient * b + remainder, a, f"{a} // {b}")
+
+    def test_floor_division_on_doubles_stays_double(self) -> None:
+        env = eval_source("let x = 7.0 // 2.0\n")
+        value = force_value(env.lookup_raw("x"))
+        self.assertEqual(value, 3.0)
+        self.assertIsInstance(value, float)
+
+    def test_floor_division_by_zero_is_a_lune_diagnostic(self) -> None:
+        env = eval_source("let x = 1 // 0\n")
+        with self.assertRaisesRegex(LuneRuntimeError, "division by zero") as ctx:
+            force_value(env.lookup_raw("x"))
+        self.assertEqual(ctx.exception.diagnostic.code, "RUN0006")
+        self.assertIn("//", ctx.exception.diagnostic.hints[0])
+
+    def test_floor_division_runs_a_collatz_step(self) -> None:
+        source = """
+def next(n: Int): Int =
+    if n % 2 == 0 then n // 2 else 3 * n + 1
+
+let odd = next(7)
+let even = next(8)
+"""
+        env = eval_source(source)
+        self.assertEqual(force_value(env.lookup_raw("odd")), 22)
+        self.assertEqual(force_value(env.lookup_raw("even")), 4)
+
     def test_trace_hook_reports_force_memo_and_nesting(self) -> None:
         from lune.evaluator import set_trace_hook
 

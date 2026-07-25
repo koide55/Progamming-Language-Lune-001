@@ -874,6 +874,12 @@ def eval_binary(expr: ast.BinaryExpr, env: Env) -> Value:
         if right == 0:
             raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="/")])
         return left / right
+    if expr.op == "//":
+        if right == 0:
+            raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="//")])
+        # Floor division, so that `a // b` and `a % b` agree on negatives:
+        # a == (a // b) * b + (a % b) holds because "%" floors too.
+        return left // right
     if expr.op == "%":
         if right == 0:
             raise LuneRuntimeError(t("run.division-by-zero"), hints=[t("hint.division-by-zero", op="%")])

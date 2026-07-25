@@ -344,6 +344,7 @@ v0.1 evaluator は初期環境へ以下を登録する。
 ## 13. v0.1 で保留するもの
 
 - infix cons 演算子 `::` の evaluator 実装。
+- 整数除算の関数版（`div(a: Int, b: Int): Int` や、商と剰余を同時に返す `quotRem`）。整数除算は演算子 `//`（床除算）が言語側で担うため、標準ライブラリには置かない。`LANGUAGE_SPEC.md` §9.1 を参照。
 - `String.split` などの文字列詳細 API。
 - `Map` / `Set`。
 - ファイル IO。

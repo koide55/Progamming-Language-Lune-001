@@ -28,6 +28,35 @@ class TypeCheckerTests(unittest.TestCase):
         with self.assertRaises(LuneTypeError):
             check_source("let ratio: Int = 7 / 2\n")
 
+    def test_floor_division_keeps_int(self) -> None:
+        env = check_source("let half: Int = 7 // 2\n")
+        self.assertEqual(env.lookup_value("half"), INT)
+
+    def test_floor_division_keeps_double(self) -> None:
+        env = check_source("let half: Double = 7.0 // 2.0\n")
+        self.assertEqual(env.lookup_value("half"), FLOAT)
+
+    def test_floor_division_result_is_not_double_for_ints(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let half: Double = 7 // 2\n")
+
+    def test_floor_division_rejects_non_numeric(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source('let bad = "a" // "b"\n')
+
+    def test_floor_division_does_not_mix_int_and_double(self) -> None:
+        with self.assertRaises(LuneTypeError):
+            check_source("let bad = 7 // 2.0\n")
+
+    def test_floor_division_lets_an_int_branch_typecheck(self) -> None:
+        # The motivating case: a Collatz step must stay Int in both branches.
+        source = """
+def next(n: Int): Int =
+    if n % 2 == 0 then n // 2 else 3 * n + 1
+"""
+        env = check_source(source)
+        self.assertEqual(env.lookup_value("next"), FunctionType((INT,), INT))
+
     def test_rejects_let_annotation_mismatch(self) -> None:
         with self.assertRaises(LuneTypeError):
             check_source("let answer: Int = true\n")

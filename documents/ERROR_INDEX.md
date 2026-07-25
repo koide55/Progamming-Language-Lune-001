@@ -351,7 +351,7 @@ result.
 **runtime error**
 
 Evaluation failed at run time. Common causes: using an undefined variable,
-dividing by zero (`/` or `%`), forcing a thunk that previously failed, a
+dividing by zero (`/`, `//` or `%`), forcing a thunk that previously failed, a
 standard-library value of the wrong shape, or a `match` that no case matched
 at run time.
 
