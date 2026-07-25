@@ -1,0 +1,27 @@
+module stats
+
+record Stats:
+    count: Int
+    totalChars: Int
+    longest: String
+
+let empty = Stats(count = 0, totalChars = 0, longest = "")
+
+def step(s: Stats, w: String): Stats =
+    let n = length(w)
+    let longer = if n > length(s.longest) then w else s.longest
+    Stats(count = s.count + 1, totalChars = s.totalChars + n, longest = longer)
+
+def summarize(words: List[String]): Stats =
+    fold(words, empty, step)
+
+def averageLength(s: Stats): Double? =
+    if s.count == 0 then null else s.totalChars / s.count
+
+let words = ["the", "quick", "brown", "fox", "jumps"]
+
+let summary = summarize(words)
+
+let average = averageLength(summary)
+
+let emptyAverage = averageLength(summarize([]))

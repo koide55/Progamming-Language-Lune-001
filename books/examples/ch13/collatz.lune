@@ -1,0 +1,18 @@
+module collatz
+
+# v0.1 の `/` は常に Double を返し、整数除算がない。
+# 必要な道具は自分で作る — 第9章の var と while の実戦。
+def halve(n: Int): Int =
+    var rest = n
+    var count = 0
+    while rest >= 2:
+        rest = rest - 2
+        count = count + 1
+    count
+
+def next(n: Int): Int =
+    if n % 2 == 0 then halve(n) else 3 * n + 1
+
+let fromSix = take(iterate(next, 6), 9)
+
+let fromSeven = takeWhile(iterate(next, 7), fn n: Int -> n != 1)

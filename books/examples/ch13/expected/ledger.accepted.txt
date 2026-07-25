@@ -1,0 +1,1 @@
+Ok(Income("bonus", 500))

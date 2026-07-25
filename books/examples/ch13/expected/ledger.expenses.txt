@@ -1,0 +1,1 @@
+(Expense("rent", 1200) Expense("food", 400))

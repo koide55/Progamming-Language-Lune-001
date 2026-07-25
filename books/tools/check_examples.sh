@@ -432,6 +432,34 @@ eval_is answers/ex12-3.lune doubled expected/ex12-3.doubled.txt
 
 fmt_ok tidy.lune answers/ex12-3.lune
 
+# ----- 第13章 -----
+cd "$BOOKS_DIR/examples/ch13"
+
+check_ok stats.lune
+eval_is stats.lune summary expected/stats.summary.txt
+eval_is stats.lune average expected/stats.average.txt
+eval_is stats.lune emptyAverage expected/stats.emptyAverage.txt
+
+check_ok ledger_main.lune
+eval_is ledger_main.lune balance expected/ledger.balance.txt
+eval_is ledger_main.lune expenses expected/ledger.expenses.txt
+eval_is ledger_main.lune rejected expected/ledger.rejected.txt
+eval_is ledger_main.lune accepted expected/ledger.accepted.txt
+
+check_ok collatz.lune
+eval_is collatz.lune fromSix expected/collatz.fromSix.txt
+eval_is collatz.lune fromSeven expected/collatz.fromSeven.txt
+
+check_ok counted.lune
+eval_is counted.lune firstTwo expected/counted.firstTwo.txt
+eval_is counted.lune cost expected/counted.cost.txt
+
+check_ok answers/ex13-1.lune
+eval_is answers/ex13-1.lune summary expected/ex13-1.summary.txt
+eval_is answers/ex13-1.lune emptySummary expected/ex13-1.emptySummary.txt
+
+fmt_ok stats.lune ledger/entry.lune ledger_main.lune collatz.lune counted.lune answers/ex13-1.lune
+
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"
 [ "$fail" -eq 0 ]
