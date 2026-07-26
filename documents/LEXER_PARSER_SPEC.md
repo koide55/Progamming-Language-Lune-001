@@ -687,7 +687,7 @@ comparison      50   none   == != < <= > >=
 cons_concat     60   right  :: ++
 additive        70   left   + -
 multiplicative  80   left   * / %
-prefix          90   right  ! -
+prefix          90   right  ! - +
 postfix        100   left   . ?. () [] record_update
 primary        110
 ```

@@ -133,6 +133,7 @@ class MessageCatalogTests(unittest.TestCase):
             ("var x: Int = true", "var の型注釈: Int が必要ですが、Bool が見つかりました"),
             ('let xs: List[Int] = [1, "two"]', "リストの要素: Int が必要ですが、String が見つかりました"),
             ("let n = -true", "単項 -: 数値型が必要ですが、Bool が見つかりました"),
+            ("let n = +true", "単項 +: 数値型が必要ですが、Bool が見つかりました"),
             ("let b = !1", "単項 !: Bool が必要ですが、Int が見つかりました"),
             ("let y = if 1 then 2 else 3", "if の条件: Bool が必要ですが、Int が見つかりました"),
             (

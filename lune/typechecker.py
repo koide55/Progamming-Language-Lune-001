@@ -515,6 +515,12 @@ def infer_expr(expr: ast.Expr, env: TypeEnv, expected: ValueType | None = None) 
         if expr.op == "-":
             require_numeric(value_type, t("ctx.unary-minus"))
             return value_type
+        if expr.op == "+":
+            # Same shape as unary minus: numeric in, same type out. It is an
+            # identity on the value, kept so that `2 * +3` is not a syntax error
+            # while `2 * -3` is fine.
+            require_numeric(value_type, t("ctx.unary-plus"))
+            return value_type
         if expr.op == "!":
             require_assignable(value_type, BOOL, t("ctx.unary-not"))
             return BOOL

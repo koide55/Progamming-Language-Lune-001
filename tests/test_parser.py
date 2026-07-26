@@ -138,6 +138,28 @@ let answer =
         self.assertEqual(value.left.value, 7)
         self.assertEqual(value.right.value, 2)
 
+    def test_unary_plus_parses_like_unary_minus(self) -> None:
+        # `2 * -3` parsed while `2 * +3` was a syntax error; both must work now
+        for op in ("-", "+"):
+            with self.subTest(op=op):
+                value = parse_source(f"let x = 2 * {op}3\n").declarations[0].value
+                self.assertEqual(value.op, "*")
+                self.assertIsInstance(value.right, ast.UnaryExpr)
+                self.assertEqual(value.right.op, op)
+
+    def test_unary_plus_binds_tighter_than_multiplication(self) -> None:
+        # prefix binding power, same as unary minus: (+2) * 3, not +(2 * 3)
+        value = parse_source("let x = +2 * 3\n").declarations[0].value
+        self.assertEqual(value.op, "*")
+        self.assertIsInstance(value.left, ast.UnaryExpr)
+        self.assertEqual(value.left.op, "+")
+
+    def test_unary_plus_stacks_and_mixes_with_minus(self) -> None:
+        value = parse_source("let x = +-3\n").declarations[0].value
+        self.assertEqual(value.op, "+")
+        self.assertIsInstance(value.expr, ast.UnaryExpr)
+        self.assertEqual(value.expr.op, "-")
+
     def test_compound_floor_division_lexes_as_one_token(self) -> None:
         # longest match again: `//=` is one token, not `//` followed by `=`
         tree = parse_source("let y =\n    var x = 7\n    x //= 2\n    x\n")

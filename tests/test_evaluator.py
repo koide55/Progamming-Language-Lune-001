@@ -392,6 +392,15 @@ let answer =
 """
         self.assertEqual(self.value_of(source, "answer"), 3.5)
 
+    def test_unary_plus_is_the_identity(self) -> None:
+        # it exists so that `2 * +3` is not a syntax error while `2 * -3` is fine
+        self.assertEqual(self.value_of("let x = 2 * +3\n", "x"), 6)
+        self.assertEqual(self.value_of("let x = +3\n", "x"), 3)
+        self.assertEqual(self.value_of("let x = +3.5\n", "x"), 3.5)
+        self.assertEqual(self.value_of("let x = 1 + +2\n", "x"), 3)
+        self.assertEqual(self.value_of("let x = +-3\n", "x"), -3)
+        self.assertIsInstance(self.value_of("let x = +3\n", "x"), int)
+
     def test_compound_floor_division_keeps_an_int_target(self) -> None:
         # `//=` is how an Int variable is divided without turning into a Double
         source = """
