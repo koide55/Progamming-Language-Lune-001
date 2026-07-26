@@ -5,14 +5,19 @@
 
 ## 現在の状態
 
-**本文執筆済み・付録執筆待ちの段階**。序章と第1〜13章がそろい、付録A〜Eはまだ枠だけです。
+**初稿完成**（2026-07-26）。序章・第1〜13章・付録A〜E がすべて揃いました（約 5,700 行）。
 
 - [OUTLINE.md](OUTLINE.md) — 本書の構成案（書名・対象読者・設計方針・全章の内容・付録・執筆計画）
-- 本文: `lune-book/src/01-tour.md` 〜 `13-case-studies.md`（全13章）。目次の正は `SUMMARY.md`
-- 未執筆: 序章 `00-preface.md`、付録A（言語リファレンス）〜E（設計と、これから）
+- 序章: `lune-book/src/00-preface.md` — README の部活の物語と地続きの入り口
+- 本文: `01-tour.md` 〜 `13-case-studies.md`（全13章）。目次の正は `SUMMARY.md`
+- 付録: `appendix-a-reference.md`（言語リファレンス）〜 `appendix-e-design.md`（設計と、これから）
 - 決定済み: 書名『プログラミング言語 Lune』、組版は **mdBook/HTML**、
   診断表示は**日本語**（2026-07-24 全面差し替え済み。規約: `export LUNE_LANG=ja`）、
   演習解答は各問題直下の折りたたみ（`<details>`）
+
+付録は可能な範囲で処理系から生成・実測しています（付録B の型シグネチャは `:env`、
+付録C は `lune explain --index`、付録A のキーワードと演算子表は `lune/tokens.py` と
+`lune/parser.py`）。載せた出力はすべて実 CLI で採取・照合済みです。
 
 ## 既存ドキュメントとの関係
 
