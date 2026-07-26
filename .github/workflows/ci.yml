@@ -72,8 +72,12 @@ jobs:
 
           # The message catalogue and explanations ship inside the package, so
           # check both languages resolve away from the source tree.
+          # `--check` exits 1 when it finds a diagnostic, which under pipefail
+          # would fail the step, so capture the output before matching it.
           printf 'let x = cont + 1\n' > bad.lune
-          lune --check bad.lune 2>&1 | grep -q 'undefined name: cont'
-          LUNE_LANG=ja lune --check bad.lune 2>&1 | grep -q '未定義の名前: cont'
+          en=$(lune --check bad.lune 2>&1 || true)
+          ja=$(LUNE_LANG=ja lune --check bad.lune 2>&1 || true)
+          grep -q 'undefined name: cont' <<<"$en"
+          grep -q '未定義の名前: cont' <<<"$ja"
           lune explain TYP0001 | grep -q 'undefined name'
         shell: bash
