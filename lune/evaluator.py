@@ -671,6 +671,8 @@ def eval_expr(expr: ast.Expr, env: Env) -> Value:
         value = force_value(eval_expr(expr.expr, env))
         if expr.op == "-":
             return -value
+        if expr.op == "+":
+            return +value
         if expr.op == "!":
             return not truthy(value)
         raise LuneRuntimeError(t("run.unsupported-unary-op", op=expr.op))

@@ -360,7 +360,7 @@ class Parser:
         if token.kind in {TokenKind.IDENT, TokenKind.IO_KW}:
             actual = self.advance()
             return ast.NameExpr(actual.lexeme, span=token_span(actual))
-        if token.kind in {TokenKind.BANG, TokenKind.MINUS}:
+        if token.kind in {TokenKind.BANG, TokenKind.MINUS, TokenKind.PLUS}:
             op_token = self.advance()
             return ast.UnaryExpr(op_token.lexeme, self.parse_expr(PREFIX_BP, stop), span=token_span(op_token))
         if token.kind == TokenKind.LPAREN:

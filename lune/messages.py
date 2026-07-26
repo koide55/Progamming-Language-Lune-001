@@ -114,6 +114,7 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "ctx.var-annotation": ("var annotation", "var の型注釈"),
     "ctx.list-element": ("list element", "リストの要素"),
     "ctx.unary-minus": ("unary -", "単項 -"),
+    "ctx.unary-plus": ("unary +", "単項 +"),
     "ctx.unary-not": ("unary !", "単項 !"),
     "ctx.if-condition": ("if condition", "if の条件"),
     "ctx.elif-condition": ("elif condition", "elif の条件"),

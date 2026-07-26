@@ -400,6 +400,16 @@ let answer =
 """
         self.assertEqual(check_source(source).lookup_value("answer"), FLOAT)
 
+    def test_unary_plus_keeps_the_operand_type(self) -> None:
+        self.assertEqual(check_source("let x = +3\n").lookup_value("x"), INT)
+        self.assertEqual(check_source("let x = +3.5\n").lookup_value("x"), FLOAT)
+
+    def test_unary_plus_requires_a_number(self) -> None:
+        for source in ('let x = +"a"\n', "let x = +true\n"):
+            with self.subTest(source=source):
+                with self.assertRaisesRegex(LuneTypeError, r"unary \+: expected numeric type"):
+                    check_source(source)
+
     def test_compound_floor_division_assignment_accepts_int_target(self) -> None:
         # the `//=` counterpart of the `/=` rejection above: `//` keeps the
         # operand type, so an Int target stays Int
