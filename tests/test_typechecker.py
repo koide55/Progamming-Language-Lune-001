@@ -359,7 +359,7 @@ let answer =
 
     def test_compound_assignment_keeps_the_target_type(self) -> None:
         # `x op= e` is typed as `x = x op e` (SYNTAX_SPEC.md section 14.1)
-        for op in ("+=", "-=", "*=", "%="):
+        for op in ("+=", "-=", "*=", "//=", "%="):
             source = f"""
 let answer =
     var x = 10
@@ -399,6 +399,17 @@ let answer =
     x
 """
         self.assertEqual(check_source(source).lookup_value("answer"), FLOAT)
+
+    def test_compound_floor_division_assignment_accepts_int_target(self) -> None:
+        # the `//=` counterpart of the `/=` rejection above: `//` keeps the
+        # operand type, so an Int target stays Int
+        source = """
+let answer =
+    var x = 10
+    x //= 2
+    x
+"""
+        self.assertEqual(check_source(source).lookup_value("answer"), INT)
 
     def test_compound_assignment_concatenates_strings(self) -> None:
         source = """
