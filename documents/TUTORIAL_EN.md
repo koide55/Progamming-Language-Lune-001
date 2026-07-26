@@ -390,6 +390,32 @@ let answer = ada.age
 
 Since `name` is never accessed, `crash()` is never evaluated.
 
+### `field = value` Is for Records Only
+
+Named arguments like `User(name = "Ada", age = 36)` are **only** for building records. Functions and ADT constructors take positional arguments.
+
+This is an easy one to get wrong, because an ADT constructor does carry field names in its declaration (`Some(value: T)`), which makes it look as though you could pass them by name too.
+
+```lune
+type Option[T] =
+    | Some(value: T)
+    | None
+
+let x = Some(value = 1)
+```
+
+```text
+error[TYP0012]: named arguments are not supported here: value
+  --> opt.lune:5:14
+  |
+5 | let x = Some(value = 1)
+  |              ^^^^^ pass this argument positionally
+   = hint: functions and ADT constructors take positional arguments; only records are built with `field = value`
+   = help: run `lune explain TYP0012` for a detailed explanation
+```
+
+`Some(1)` works. Think of the field names in the declaration as being there to make `match` readable when you destructure the value.
+
 ## 11. Living Safely with `null`
 
 A value that "might not be there" is expressed with `T?` (a nullable type).
@@ -739,6 +765,67 @@ This `answer` is also `10`.
 The `while` version follows steps with mutable variables, which can be easier for new readers. The recursive version passes state as arguments — more functional, easier to test as a small unit.
 
 Lune lets you choose either. A good heuristic: `while` for small procedures, recursion or `fold` for value transformations and reusable computations.
+
+### Compound Assignment, and the Integer-Division Trap
+
+`total = total + i` can be shortened to `total += i`. There are six compound assignments.
+
+```lune
+let answer =
+    var x = 10
+    x += 5      # same as x = x + 5. 15
+    x -= 3      # 12
+    x *= 2      # 24
+    x //= 5     # 4
+    x %= 3      # 1
+    x
+```
+
+`x op= e` means exactly `x = x op e`. Its type and its runtime behaviour both match `x op e`.
+
+Only `/=` needs care. In Lune `/` is **always** true division: `Int / Int` still produces a `Double`. To divide and stay in the integers, use floor division `//`.
+
+```text
+lune> 7 / 2
+3.5 : Double
+lune> 7 // 2
+3 : Int
+```
+
+So `/=` on an `Int` variable is a type error — the result would be a `Double`.
+
+```text
+error[TYP0003]: compound assignment `/=`: expected Int, got Double
+  --> half.lune:3:5
+  |
+3 |     x /= 2
+  |     ^
+   = help: run `lune explain TYP0003` for a detailed explanation
+```
+
+Use `//=` when you want an `Int` to stay an `Int`.
+
+`//` rounds toward negative infinity (floor), not toward zero. `-7 // 2` is `-4`, not `-3`.
+
+```text
+lune> -7 // 2
+-4 : Int
+lune> -7 % 2
+1 : Int
+```
+
+That may look surprising, but it is what keeps `//` and `%` consistent with each other. For any signs, the quotient and the remainder satisfy:
+
+```text
+a == (a // b) * b + (a % b)
+```
+
+```text
+lune> (-7 // 2) * 2 + (-7 % 2)
+-7 : Int
+```
+
+`/`, `//` and `%` all raise the runtime error `RUN0006` (division by zero) when the right operand is 0. The type checker does not catch it.
 
 ## 14. Walking a List with `for`
 

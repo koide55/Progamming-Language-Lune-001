@@ -396,6 +396,32 @@ let answer = ada.age
 
 この場合、`name` は参照されないので `crash()` は評価されません。
 
+### `フィールド = 値` が使えるのはレコードだけ
+
+`User(name = "Ada", age = 36)` のような名前付き引数は、**レコードの構築専用**です。関数と ADT のコンストラクタは位置引数で呼びます。
+
+これは間違えやすいところです。ADT のコンストラクタも宣言ではフィールド名を持っている（`Some(value: T)`）ので、呼ぶときも名前で渡せそうに見えるからです。
+
+```lune
+type Option[T] =
+    | Some(value: T)
+    | None
+
+let x = Some(value = 1)
+```
+
+```text
+error[TYP0012]: named arguments are not supported here: value
+  --> opt.lune:5:14
+  |
+5 | let x = Some(value = 1)
+  |              ^^^^^ pass this argument positionally
+   = hint: functions and ADT constructors take positional arguments; only records are built with `field = value`
+   = help: run `lune explain TYP0012` for a detailed explanation
+```
+
+`Some(1)` と書けば通ります。宣言側のフィールド名は、`match` で分解するときの読みやすさのためにあると思っておくとよいでしょう。
+
 ## 11. null と安全に付き合う
 
 「値が無いかもしれない」ことは、`T?`（nullable 型）で表します。
@@ -745,6 +771,67 @@ let answer = sumUntil(0, 5, 0)
 `while` 版は、変数を更新しながら手順を追うので、初めて読む人に分かりやすいことがあります。再帰版は、状態を引数として渡していくので、関数型らしく、テストしやすい小さな部品になります。
 
 Lune ではどちらも選べます。ちょっとした手続きは `while`、値の変換や再利用したい計算は再帰や `fold`、という感覚で使い分けるとよいでしょう。
+
+### 複合代入と、整数割り算の落とし穴
+
+`total = total + i` は `total += i` と短く書けます。複合代入は 6 つあります。
+
+```lune
+let answer =
+    var x = 10
+    x += 5      # x = x + 5 と同じ。15
+    x -= 3      # 12
+    x *= 2      # 24
+    x //= 5     # 4
+    x %= 3      # 1
+    x
+```
+
+`x op= e` は `x = x op e` とまったく同じ意味です。型も実行時の振る舞いも `x op e` に一致します。
+
+ひとつだけ注意が要るのが `/=` です。Lune の `/` は**常に**真の除算で、`Int / Int` でも結果は `Double` になります。整数のまま割るには床除算 `//` を使います。
+
+```text
+lune> 7 / 2
+3.5 : Double
+lune> 7 // 2
+3 : Int
+```
+
+そのため `Int` の変数に `/=` を使うと、結果が `Double` になってしまうので型エラーです。
+
+```text
+error[TYP0003]: compound assignment `/=`: expected Int, got Double
+  --> half.lune:3:5
+  |
+3 |     x /= 2
+  |     ^
+   = help: run `lune explain TYP0003` for a detailed explanation
+```
+
+`Int` を `Int` のまま割りたいときは `//=` を使ってください。
+
+`//` の丸めは負の無限大方向への切り下げ（floor）で、ゼロ方向への切り捨てではありません。`-7 // 2` は `-3` ではなく `-4` です。
+
+```text
+lune> -7 // 2
+-4 : Int
+lune> -7 % 2
+1 : Int
+```
+
+不思議に見えるかもしれませんが、これは `%` と組で辻褄を合わせた結果です。商と余りは、どんな符号でも次の等式で結ばれています。
+
+```text
+a == (a // b) * b + (a % b)
+```
+
+```text
+lune> (-7 // 2) * 2 + (-7 % 2)
+-7 : Int
+```
+
+`/`、`//`、`%` はいずれも、右オペランドが 0 なら実行時エラー `RUN0006`（ゼロ除算）になります。型検査では捕まりません。
 
 ## 14. `for` でリストを歩く
 
