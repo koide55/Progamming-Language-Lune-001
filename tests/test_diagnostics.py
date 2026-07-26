@@ -27,6 +27,44 @@ class DiagnosticTests(unittest.TestCase):
         self.assertIn("1 | let x = $1", rendered)
         self.assertIn("^ unexpected character", rendered)
 
+    def test_tab_in_indentation_is_a_lex_error(self) -> None:
+        # LXL0004 used to be unreachable: the indent width was measured as the
+        # count of leading *spaces*, so the slice searched for a tab was all
+        # spaces by construction. Each of these forms must be caught.
+        for label, source in (
+            ("tab only", "def f(): Int =\n\t1\n"),
+            ("spaces then tab", "def f(): Int =\n    \t1\n"),
+            ("tab then spaces", "def f(): Int =\n\t    1\n"),
+            ("tab at top level", "\tlet a = 1\n"),
+        ):
+            with self.subTest(label=label):
+                source_map = SourceMap()
+                source_map.add("tabs.lune", source)
+                with self.assertRaises(Exception) as raised:
+                    lex(source, "tabs.lune")
+                rendered = format_exception(raised.exception, source_map)
+                self.assertIn("error[LXL0004]", rendered)
+
+    def test_tab_error_points_at_the_tab(self) -> None:
+        with self.assertRaises(Exception) as raised:
+            lex("def f(): Int =\n  \t1\n", "tabs.lune")
+        span = raised.exception.diagnostic.primary.span
+        self.assertEqual((span.start_line, span.start_column), (2, 3))
+
+    def test_tabs_outside_indentation_are_fine(self) -> None:
+        # only the leading run of blanks is checked, so a tab inside a string or
+        # after the code is not an indentation problem
+        for label, source in (
+            ("inside a string", 'let s = "a\tb"\n'),
+            ("trailing", "let a = 1\t\n"),
+            ("blank line of tabs", "let a = 1\n\t\nlet b = 2\n"),
+            # SPEC section 3.3: blank and comment-only lines are not judged for
+            # indentation at all, so a tab before a comment is not an error
+            ("comment-only line", "let a = 1\n\t# note\nlet b = 2\n"),
+        ):
+            with self.subTest(label=label):
+                lex(source, "ok.lune")
+
     def test_type_error_formats_as_diagnostic(self) -> None:
         rendered = format_exception(LuneTypeError("let annotation: expected Int, got Bool"))
         self.assertEqual(rendered, "error[TYP0003]: let annotation: expected Int, got Bool")
