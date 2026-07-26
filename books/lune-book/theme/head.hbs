@@ -1,0 +1,9 @@
+<script>
+// The print page is the whole book on one page and is what the PDF is built
+// from, so exercise answers must not stay folded there — a reader of the PDF
+// cannot click them open. Normal chapter pages keep the fold.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!location.pathname.endsWith("print.html")) return;
+  document.querySelectorAll("details").forEach(function (d) { d.open = true; });
+});
+</script>

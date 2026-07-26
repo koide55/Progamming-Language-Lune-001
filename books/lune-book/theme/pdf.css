@@ -1,0 +1,28 @@
+/* Print/PDF tuning. Loaded on every page but almost all of it is @media print,
+   so the on-screen book is unaffected. Build: books/tools/build_pdf.sh */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+  }
+
+  /* Each chapter and appendix starts on a fresh page. :first-of-type would not
+     help here — print.html concatenates every page, so the guard is on the
+     first h1 in the document. */
+  main > h1 { page-break-before: always; }
+  main > h1:first-child { page-break-before: avoid; }
+
+  /* Do not split things that lose their meaning when cut in half. */
+  pre, table, blockquote, details { page-break-inside: avoid; }
+  h1, h2, h3 { page-break-after: avoid; }
+
+  /* Long code lines must wrap rather than run off the paper. */
+  pre, pre code { white-space: pre-wrap; word-break: break-word; }
+
+  /* Answers are opened by theme/head.hbs on the print page; give the disclosure
+     a printed look instead of an interactive one. The summary already reads
+     「解答」, so it needs no generated label — only the triangle removed. */
+  details { border-left: 2px solid #bbb; padding-left: 0.8em; margin: 0.6em 0; }
+  details > summary { list-style: none; font-weight: 600; font-size: 0.95em; }
+  details > summary::-webkit-details-marker { display: none; }
+}

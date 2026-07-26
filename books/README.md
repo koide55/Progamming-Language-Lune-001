@@ -72,6 +72,23 @@ mdbook build    # book/ に HTML を生成（book/ はコミットしない）
 mdbook serve    # ローカルプレビュー
 ```
 
+1冊にまとめた PDF を作るには:
+
+```sh
+books/tools/build_pdf.sh              # books/lune-book/lune-book.pdf に出力
+books/tools/build_pdf.sh ~/lune.pdf   # 出力先を指定
+```
+
+mdBook が生成する `print.html`（全ページを1枚に連結したもの）を、ヘッドレスの
+Chrome で印刷する（OUTLINE の方針どおり）。紙面の調整は2つのファイルにある。
+
+- `lune-book/theme/pdf.css` — A4、章ごとの改ページ、コードの折り返し。
+  ほぼ全体が `@media print` なので画面表示には影響しない。
+- `lune-book/theme/head.hbs` — **`print.html` では演習の解答を開く**。
+  PDF の読者は折りたたみをクリックできないため。通常の章ページでは畳んだまま。
+
+現在の出力は 180 ページ（A4）。PDF もコミットしない。
+
 執筆規約の補足:
 
 - 診断出力を載せるコードブロックは ` ```text,diagnostic` の目印付きで書く。
