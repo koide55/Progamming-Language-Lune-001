@@ -82,15 +82,20 @@ def lex(source: str, filename: str = "<input>") -> list[Token]:
         processed, in_block_comment = _strip_comments(line, in_block_comment, filename, line_number)
         if not processed.strip():
             continue
-        indent = len(processed) - len(processed.lstrip(" "))
-        if processed[:indent].find("\t") != -1:
+        # Measure the whole leading run of blanks, not just the spaces: a tab has
+        # to be found before it is excluded from the indent width, or the check
+        # below can never see one.
+        leading = len(processed) - len(processed.lstrip(" \t"))
+        tab = processed.find("\t", 0, leading)
+        if tab != -1:
             raise LuneSyntaxError(
                 t("lex.tabs-in-indentation"),
-                Span(filename, line_number, 1),
+                Span(filename, line_number, tab + 1),
                 code="LXL0004",
                 label=t("lex.use-spaces"),
                 hints=[t("lex.replace-tabs")],
             )
+        indent = leading      # all spaces, given the check above
         tokens.append(Token(TokenKind.LINE_START, "", Span(filename, line_number, 1), indent))
         _lex_code(processed[indent:], filename, line_number, indent + 1, tokens)
         tokens.append(Token(TokenKind.NEWLINE_RAW, "", Span(filename, line_number, len(line) + 1)))
