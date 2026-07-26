@@ -115,7 +115,7 @@
         <option value="stream">無限ストリーム(トレースで観察)</option>
       </select>
       <label>評価する束縛:</label>
-      <input type="text" id="binding" value="total">
+      <input type="text" id="binding" value="main">
       <label><input type="checkbox" id="trace"> トレース</label>
       <label>言語:</label>
       <select id="lang">
@@ -217,8 +217,30 @@ from lune.explanations import render_explanation, available_codes
 from lune.formatter import format_source
 from lune.fixer import apply_fixes
 from lune.repl import ReplSession, wants_more
+from lune.parser import parse_source
+from lune import nodes as ast
 
 ENTRY = "/app/main.lune"
+
+def lune_bindings(source):
+    """Top-level *value* binding names in source order, as JSON.
+
+    Uses the real parser rather than a regex so that a \`let\` inside a string
+    or a nested block is not mistaken for a declaration. Returns null when the
+    source does not parse — the caller keeps whatever it already had, which is
+    what you want while someone is still typing.
+    """
+    try:
+        module = parse_source(source, "main.lune")
+    except Exception:
+        return json.dumps(None)
+    names = []
+    for decl in module.declarations:
+        if isinstance(decl, ast.LetDecl) and isinstance(decl.pattern, ast.NamePattern):
+            names.append(decl.pattern.name)
+        elif isinstance(decl, ast.VarDecl):
+            names.append(decl.name)
+    return json.dumps(names)
 
 def _write(source):
     with open(ENTRY, "w", encoding="utf-8") as f:
@@ -495,6 +517,20 @@ function replOnHistory(dir) {
   input.setSelectionRange(input.value.length, input.value.length);
 }
 
+// --- which binding to evaluate -------------------------------------------------
+
+// The field follows the code until the user says otherwise: the last top-level
+// value binding is almost always the one you want to look at, and having to
+// retype it is a papercut. Once it is edited by hand we stop touching it.
+let bindingTouched = false;
+
+function syncBinding(call) {
+  if (bindingTouched) return;
+  const names = JSON.parse(call("lune_bindings", getCode()));
+  if (!names || !names.length) return;   // unparseable or nothing declared yet
+  $("binding").value = names[names.length - 1];
+}
+
 // --- saving to a local file ---------------------------------------------------
 
 // `lune fmt --check` reports "would reformat" on a file with no trailing
@@ -569,6 +605,7 @@ async function openFromFile() {
 function loadPreset(name) {
   if (!name) return;                    // the "(なし)" entry is not a sample
   setCode(PRESETS[name].code);
+  bindingTouched = false;               // the sample's own binding, not the user's
   $("binding").value = PRESETS[name].binding;
   $("trace").checked = Boolean(PRESETS[name].trace);
   clearErrorLine();
@@ -579,7 +616,10 @@ function loadPreset(name) {
 function newFile() {
   if (getCode().trim() && !confirm("エディタの内容を消して新規作成しますか?")) return false;
   setCode("");
-  $("binding").value = "";
+  // `main` as a hint of the convention on a blank slate; it gets replaced by
+  // the real binding as soon as one is declared.
+  bindingTouched = false;
+  $("binding").value = "main";
   $("preset").value = "";
   clearErrorLine();
   if (cm) cm.focus(); else $("editor").focus();
@@ -645,6 +685,8 @@ async function main() {
     setCode(file.text);
     clearErrorLine();
     $("preset").value = "";            // the editor no longer holds a sample
+    bindingTouched = false;            // follow the file we just opened
+    syncBinding(call);
     const lines = file.text.split("\n").length;
     setStatus(`${file.name} を読み込みました (${lines} 行)`);
   };
@@ -710,6 +752,18 @@ async function main() {
   render("処理系の準備ができました。「▶ 実行」(Ctrl/Cmd+Enter)を押してください。\n");
 
   const call = (name, ...args) => py.globals.get(name)(...args);
+
+  // Track the field so we can tell "the user chose this" from "we filled it in",
+  // then keep it in step with the editor until they do choose.
+  $("binding").addEventListener("input", () => { bindingTouched = true; });
+  let bindingTimer = null;
+  const scheduleBindingSync = () => {
+    clearTimeout(bindingTimer);
+    bindingTimer = setTimeout(() => syncBinding(call), 250);
+  };
+  if (cm) cm.on("change", scheduleBindingSync);
+  else $("editor").addEventListener("input", scheduleBindingSync);
+  syncBinding(call);                    // catch up with whatever loaded first
 
   $("btn-run").onclick = () => timed("実行", async () => {
     const text = call("lune_run", getCode(), $("binding").value, $("trace").checked, $("lang").value);
