@@ -130,7 +130,9 @@
       <button id="btn-fix" disabled>自動修正 (fix)</button>
       <input type="text" id="explain-code" placeholder="TYP0007">
       <button id="btn-explain" disabled>explain</button>
+      <button id="btn-open" title="ローカルの .lune ファイルをエディタに読み込む">開く</button>
       <button id="btn-save" title="エディタの内容を .lune ファイルとして保存">保存</button>
+      <input type="file" id="file-input" accept=".lune,text/plain" hidden>
       <button id="btn-share" title="コードと設定を URL に畳み込んでコピー">共有</button>
     </div>
   </div>
@@ -532,6 +534,34 @@ async function saveToFile(text, suggestedName) {
   return suggestedName;
 }
 
+// Mirror of saveToFile. Returns {name, text}, or null if the user cancelled.
+async function openFromFile() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: "Lune source", accept: { "text/plain": [".lune"] } }],
+        multiple: false,
+      });
+      const file = await handle.getFile();
+      return { name: file.name, text: await file.text() };
+    } catch (err) {
+      if (err && err.name === "AbortError") return null;
+      // fall through to <input type="file"> just like the save path does
+    }
+  }
+  return new Promise((resolve) => {
+    const input = $("file-input");
+    input.value = "";                     // so picking the same file twice still fires
+    const done = (value) => { input.onchange = input.oncancel = null; resolve(value); };
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      done(file ? { name: file.name, text: await file.text() } : null);
+    };
+    input.oncancel = () => done(null);    // fires on a dismissed dialog
+    input.click();
+  });
+}
+
 // --- presets / share links ---------------------------------------------------
 
 function loadPreset(name) {
@@ -582,6 +612,16 @@ async function main() {
   if (!applySharedState()) loadPreset("basics");
   $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
 
+  $("btn-open").onclick = async () => {
+    const file = await openFromFile();
+    if (!file) { setStatus("読み込みをキャンセルしました"); return; }
+    setCode(file.text);
+    clearErrorLine();
+    const lines = file.text.split("\n").length;
+    setStatus(`${file.name} を読み込みました (${lines} 行)`);
+  };
+  $("btn-open").disabled = false;
+
   $("btn-save").onclick = async () => {
     const name = await saveToFile(withTrailingNewline(getCode()), "main.lune");
     setStatus(name ? `${name} を保存しました` : "保存をキャンセルしました");
@@ -590,10 +630,10 @@ async function main() {
   // Ctrl/Cmd+S is the gesture people already have in their fingers; CodeMirror
   // does not bind it, so the event reaches us wherever the focus is.
   document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-      e.preventDefault();
-      $("btn-save").onclick();
-    }
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const key = e.key.toLowerCase();
+    if (key === "s") { e.preventDefault(); $("btn-save").onclick(); }
+    else if (key === "o") { e.preventDefault(); $("btn-open").onclick(); }
   });
 
   $("btn-share").onclick = () => {
