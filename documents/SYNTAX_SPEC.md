@@ -223,17 +223,16 @@ let names = map(fn u -> u.name, users)
 ```lune
 Bool
 Int
-Long
-Float
 Double
-Char
 String
 Unit
 Any
 Nothing
 ```
 
-これは表面構文として型注釈に書ける名前の一覧である。このうち **`Long` / `Float` / `Char` は v0.1 の型ではない** — 型チェッカに登録がないので、書いても宣言されていない型名（不透明な型）として扱われる。v0.1 で実際に使える基本型は `LANGUAGE_SPEC.md` 6 節を、将来の予定は `LANGUAGE_FUTURE_SPEC.md` を参照する。
+`Null` を含めた一覧と各型の意味は `LANGUAGE_SPEC.md` 6 節にある。
+
+**`Long` / `Float` / `Char` は v0.1 の型ではない。** 数値は `Int`（任意精度）と `Double` の2つ、文字は `String` で表す。これらの名前は型チェッカに登録がないため、型注釈に書いても宣言されていない型名（不透明な型）として扱われ、`let x: Long = 1` は `TYP0003` になる。将来の予定は `LANGUAGE_FUTURE_SPEC.md` を参照する。
 
 ### 7.2 関数型
 
