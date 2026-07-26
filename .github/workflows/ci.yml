@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # The interpreter is pure standard library, so there is nothing to install.
+      - name: Unit tests
+        run: python -m unittest discover -s tests
+        env:
+          PYTHONPATH: .
+
+      # Exercises the real CLI end to end: every code example in books/ is
+      # type-checked, evaluated, formatted and diff'd against its expected
+      # output. Catches drift between the compiler and the textbook.
+      - name: Book examples
+        run: bash books/tools/check_examples.sh
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+
+      # Installing the wheel is the only way to know the `lune` console script
+      # actually resolves. `bin/lune` sets PYTHONPATH itself, so running from
+      # the checkout would mask a packaging mistake — hence the cd to a temp dir.
+      - name: Install the wheel and run the console script
+        run: |
+          set -euxo pipefail
+          python -m pip install dist/*.whl
+          cd "$(mktemp -d)"
+
+          printf 'let answer = 40 + 2\n' > smoke.lune
+          lune --check smoke.lune
+          test "$(lune --eval answer smoke.lune)" = "42"
+
+          printf 'let y=1+2\n' > messy.lune
+          test "$(lune fmt messy.lune)" = "let y = 1 + 2"
+
+          # The message catalogue and explanations ship inside the package, so
+          # check both languages resolve away from the source tree.
+          printf 'let x = cont + 1\n' > bad.lune
+          lune --check bad.lune 2>&1 | grep -q 'undefined name: cont'
+          LUNE_LANG=ja lune --check bad.lune 2>&1 | grep -q '未定義の名前: cont'
+          lune explain TYP0001 | grep -q 'undefined name'
+        shell: bash

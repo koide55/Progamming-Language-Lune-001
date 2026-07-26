@@ -2,6 +2,12 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# パッケージのビルド生成物 (python -m build / pip install -e .)
+/build/
+/dist/
+*.egg-info/
+.venv/
+
 # 発表・投稿用の作業素材はローカルのみで管理する(公開しない)
 /demo/prosym68/
 /paper/
