@@ -119,7 +119,9 @@ null
 ()
 ```
 
-整数は `Int`、小数は `Double`、文字列は `String`、文字は `Char`、`()` は `Unit` として扱う。
+整数は `Int`、小数は `Double`、文字列は `String`、`()` は `Unit` として扱う。
+
+`'x'` は字句上は専用のトークンで、中身がちょうど 1 文字でなければ `LXL0002` になるが、**型は `String`** である。v0.1 に文字型はない（`Char` については 6 節を参照）。
 
 ## 6. 型
 
@@ -130,12 +132,13 @@ Bool
 Int
 Double
 String
-Char
 Unit
 Any
 Nothing
 Null
 ```
+
+**`Char` は v0.1 に存在しない。** 文字リテラル `'x'` の型は `String` であり、`Char` を生む式も、文字を扱う標準ライブラリ関数もない。`Char` は将来仕様（`LANGUAGE_FUTURE_SPEC.md`）側の型とする。型注釈に `Char` と書いた場合は、宣言されていない他の型名と同じ扱い（不透明な型）になるため `TYP0003` になる。
 
 複合型:
 

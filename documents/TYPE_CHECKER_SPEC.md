@@ -25,11 +25,12 @@ Int
 Bool
 Double
 String
-Char
 Unit
 Any
 Nothing
 ```
+
+`Char` は v0.1 の型ではない（`LANGUAGE_SPEC.md` 6 節）。文字リテラル `'x'` は `String` として型付けする。
 
 複合型:
 

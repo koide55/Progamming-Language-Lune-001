@@ -108,7 +108,6 @@ BOOL = Type("Bool")
 INT = Type("Int")
 FLOAT = Type("Double")
 STRING = Type("String")
-CHAR = Type("Char")
 UNIT = Type("Unit")
 NULL = Type("Null")
 
@@ -1492,7 +1491,7 @@ def substitute_value(typ: ValueType, substitutions: dict[str, Type]) -> ValueTyp
 
 
 def is_type_var(typ: Type) -> bool:
-    return not typ.args and len(typ.name) == 1 and typ.name.isupper() and typ.name not in {"Int", "Bool", "String", "Double", "Char", "Unit", "Any", "Nothing"}
+    return not typ.args and len(typ.name) == 1 and typ.name.isupper() and typ.name not in {"Int", "Bool", "String", "Double", "Unit", "Any", "Nothing"}
 
 
 def require_assignable(
