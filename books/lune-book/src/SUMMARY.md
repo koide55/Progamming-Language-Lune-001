@@ -15,14 +15,14 @@
 - [レコード](06-records.md)
 - [null 安全](07-null-safety.md)
 - [リストとストリーム](08-lists-and-streams.md)
-- [命令的に書く — var・while・for・IO]()
-- [モジュール]()
+- [命令的に書く — var・while・for・IO](09-imperative.md)
+- [モジュール](10-modules.md)
 
 # 第III部 コンパイラと道具
 
-- [エラーと対話する]()
-- [REPL・整形・検査]()
-- [プログラムを組み立てる — ケーススタディ]()
+- [エラーと対話する](11-talking-to-the-compiler.md)
+- [REPL・整形・検査](12-tools.md)
+- [プログラムを組み立てる — ケーススタディ](13-case-studies.md)
 
 ---
 

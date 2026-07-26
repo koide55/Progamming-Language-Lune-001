@@ -1,0 +1,10 @@
+module answers
+
+# 演習 9-1: while で 1 から 10 までの積（10!）。
+let product =
+    var i = 1
+    var acc = 1
+    while i <= 10:
+        acc = acc * i
+        i = i + 1
+    acc

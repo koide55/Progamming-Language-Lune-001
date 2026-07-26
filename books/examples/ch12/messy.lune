@@ -1,0 +1,11 @@
+module messy
+
+
+
+let   nums = [ 1,2 ,3 ]
+
+# 合計を出す
+def total( xs : List[Int] ) : Int =
+      fold( xs, 0, fn a x -> a+x )
+
+let answer=total(nums)

@@ -9,6 +9,7 @@
 #   eval_is    FILE BINDING EXPECT  --eval BINDING の出力が期待ファイルと一致すること
 #   diag_is    FILE EXPECT          --check が失敗し、診断出力が期待ファイルと一致すること
 #   fix_is     FILE EXPECT          lune fix の出力が期待ファイルと一致すること
+#   fmt_is     FILE EXPECT          lune fmt の整形結果が期待ファイルと一致すること
 #
 # 診断出力中の絶対パスは、その例のディレクトリからの相対パスに正規化して比較する
 # （紙面の表記規約と同じ）。
@@ -58,7 +59,7 @@ diag_is() {
         ng "--check $1: unexpectedly passed"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -78,6 +79,18 @@ fix_is() {
     fi
 }
 
+# lune fmt の出力が期待ファイルと一致すること（整形結果そのものを紙面に載せる場合）
+fmt_is() { # file expect
+    local out
+    out=$("$LUNE" fmt "$1" 2>&1)
+    if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
+        ok
+    else
+        ng "fmt $1: differs from $2"
+        printf '%s\n' "$out" | diff -u "$2" - | head -20
+    fi
+}
+
 # --check が警告付きで成功し、出力が期待ファイルと一致すること
 check_warn_is() { # file expect
     local out
@@ -85,7 +98,7 @@ check_warn_is() { # file expect
         ng "--check $1: unexpectedly failed"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
     if printf '%s\n' "$out" | diff -u "$2" - > /dev/null; then
         ok
     else
@@ -101,7 +114,7 @@ eval_diag_is() { # file binding expect
         ng "--eval $2 $1: unexpectedly succeeded"
         return
     fi
-    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g")
+    out=$(printf '%s\n' "$out" | sed "s|$PWD/||g; s|$PWD|.|g")
     if printf '%s\n' "$out" | diff -u "$3" - > /dev/null; then
         ok
     else
@@ -323,6 +336,130 @@ check_ok answers/ex8-4.lune
 eval_is answers/ex8-4.lune first10 expected/ex8-4.first10.txt
 
 fmt_ok infinite.lune fib.lune primes.lune answers/ex8-2.lune answers/ex8-3.lune answers/ex8-4.lune
+
+# ----- 第9章 -----
+cd "$BOOKS_DIR/examples/ch09"
+
+check_ok counter.lune
+eval_is counter.lune answer expected/counter.answer.txt
+
+check_ok fortotal.lune
+eval_is fortotal.lune total expected/fortotal.total.txt
+
+check_ok io.lune
+eval_is io.lune run expected/io.run.txt
+
+diag_is badfor.lune expected/badfor.check.txt
+
+check_ok answers/ex9-1.lune
+eval_is answers/ex9-1.lune product expected/ex9-1.product.txt
+
+check_ok answers/ex9-2.lune
+eval_is answers/ex9-2.lune run expected/ex9-2.run.txt
+
+fmt_ok counter.lune fortotal.lune io.lune badfor.lune answers/ex9-1.lune answers/ex9-2.lune
+
+# ----- 第10章 -----
+cd "$BOOKS_DIR/examples/ch10"
+
+check_ok main.lune
+eval_is main.lune area expected/main.area.txt
+eval_is main.lune banner expected/main.banner.txt
+
+diag_is cycle_a.lune expected/cycle_a.check.txt
+diag_is badname.lune expected/badname.check.txt
+diag_is missing.lune expected/missing.check.txt
+
+# --module-path 付きの解決（付けないと MOD0001 になることも確認する）
+if "$LUNE" --check usesshared.lune > /dev/null 2>&1; then
+    ng "--check usesshared.lune: unexpectedly passed without --module-path"
+else
+    ok
+fi
+check_ok_args() { # args... file
+    local out
+    if out=$("$LUNE" "$@" 2>&1); then ok; else ng "$*: $out"; fi
+}
+check_ok_args --module-path lib --check usesshared.lune
+eval_is_args() { # expect -- args...
+    local expect="$1"
+    shift 2
+    local out
+    out=$("$LUNE" "$@" 2>&1)
+    if printf '%s\n' "$out" | diff -u "$expect" - > /dev/null; then
+        ok
+    else
+        ng "$*: differs from $expect"
+        printf '%s\n' "$out" | diff -u "$expect" - | head -20
+    fi
+}
+eval_is_args expected/usesshared.answer.txt -- --module-path lib --eval answer usesshared.lune
+
+check_ok answers/shop_main.lune
+eval_is answers/shop_main.lune sum expected/shop_main.sum.txt
+
+fmt_ok main.lune geometry.lune util/text.lune cycle_a.lune cycle_b.lune badname.lune mismatch.lune missing.lune usesshared.lune lib/shared.lune answers/shop/items.lune answers/shop_main.lune
+
+# ----- 第11章 -----
+cd "$BOOKS_DIR/examples/ch11"
+
+diag_is typos.lune expected/typos.check.txt
+fix_is typos.lune expected/typos.fix.txt
+
+check_ok rps.lune
+eval_is rps.lune win expected/rps.win.txt
+eval_is rps.lune lose expected/rps.lose.txt
+eval_is rps.lune draw expected/rps.draw.txt
+
+diag_is rps_missing.lune expected/rps_missing.check.txt
+
+check_ok answers/ex11-3.lune
+eval_is answers/ex11-3.lune won expected/ex11-3.won.txt
+eval_is answers/ex11-3.lune lost expected/ex11-3.lost.txt
+eval_is answers/ex11-3.lune tied expected/ex11-3.tied.txt
+
+fmt_ok typos.lune rps.lune rps_missing.lune answers/ex11-3.lune
+
+# ----- 第12章 -----
+cd "$BOOKS_DIR/examples/ch12"
+
+check_ok tidy.lune
+eval_is tidy.lune answer expected/tidy.answer.txt
+fmt_is messy.lune expected/messy.fmt.txt
+
+check_ok answers/ex12-3.lune
+eval_is answers/ex12-3.lune tripled expected/ex12-3.tripled.txt
+eval_is answers/ex12-3.lune doubled expected/ex12-3.doubled.txt
+
+fmt_ok tidy.lune answers/ex12-3.lune
+
+# ----- 第13章 -----
+cd "$BOOKS_DIR/examples/ch13"
+
+check_ok stats.lune
+eval_is stats.lune summary expected/stats.summary.txt
+eval_is stats.lune average expected/stats.average.txt
+eval_is stats.lune emptyAverage expected/stats.emptyAverage.txt
+
+check_ok ledger_main.lune
+eval_is ledger_main.lune balance expected/ledger.balance.txt
+eval_is ledger_main.lune expenses expected/ledger.expenses.txt
+eval_is ledger_main.lune rejected expected/ledger.rejected.txt
+eval_is ledger_main.lune accepted expected/ledger.accepted.txt
+
+check_ok collatz.lune
+eval_is collatz.lune fromSix expected/collatz.fromSix.txt
+eval_is collatz.lune fromSeven expected/collatz.fromSeven.txt
+
+check_ok counted.lune
+eval_is counted.lune firstTwo expected/counted.firstTwo.txt
+eval_is counted.lune cost expected/counted.cost.txt
+
+check_ok answers/ex13-1.lune
+eval_is answers/ex13-1.lune summary expected/ex13-1.summary.txt
+eval_is answers/ex13-1.lune emptySummary expected/ex13-1.emptySummary.txt
+
+fmt_ok stats.lune ledger/entry.lune ledger_main.lune collatz.lune counted.lune answers/ex13-1.lune
 
 # ----- 結果 -----
 echo "passed: $pass, failed: $fail"

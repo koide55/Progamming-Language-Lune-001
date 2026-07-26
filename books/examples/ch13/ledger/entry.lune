@@ -1,0 +1,18 @@
+module ledger.entry
+
+type Entry =
+    | Income(label: String, amount: Int)
+    | Expense(label: String, amount: Int)
+
+def signedAmount(e: Entry): Int =
+    match e:
+        | Income(_, amount) -> amount
+        | Expense(_, amount) -> 0 - amount
+
+def labelOf(e: Entry): String =
+    match e:
+        | Income(label, _) -> label
+        | Expense(label, _) -> label
+
+def validate(e: Entry): Result[Entry, String] =
+    if signedAmount(e) == 0 then Err("amount must not be zero: " + labelOf(e)) else Ok(e)

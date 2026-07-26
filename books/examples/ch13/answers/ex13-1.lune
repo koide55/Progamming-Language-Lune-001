@@ -1,0 +1,31 @@
+module answers
+
+# 演習 13-1: Stats に「最短の単語」を足す。空文字列を初期値にできないので、
+# 「まだ無い」を null で表す（第7章）。
+record Stats:
+    count: Int
+    totalChars: Int
+    longest: String
+    shortest: String?
+
+let empty = Stats(count = 0, totalChars = 0, longest = "", shortest = null)
+
+def pickShortest(current: String?, w: String): String =
+    if current == null:
+        w
+    elif length(w) < length(current):
+        w
+    else:
+        current
+
+def step(s: Stats, w: String): Stats =
+    let n = length(w)
+    let longer = if n > length(s.longest) then w else s.longest
+    let shorter = pickShortest(s.shortest, w)
+    Stats(count = s.count + 1, totalChars = s.totalChars + n, longest = longer, shortest = shorter)
+
+let words = ["the", "quick", "brown", "fox", "jumps"]
+
+let summary = fold(words, empty, step)
+
+let emptySummary = fold([], empty, step)

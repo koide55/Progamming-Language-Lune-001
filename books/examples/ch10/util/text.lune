@@ -1,0 +1,4 @@
+module util.text
+
+def shout(s: String): String =
+    s + "!"

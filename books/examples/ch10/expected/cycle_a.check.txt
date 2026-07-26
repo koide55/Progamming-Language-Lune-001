@@ -1,0 +1,6 @@
+error[MOD0002]: モジュールの循環 import を検出しました: cycle_a.lune -> cycle_b.lune -> cycle_a.lune
+  --> cycle_b.lune:2:1
+  |
+2 | import cycle_a
+  | ^^^^^^ この import が循環を閉じている
+   = help: 詳しくは `lune explain MOD0002 --lang ja` を実行してください

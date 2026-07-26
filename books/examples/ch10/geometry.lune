@@ -1,0 +1,7 @@
+module geometry
+
+def circleArea(r: Double): Double =
+    r * r * 3.14159
+
+def rectArea(w: Double, h: Double): Double =
+    w * h

@@ -1,0 +1,13 @@
+module counted
+
+# tick() を仕込んだ「重い」計算。呼ばれた回数がカウンタに残る。
+def costly(n: Int): Int =
+    seq tick() (n * 2)
+
+let doubled = map([1, 2, 3, 4, 5], costly)
+
+# 先頭 2 個だけを取り、中身まで評価する。
+let firstTwo = deepForce take(doubled, 2)
+
+# そのとき costly が何回走ったか。
+let cost = seq firstTwo tickCount()

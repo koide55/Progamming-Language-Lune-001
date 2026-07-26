@@ -1,0 +1,3 @@
+module totally.different
+
+let valueFromMismatch = 1

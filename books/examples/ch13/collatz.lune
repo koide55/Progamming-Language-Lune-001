@@ -1,0 +1,9 @@
+module collatz
+
+# `//` は整数の床除算。`/` は常に Double を返すので、Int のままにするには `//`。
+def next(n: Int): Int =
+    if n % 2 == 0 then n // 2 else 3 * n + 1
+
+let fromSix = take(iterate(next, 6), 9)
+
+let fromSeven = takeWhile(iterate(next, 7), fn n: Int -> n != 1)
