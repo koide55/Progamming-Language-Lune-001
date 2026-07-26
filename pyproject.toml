@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lune-lang"
+version = "0.1.0"
+description = "A teaching-first lazy functional language whose diagnostics speak your native language"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Hiroshi Koide", email = "koide.hiroshi.934@m.kyushu-u.ac.jp" }]
+keywords = [
+    "programming-language",
+    "interpreter",
+    "lazy-evaluation",
+    "functional-programming",
+    "compiler",
+    "education",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Interpreters",
+    "Natural Language :: Japanese",
+    "Natural Language :: English",
+]
+# The interpreter is pure Python and depends only on the standard library.
+dependencies = []
+
+[project.urls]
+Homepage = "https://koide55.github.io/lune-lang/"
+Playground = "https://koide55.github.io/lune-lang/playground/"
+Repository = "https://github.com/koide55/lune-lang"
+Documentation = "https://github.com/koide55/lune-lang/blob/main/documents/TUTORIAL.md"
+Issues = "https://github.com/koide55/lune-lang/issues"
+
+[project.scripts]
+# `main(argv=None)` reads sys.argv[1:] itself and returns an exit code, so the
+# console script needs no wrapper. `bin/lune` stays for git-clone users.
+lune = "lune.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lune"]
+
+[tool.hatch.build.targets.sdist]
+include = ["lune", "tests", "samples", "documents", "README.md", "LICENSE"]

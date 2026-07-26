@@ -7,6 +7,10 @@
 
 **[▶ Playground(インストール不要)](https://koide55.github.io/lune-lang/playground/)** · [診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html) · [チュートリアル](documents/TUTORIAL.md)
 
+[![CI](https://github.com/koide55/lune-lang/actions/workflows/ci.yml/badge.svg)](https://github.com/koide55/lune-lang/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 ---
 
 ## プロローグ — 全員、部活に入ること
@@ -57,7 +61,7 @@ error[TYP0001]: 未定義の名前: cont
 ## 部員紹介 — 教えてくれる先輩たち
 
 - **真知(まち)部長** — `match` の抜けを絶対に見逃さない。「`Blue` のケースがありません」と**反例つき**で指摘してくる(TYP0007)。書きすぎれば「そのケースには到達しません」(TYP0009)。null も `T?` の型として扱わせ、`?.` / `??` / フロー narrowing まで仕込んでくる。厳しいが、指摘には全部理由がある。
-- **英美(えいみ)先輩** — 解説担当。全29の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html)に貼り出されている。
+- **英美(えいみ)先輩** — 解説担当。全30の診断コードに「意味・発生する最小例・直し方」の詳解を用意している(`lune explain CODE`、REPL では `:explain`)。日本語でも英語でも説明できる(`--lang ja`)。全文は[診断カタログ](https://koide55.github.io/lune-lang/playground/errors.html)に貼り出されている。
 - **直美(なおみ)先輩** — 赤ペンと清書の担当。typo は did-you-mean の候補で機械的に直してくれるし(`lune fix`)、提出前には正準スタイルに整えてくれる(`lune fmt`)。整形で意味が変わっていないことを再パースで検証してから返す、と聞いてこの部の本気度を理解した。
 
 教わる流れは決まっている: **間違える → 読む → `explain` → `fix` → 確認**。チュートリアル第17章には「指定した診断をわざと出せたら正解」という逆転演習まであって、僕は初日にエラーの出し方から教わった。
@@ -115,7 +119,7 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 ## 入部届 — はじめかた
 
-必要なのは Python 3.12+ だけ。依存パッケージはありません。
+必要なのは Python 3.10+ だけ。依存パッケージはありません。
 
 ```sh
 git clone https://github.com/koide55/lune-lang.git
@@ -132,15 +136,36 @@ cd lune-lang
 
 書き味の見本は [samples/](samples/) にあります(ADT・match・レコード・パイプライン `|>`・nullable・無限ストリームなど)。
 
+### pip で入れる
+
+`pip` で入れると `lune` コマンドがどこからでも使えます(`./bin/lune` と同じもの)。
+
+```sh
+pip install git+https://github.com/koide55/lune-lang.git
+
+lune --check file.lune
+LUNE_LANG=ja lune --check file.lune        # 既定を日本語診断にする
+```
+
+クローン済みなら `pip install -e .` で編集可能インストールにもできます。配布名は
+`lune-lang`(PyPI の `lune` は別のパッケージが使用中)で、**PyPI への公開はまだ**です。
+
 ## 顧問の先生より — 開発者向け
 
 処理系は `lune/` 以下の Pure Python(外部依存なし)。lexer → layout → parser → typechecker → evaluator の各層と、diagnostics / explanations / messages(英日メッセージカタログ)/ formatter / fixer / REPL で構成されています。
 
 ```sh
-PYTHONPATH=. python3 -m unittest discover -s tests
+PYTHONPATH=. python3 -m unittest discover -s tests   # 処理系のテスト
+bash books/tools/check_examples.sh                   # 教科書のコード例を実 CLI で検証
 ```
 
 テストは「発行されうる全診断コードに詳解があること」「詳解とメッセージに日本語訳があること」「生成物(診断カタログ)が陳腐化していないこと」まで強制します。間違いを教材にする部なので、自分自身にもそこそこ厳しめです。
+
+CI([.github/workflows/ci.yml](.github/workflows/ci.yml))は push と PR のたびに、Python 3.10〜3.14 でこの2つを回し、さらに wheel を組んで `lune` コマンドが単体で動くところまで確かめます。
+
+## ライセンス
+
+[MIT License](LICENSE)。Copyright (c) 2026 Hiroshi Koide。
 
 ---
 
