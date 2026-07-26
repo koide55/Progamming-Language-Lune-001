@@ -7,7 +7,10 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
+import os
+
 from lune.cli import explain_command, main
+from lune.messages import set_language
 from lune.diagnostics import Diagnostic, format_diagnostic
 from lune.explanations import (
     EXPLANATIONS,
@@ -19,6 +22,16 @@ from lune.explanations import (
 
 CODE_RE = re.compile(r"\b([A-Z]{2,4}[0-9]{4})\b")
 LUNE_DIR = Path(__file__).resolve().parent.parent / "lune"
+
+
+def setUpModule() -> None:
+    # These tests go through `lune.cli.main`, which honours LUNE_LANG by setting a
+    # process-global language. The book tells readers to `export LUNE_LANG=ja`, so
+    # a developer following its own advice would otherwise see the English
+    # assertions here fail — and, because the global outlives this module, watch
+    # unrelated modules fail later in the same run.
+    os.environ.pop("LUNE_LANG", None)
+    set_language("en")
 
 
 class ExplanationTests(unittest.TestCase):

@@ -33,6 +33,15 @@ jobs:
         env:
           PYTHONPATH: .
 
+      # The book tells readers to `export LUNE_LANG=ja`, so contributors run the
+      # suite with it set. Runners have no LUNE_LANG, which is exactly why a
+      # language leak through `cli.main` stayed invisible here once before.
+      - name: Unit tests with LUNE_LANG=ja
+        run: python -m unittest discover -s tests
+        env:
+          PYTHONPATH: .
+          LUNE_LANG: ja
+
       # Exercises the real CLI end to end: every code example in books/ is
       # type-checked, evaluated, formatted and diff'd against its expected
       # output. Catches drift between the compiler and the textbook.
