@@ -209,7 +209,7 @@ def repl_main(stdin: TextIO, stdout: TextIO, stderr: TextIO) -> int:
                 buffer.append(line)
                 continue
         else:
-            if _wants_more(line):
+            if wants_more(line):
                 buffer.append(line)
                 continue
             source = line
@@ -281,7 +281,13 @@ def _ensure_trailing_newline(source: str) -> str:
     return source if source.endswith("\n") else source + "\n"
 
 
-def _wants_more(line: str) -> bool:
+def wants_more(line: str) -> bool:
+    """True when `line` opens a block and the REPL should keep reading.
+
+    Public because the terminal loop is not the only REPL front end: the
+    browser playground drives `ReplSession` directly and needs the same
+    continuation rule, and two copies of it would drift.
+    """
     stripped = line.rstrip()
     return stripped.endswith(":") or stripped.endswith("=") or stripped.endswith("->")
 

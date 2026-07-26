@@ -52,6 +52,8 @@ Lune は直近10年の PL 研究・言語 UX 研究の成果を小さな言語�
 
 技術検証 PoC は `playground/` にある (検証結果は `playground/README.md`)。GitHub Pages での公開も実装済み: `.github/workflows/pages.yml` が main への push でリポジトリ全体をデプロイし、ランディングページ (`index.html`)・Playground・診断カタログ (`playground/errors.html`) が 1 つの URL 配下で公開される。
 
+「URL 一つで REPL が動く」という本項の目標は 2026-07-26 に達成した。Playground の右カラムに REPL タブがあり、端末と同じ `lune.repl.ReplSession` を駆動する (セッション保持・全 `:` コマンド・複数行入力・履歴・エディタからの読み込み)。残るのはモジュール (`import`) を含むプログラムの実行と、チュートリアルからの「Playground で開く」導線。
+
 ### B. 診断メッセージの日本語化 (差別化の核)
 
 `explanations.py` は全診断コードのカタログ構造を既に持つため、`--lang ja` は設計変更なしで載る。「エラーも解説も母語で読める関数型言語」は Hedy が初等教育で証明した効果を関数型教育に持ち込むもので、研究的新規性 (施策 D) と普及施策が同じ作業で手に入る。費用対効果が最も高い一手。
