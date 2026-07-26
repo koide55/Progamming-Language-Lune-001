@@ -11,7 +11,16 @@ from lune.cli import main
 from lune.diagnostics import SourceMap, SourceSpan, format_exception
 from lune.lexer import lex
 from lune.repl import repl_main
+from lune.messages import set_language
 from lune.typechecker import LuneTypeError
+
+
+def setUpModule() -> None:
+    # See the note in test_explanations.py: `lune.cli.main` turns an exported
+    # LUNE_LANG into a process-global language, which breaks the English
+    # assertions here and leaks into whatever runs next.
+    os.environ.pop("LUNE_LANG", None)
+    set_language("en")
 
 
 class DiagnosticTests(unittest.TestCase):
