@@ -8,6 +8,7 @@
 **初稿完成**（2026-07-26）。序章・第1〜13章・付録A〜E がすべて揃いました（約 5,700 行）。
 
 - [OUTLINE.md](OUTLINE.md) — 本書の構成案（書名・対象読者・設計方針・全章の内容・付録・執筆計画）
+- 表紙: `lune-book/src/00-cover.md` — 書名・副題・著者。HTML では `index.html`、PDF では 1 ページ目
 - 序章: `lune-book/src/00-preface.md` — README の部活の物語と地続きの入り口
 - 本文: `01-tour.md` 〜 `13-case-studies.md`（全13章）。目次の正は `SUMMARY.md`
 - 付録: `appendix-a-reference.md`（言語リファレンス）〜 `appendix-e-design.md`（設計と、これから）
@@ -82,12 +83,14 @@ books/tools/build_pdf.sh ~/lune.pdf   # 出力先を指定
 mdBook が生成する `print.html`（全ページを1枚に連結したもの）を、ヘッドレスの
 Chrome で印刷する（OUTLINE の方針どおり）。紙面の調整は2つのファイルにある。
 
-- `lune-book/theme/pdf.css` — A4、章ごとの改ページ、コードの折り返し。
-  ほぼ全体が `@media print` なので画面表示には影響しない。
+- `lune-book/theme/pdf.css` — 表紙の体裁、A4、コードの折り返し。表紙以外は
+  `@media print` 内なので画面表示には影響しない。**章ごとの改ページは mdBook が
+  print.html に自前で入れる**ので、こちらでは指定しない（重ねると章の前に
+  空白ページが1枚ずつ入る）。
 - `lune-book/theme/head.hbs` — **`print.html` では演習の解答を開く**。
   PDF の読者は折りたたみをクリックできないため。通常の章ページでは畳んだまま。
 
-現在の出力は 180 ページ（A4）。PDF もコミットしない。
+現在の出力は 163 ページ（A4）。PDF もコミットしない。
 
 執筆規約の補足:
 

@@ -1,5 +1,6 @@
 # Summary
 
+[表紙](00-cover.md)
 [序章 Lune へようこそ](00-preface.md)
 
 # 第I部 ひとめぐり
