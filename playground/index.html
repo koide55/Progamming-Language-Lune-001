@@ -130,6 +130,7 @@
       <button id="btn-fix" disabled>自動修正 (fix)</button>
       <input type="text" id="explain-code" placeholder="TYP0007">
       <button id="btn-explain" disabled>explain</button>
+      <button id="btn-save" title="エディタの内容を .lune ファイルとして保存">保存</button>
       <button id="btn-share" title="コードと設定を URL に畳み込んでコピー">共有</button>
     </div>
   </div>
@@ -490,6 +491,47 @@ function replOnHistory(dir) {
   input.setSelectionRange(input.value.length, input.value.length);
 }
 
+// --- saving to a local file ---------------------------------------------------
+
+// `lune fmt --check` reports "would reformat" on a file with no trailing
+// newline, so a file saved from here would fail CI for a reason the user never
+// typed. Add the newline on the way out.
+function withTrailingNewline(text) {
+  return text.endsWith("\n") ? text : text + "\n";
+}
+
+// Chromium has a real save dialog (and can overwrite the same file on a second
+// save); everywhere else falls back to a download. Returns the name written,
+// or null if the user cancelled.
+async function saveToFile(text, suggestedName) {
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: "Lune source", accept: { "text/plain": [".lune"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return handle.name;
+    } catch (err) {
+      if (err && err.name === "AbortError") return null;
+      // permission denied, or a browser that has the name but not the feature:
+      // fall through to the download path rather than losing the user's code
+    }
+  }
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = suggestedName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // revoking synchronously can cancel the download in some browsers
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return suggestedName;
+}
+
 // --- presets / share links ---------------------------------------------------
 
 function loadPreset(name) {
@@ -539,6 +581,20 @@ async function main() {
   initEditor();
   if (!applySharedState()) loadPreset("basics");
   $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
+
+  $("btn-save").onclick = async () => {
+    const name = await saveToFile(withTrailingNewline(getCode()), "main.lune");
+    setStatus(name ? `${name} を保存しました` : "保存をキャンセルしました");
+  };
+  $("btn-save").disabled = false;
+  // Ctrl/Cmd+S is the gesture people already have in their fingers; CodeMirror
+  // does not bind it, so the event reaches us wherever the focus is.
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      $("btn-save").onclick();
+    }
+  });
 
   $("btn-share").onclick = () => {
     history.replaceState(null, "", "#s=" + encodeState());

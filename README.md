@@ -112,6 +112,8 @@ nat : evaluated = Cons(1, <thunk>)   # 先頭だけ計算済み。続きは手�
 
 **REPL もそのまま入っている。** 出力ペインを「REPL」タブに切り替えると、`lune --repl` と同じセッションがブラウザの中で立ち上がる — 束縛は残り、`:type` も `:thunks` も `:trace` も効き、複数行の `def` も書ける。エディタで書いたプログラムを読み込んで、REPL から突くこともできる。
 
+書いたコードは「保存」(`Ctrl/Cmd+S`)で `.lune` ファイルとして手元に持ち帰れる。そのまま `./bin/lune` に食わせられる。
+
 ## 資料棚 — ドキュメント
 
 - [チュートリアル(日本語)](documents/TUTORIAL.md) / [Tutorial (English)](documents/TUTORIAL_EN.md) — 全20章。遅延評価は第2〜6章でじっくり、エラー駆動学習は第17章
