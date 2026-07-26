@@ -46,6 +46,12 @@ class FormatterTests(unittest.TestCase):
     def test_keeps_parentheses_that_regroup_floor_division(self) -> None:
         self.assertEqual(fmt("let y = 8 // (4 // 2)\n"), "let y = 8 // (4 // 2)\n")
 
+    def test_formats_compound_floor_division_assignment(self) -> None:
+        self.assertEqual(
+            fmt("let y =\n    var x = 7\n    x//=2\n    x\n"),
+            "let y =\n    var x = 7\n    x //= 2\n    x\n",
+        )
+
     def test_inline_def_body_becomes_canonical_block(self) -> None:
         self.assertEqual(fmt("def f(a: Int): Int = a\n"), "def f(a: Int): Int =\n    a\n")
 

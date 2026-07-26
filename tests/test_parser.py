@@ -138,6 +138,14 @@ let answer =
         self.assertEqual(value.left.value, 7)
         self.assertEqual(value.right.value, 2)
 
+    def test_compound_floor_division_lexes_as_one_token(self) -> None:
+        # longest match again: `//=` is one token, not `//` followed by `=`
+        tree = parse_source("let y =\n    var x = 7\n    x //= 2\n    x\n")
+        assign = tree.declarations[0].value.statements[1]
+        self.assertIsInstance(assign, ast.AssignExpr)
+        self.assertEqual(assign.op, "//=")
+        self.assertEqual(assign.value.value, 2)
+
     def test_function_and_match_nodes_have_spans(self) -> None:
         tree = parse_source((ROOT / "samples" / "option.lune").read_text(encoding="utf-8"))
         fn = tree.declarations[1]

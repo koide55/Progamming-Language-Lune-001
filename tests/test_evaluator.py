@@ -371,7 +371,7 @@ let answer =
 
     def test_compound_assignment_applies_the_operator(self) -> None:
         # `x op= e` means `x = x op e` (SYNTAX_SPEC.md section 14.1)
-        for op, expected in (("+=", 15), ("-=", 5), ("*=", 50), ("%=", 0)):
+        for op, expected in (("+=", 15), ("-=", 5), ("*=", 50), ("//=", 2), ("%=", 0)):
             source = f"""
 let answer =
     var x = 10
@@ -391,6 +391,28 @@ let answer =
     x
 """
         self.assertEqual(self.value_of(source, "answer"), 3.5)
+
+    def test_compound_floor_division_keeps_an_int_target(self) -> None:
+        # `//=` is how an Int variable is divided without turning into a Double
+        source = """
+let answer =
+    var x = 7
+    x //= 2
+    x
+"""
+        answer = self.value_of(source, "answer")
+        self.assertEqual(answer, 3)
+        self.assertIsInstance(answer, int)
+
+    def test_compound_floor_division_rounds_toward_negative_infinity(self) -> None:
+        # same rounding as `//`, so `-7 //= 2` is -4 rather than -3
+        source = """
+let answer =
+    var x = -7
+    x //= 2
+    x
+"""
+        self.assertEqual(self.value_of(source, "answer"), -4)
 
     def test_compound_assignment_takes_the_whole_right_hand_side(self) -> None:
         source = """
@@ -434,9 +456,9 @@ let answer =
         self.assertEqual(self.value_of(source, "answer"), 15)
 
     def test_compound_assignment_reports_division_by_zero(self) -> None:
-        # the RUN0006 diagnostics come from eval_binary, so `/=` and `%=`
-        # report zero division exactly like `/` and `%`
-        for op in ("/=", "%="):
+        # the RUN0006 diagnostics come from eval_binary, so `/=`, `//=` and `%=`
+        # report zero division exactly like `/`, `//` and `%`
+        for op in ("/=", "//=", "%="):
             source = f"""
 let answer =
     var x = 10

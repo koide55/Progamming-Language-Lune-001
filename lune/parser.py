@@ -13,6 +13,7 @@ ASSIGNMENT_OPS = {
     TokenKind.MINUS_ASSIGN,
     TokenKind.STAR_ASSIGN,
     TokenKind.SLASH_ASSIGN,
+    TokenKind.SLASH_SLASH_ASSIGN,
     TokenKind.PERCENT_ASSIGN,
 }
 

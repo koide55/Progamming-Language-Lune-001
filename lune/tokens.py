@@ -111,6 +111,7 @@ class TokenKind(Enum):
     MINUS_ASSIGN = auto()
     STAR_ASSIGN = auto()
     SLASH_ASSIGN = auto()
+    SLASH_SLASH_ASSIGN = auto()
     PERCENT_ASSIGN = auto()
     ELLIPSIS = auto()
 
