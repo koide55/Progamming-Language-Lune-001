@@ -6,3 +6,4 @@ language = "ja"
 src = "src"
 
 [output.html]
+additional-css = ["theme/pdf.css"]
