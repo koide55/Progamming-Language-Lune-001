@@ -108,6 +108,7 @@
     <div class="toolbar">
       <label>サンプル:</label>
       <select id="preset">
+        <option value="">(なし — 自分で書く)</option>
         <option value="basics">リスト操作(動くプログラム)</option>
         <option value="exhaustive">網羅性エラー(TYP0007)</option>
         <option value="typo">typo と自動修正(TYP0001)</option>
@@ -130,6 +131,7 @@
       <button id="btn-fix" disabled>自動修正 (fix)</button>
       <input type="text" id="explain-code" placeholder="TYP0007">
       <button id="btn-explain" disabled>explain</button>
+      <button id="btn-new" title="エディタを空にして書き始める">新規</button>
       <button id="btn-open" title="ローカルの .lune ファイルをエディタに読み込む">開く</button>
       <button id="btn-save" title="エディタの内容を .lune ファイルとして保存">保存</button>
       <input type="file" id="file-input" accept=".lune,text/plain" hidden>
@@ -565,10 +567,23 @@ async function openFromFile() {
 // --- presets / share links ---------------------------------------------------
 
 function loadPreset(name) {
+  if (!name) return;                    // the "(なし)" entry is not a sample
   setCode(PRESETS[name].code);
   $("binding").value = PRESETS[name].binding;
   $("trace").checked = Boolean(PRESETS[name].trace);
   clearErrorLine();
+}
+
+// Start from an empty buffer. There is only one buffer here, so this discards
+// what is in the editor — hence the confirmation when it holds anything.
+function newFile() {
+  if (getCode().trim() && !confirm("エディタの内容を消して新規作成しますか?")) return false;
+  setCode("");
+  $("binding").value = "";
+  $("preset").value = "";
+  clearErrorLine();
+  if (cm) cm.focus(); else $("editor").focus();
+  return true;
 }
 
 function encodeState() {
@@ -609,14 +624,27 @@ async function timed(label, fn) {
 
 async function main() {
   initEditor();
-  if (!applySharedState()) loadPreset("basics");
+  // the selector names what is in the editor, so a shared link leaves it on "(なし)"
+  if (applySharedState()) $("preset").value = "";
+  else { loadPreset("basics"); $("preset").value = "basics"; }
   $("preset").addEventListener("change", (e) => loadPreset(e.target.value));
+
+  $("btn-new").onclick = () => {
+    // Cmd/Ctrl+N is taken by the browser ("new window") and cannot be
+    // intercepted, so this one is button-only on purpose.
+    if (newFile()) {
+      render("空のエディタです。書いたら「▶ 実行」(Ctrl/Cmd+Enter)。\n");
+      setStatus("新規作成しました");
+    }
+  };
+  $("btn-new").disabled = false;
 
   $("btn-open").onclick = async () => {
     const file = await openFromFile();
     if (!file) { setStatus("読み込みをキャンセルしました"); return; }
     setCode(file.text);
     clearErrorLine();
+    $("preset").value = "";            // the editor no longer holds a sample
     const lines = file.text.split("\n").length;
     setStatus(`${file.name} を読み込みました (${lines} 行)`);
   };
