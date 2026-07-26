@@ -1,0 +1,4 @@
+module missing
+import nothere
+
+let x = 1

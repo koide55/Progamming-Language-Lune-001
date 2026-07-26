@@ -204,7 +204,7 @@ Lune 固有の柱（他言語の教科書にない要素）:
 TUTORIAL.md 第17章を発展させ、独立した「診断リテラシー」の章にする。
 
 - 11.1 診断の解剖学: severity / コード / メッセージ / ソース断片 / ラベル / ヘルプ。読み順のコツ。
-- 11.2 コード体系: LAY / LXL / PRS / MOD / TYP / REC / RUN の7分類（全29コード。一覧は付録C）。
+- 11.2 コード体系: LAY / LXL / PRS / MOD / TYP / REC / RUN の7分類（全30コード。一覧は付録C）。
 - 11.3 `lune explain CODE` と REPL `:explain` — 「エラー番号は調べるためにある」。`lune explain --index`（ERROR_INDEX.md）の存在。
 - 11.4 did-you-mean と `lune fix`（`--write` / `--check`）: 機械が直せるエラーと直せないエラー。
 - 11.5 エラー駆動開発: 「まず型シグネチャと match の骨組みを書き、コンパイラの witness に導かれて埋める」ワークフローを1本の例で通す。
@@ -247,7 +247,7 @@ prelude 全関数を「型シグネチャ + 1行説明 + 遅延特性（無限�
 
 ### 付録C 診断コード一覧（〜8ページ）
 
-全29コードの表（コード / 分類 / 意味 / 本文の関連章）。詳細解説は `lune explain` と
+全30コードの表（コード / 分類 / 意味 / 本文の関連章）。詳細解説は `lune explain` と
 `documents/ERROR_INDEX.md` に委ね、本書は「地図」に徹する。生成元が同じなので、
 `lune explain --index` からの自動生成を検討（ERROR_INDEX が更新されれば追従できる）。
 
@@ -296,10 +296,12 @@ REPL コマンド一覧。
 2. **組版**: **mdBook で HTML 化**。本文は `books/lune-book/src/` 配下の Markdown、`SUMMARY.md` が目次の正。
    将来、Playground との連携（例を1クリックで実行）を HTML 側の拡張として狙える。
    PDF が必要になったら mdBook のプリントページ（print.html）を第一候補とする。
-3. **診断表示の言語**: 当面は現行 CLI の英語出力を正として掲載する。
-   日本語診断（STRATEGY 施策 B、`feature/ja-diagnostics`）が main にマージされた時点で、
-   本書の診断表示を日本語出力へ一括差し替えする。差し替え箇所を機械的に見つけられるよう、
-   診断出力を載せるコードブロックには目印（` ```text,diagnostic` 規約）を付けて執筆する。
+3. **診断表示の言語**: **日本語**（2026-07-24 に全面差し替え実施済み）。
+   既定言語の永続設定が言語側に入ったので、本書の規約は
+   「`export LUNE_LANG=ja` を設定した上での `lune` = `./bin/lune`」とする
+   （第1章 1.1 の表記についてを参照。REPL は `lune --repl`）。
+   診断出力を載せるコードブロックには目印（` ```text,diagnostic` 規約）を付け、
+   検証スクリプトも `LUNE_LANG=ja` で厳密比較する。
 4. **演習解答**: 各演習問題の直下に折りたたみ（HTML の `<details><summary>解答</summary>…</details>`）で置く。
    独習者がその場で答え合わせできることを優先する。解答のコード例も `books/examples/` の検証対象に含める。
    講義で課題として使う場合に解答を隠したくなったら、mdBook の preprocessor で

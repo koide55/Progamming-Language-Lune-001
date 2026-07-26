@@ -1,0 +1,10 @@
+module counter
+
+# var と while はブロックの中で使い、最後の式で結果を返す。
+let answer =
+    var i = 0
+    var total = 0
+    while i < 5:
+        total = total + i
+        i = i + 1
+    total

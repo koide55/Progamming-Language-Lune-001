@@ -1,0 +1,19 @@
+module rps
+
+type Hand =
+    | Rock
+    | Paper
+    | Scissors
+
+def beats(a: Hand, b: Hand): Bool =
+    match (a, b):
+        | (Rock, Scissors) -> true
+        | (Paper, Rock) -> true
+        | (Scissors, Paper) -> true
+        | _ -> false
+
+let win = beats(Rock(), Scissors())
+
+let lose = beats(Scissors(), Rock())
+
+let draw = beats(Paper(), Paper())

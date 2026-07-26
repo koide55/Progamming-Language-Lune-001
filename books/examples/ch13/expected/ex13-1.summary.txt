@@ -1,0 +1,1 @@
+{ count = 5, totalChars = 21, longest = "quick", shortest = "the" }

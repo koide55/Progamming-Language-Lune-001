@@ -1,0 +1,4 @@
+module badname
+import mismatch
+
+let x = valueFromMismatch

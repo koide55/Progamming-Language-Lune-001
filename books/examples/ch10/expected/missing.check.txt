@@ -1,0 +1,7 @@
+error[MOD0001]: モジュールが見つかりません: nothere
+  --> missing.lune:2:1
+  |
+2 | import nothere
+  | ^^^^^^ 対応する .lune ファイルが見つからない
+   = hint: 検索した場所: .
+   = help: 詳しくは `lune explain MOD0001 --lang ja` を実行してください

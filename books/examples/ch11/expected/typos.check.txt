@@ -1,0 +1,7 @@
+error[TYP0001]: 未定義の名前: valeus
+  --> typos.lune:5:18
+  |
+5 | let total = fold(valeus, 0, fn a x -> a + x)
+  |                  ^^^^^^ この名前は定義されていない
+   = hint: もしかして `values` ですか?
+   = help: 詳しくは `lune explain TYP0001 --lang ja` を実行してください

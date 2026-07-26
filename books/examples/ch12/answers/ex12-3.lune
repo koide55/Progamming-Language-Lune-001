@@ -1,0 +1,11 @@
+module answers
+
+# 演習 12-3: :type で確かめながら組み立てた、部分適用で作る道具。
+def scale(factor: Int, n: Int): Int =
+    factor * n
+
+let double = scale(2)
+
+let tripled = map([1, 2, 3], scale(3))
+
+let doubled = map([1, 2, 3], double)

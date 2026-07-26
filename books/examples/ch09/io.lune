@@ -1,0 +1,9 @@
+module io
+
+# 出力は IO ブロックに集め、上から順に実行させる。
+def report(): Unit =
+    IO:
+        println("one")
+        println("two")
+
+let run = report()

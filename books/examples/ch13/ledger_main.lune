@@ -1,0 +1,12 @@
+module ledger_main
+import ledger.entry
+
+let entries = [Income("salary", 3000), Expense("rent", 1200), Expense("food", 400)]
+
+let balance = fold(map(entries, signedAmount), 0, fn a x -> a + x)
+
+let expenses = filter(entries, fn e: Entry -> signedAmount(e) < 0)
+
+let rejected = validate(Expense("zero", 0))
+
+let accepted = validate(Income("bonus", 500))

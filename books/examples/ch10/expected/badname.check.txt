@@ -1,0 +1,7 @@
+error[MOD0003]: module 宣言の不一致: mismatch のはずが totally.different でした
+  --> mismatch.lune:1:1
+  |
+1 | module totally.different
+  | ^^^^^^ モジュール名が import パスと一致しない
+   = hint: 宣言を `module mismatch` に直すか、`totally.different` として import してください
+   = help: 詳しくは `lune explain MOD0003 --lang ja` を実行してください

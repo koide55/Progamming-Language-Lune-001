@@ -1,0 +1,10 @@
+module fortotal
+
+let pairs = [(1, 10), (2, 20)]
+
+# for のパターンには、let と同じく反駁不能なものが書ける。
+let total =
+    var result = 0
+    for (left, right) in pairs:
+        result = result + left + right
+    result

@@ -1,0 +1,7 @@
+error[TYP0007]: 網羅的でない match: (Rock, Rock) のケースがありません
+  --> rps_missing.lune:10:5
+   |
+10 |     match (a, b):
+   |     ^^^^^ パターン (Rock, Rock) がカバーされていない
+   = hint: (Rock, Rock) のケースを追加するか、ワイルドカードケース `| _ -> ...` を追加してください
+   = help: 詳しくは `lune explain TYP0007 --lang ja` を実行してください
