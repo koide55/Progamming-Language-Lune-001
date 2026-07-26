@@ -10,7 +10,7 @@ from unittest import mock
 from lune.cli import main
 from lune.diagnostics import SourceMap, format_diagnostic, format_exception
 from lune.messages import set_language
-from lune.repl import ReplSession, repl_main
+from lune.repl import ReplSession, repl_main, wants_more
 from lune.typechecker import LuneTypeError
 
 
@@ -138,6 +138,16 @@ def add(x: Int, y: Int): Int =
         session = ReplSession()
         self.assertIn(":thunks", session.submit(":help").message)
         self.assertIn(":trace", session.submit(":help").message)
+
+    def test_wants_more_detects_an_open_block(self) -> None:
+        # the continuation rule is shared with the browser playground, which
+        # drives ReplSession without going through repl_main
+        for line in ("let f =", "if x > 0:", "let g = fn x ->", "let h =   "):
+            with self.subTest(line=line):
+                self.assertTrue(wants_more(line))
+        for line in ("1 + 2", "let a = 1", ":help", ""):
+            with self.subTest(line=line):
+                self.assertFalse(wants_more(line))
 
     def test_trace_command_shows_forcing_and_memoization(self) -> None:
         session = ReplSession()

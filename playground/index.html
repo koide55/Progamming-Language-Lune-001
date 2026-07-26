@@ -47,6 +47,34 @@
   #output .tv { color: var(--dim); }
   #output a.diag { color: inherit; text-decoration: underline dotted; cursor: pointer; }
   label { font-size: 12px; color: var(--dim); }
+  /* right-column tabs: 出力 / REPL */
+  .tabs { gap: 4px; }
+  .tabfill { flex: 1; }
+  button.tab { border-radius: 6px 6px 0 0; border-bottom-color: transparent;
+    color: var(--dim); padding: 6px 14px; }
+  button.tab.active { color: var(--fg); border-color: var(--accent); }
+  #repl { flex: 1; display: flex; flex-direction: column; min-height: 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  /* an author `display` beats the UA rule for [hidden], so restate it */
+  #repl[hidden] { display: none; }
+  #repl-log { flex: 1; margin: 0; padding: 12px; overflow: auto; white-space: pre-wrap;
+    word-break: break-word; background: none; border: none;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.5; }
+  #repl-log .e { color: var(--err); font-weight: 600; }
+  #repl-log .w { color: var(--warn); }
+  #repl-log .h { color: var(--hint); }
+  #repl-log .x { color: var(--help); }
+  #repl-log .tf { color: var(--accent); }
+  #repl-log .tm { color: var(--hint); }
+  #repl-log .tv { color: var(--dim); }
+  #repl-log .echo { color: var(--dim); }
+  #repl-log a.diag { color: inherit; text-decoration: underline dotted; cursor: pointer; }
+  .repl-input { display: flex; align-items: center; gap: 8px;
+    border-top: 1px solid var(--border); padding: 8px 12px; }
+  #repl-prompt { color: var(--accent); font-family: ui-monospace, monospace; font-size: 13px; }
+  #repl-line { flex: 1; width: auto; background: none; border: none; color: var(--fg);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; padding: 0; }
+  #repl-line:focus { outline: none; }
   /* CodeMirror: match the page palette */
   .CodeMirror { flex: 1; height: auto; background: var(--panel); color: var(--fg);
     border: 1px solid var(--border); border-radius: 8px;
@@ -65,7 +93,7 @@
   .cm-s-default .cm-operator { color: var(--fg); }
   .cm-error-line { background: rgba(247, 118, 142, 0.14); }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; height: auto; }
-    textarea, #output, .CodeMirror { min-height: 40vh; } }
+    textarea, #output, .CodeMirror, #repl { min-height: 40vh; } }
 </style>
 </head>
 <body>
@@ -106,7 +134,22 @@
     </div>
   </div>
   <div class="col">
+    <div class="toolbar tabs">
+      <button id="tab-output" class="tab active">出力</button>
+      <button id="tab-repl" class="tab">REPL</button>
+      <span class="tabfill"></span>
+      <button id="btn-repl-load" class="repl-only" disabled title="エディタの宣言を REPL のセッションに読み込む">エディタを読み込む</button>
+      <button id="btn-repl-reset" class="repl-only" disabled>リセット</button>
+    </div>
     <pre id="output">(処理系を読み込んでいます — 初回のみ数秒かかります)</pre>
+    <div id="repl" hidden>
+      <pre id="repl-log"></pre>
+      <div class="repl-input">
+        <span id="repl-prompt">lune&gt;</span>
+        <input type="text" id="repl-line" spellcheck="false" autocomplete="off"
+               placeholder="式や宣言を入力して Enter（↑↓ で履歴）" disabled>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -168,6 +211,7 @@ from lune.messages import set_language
 from lune.explanations import render_explanation, available_codes
 from lune.formatter import format_source
 from lune.fixer import apply_fixes
+from lune.repl import ReplSession, wants_more
 
 ENTRY = "/app/main.lune"
 
@@ -247,6 +291,45 @@ def lune_explain(code, lang="en"):
     if text is None:
         return "診断コード %r の解説はありません\\n利用可能: %s" % (code, ", ".join(available_codes()))
     return text
+
+# --- REPL ---------------------------------------------------------------
+# Drives lune.repl.ReplSession directly. repl_main is the terminal front end
+# (it owns the prompt loop and readline); the browser owns those instead, so
+# only the session, the SourceMap and the <repl:N> numbering are mirrored here.
+
+_REPL = {"session": None, "sm": None, "n": 0}
+
+def lune_repl_reset(lang="en"):
+    set_language(lang)
+    _REPL["session"] = ReplSession()
+    _REPL["sm"] = SourceMap()
+    _REPL["n"] = 0
+    return json.dumps({"kind": "banner", "text": "Lune v0.1 REPL — :help でコマンド一覧"})
+
+def lune_repl_wants_more(line):
+    # same rule as the terminal REPL, not a reimplementation
+    return wants_more(line)
+
+def lune_repl_submit(source, lang="en"):
+    set_language(lang)
+    if _REPL["session"] is None:
+        lune_repl_reset(lang)
+    _REPL["n"] += 1
+    filename = "<repl:%d>" % _REPL["n"]
+    _REPL["sm"].add(filename, source)
+    out = io.StringIO()
+    try:
+        # print/println inside the submitted code writes to stdout
+        with contextlib.redirect_stdout(out):
+            result = _REPL["session"].submit(source, filename)
+        for w in result.warnings:
+            out.write(format_diagnostic(w, _REPL["sm"], explain_hint=True) + "\\n")
+        if result.kind != "empty" and result.message:
+            out.write(result.message + "\\n")
+        return json.dumps({"kind": result.kind, "text": out.getvalue()})
+    except Exception as exc:
+        out.write(format_exception(exc, _REPL["sm"], explain_hint=True) + "\\n")
+        return json.dumps({"kind": "error", "text": out.getvalue()})
 `;
 
 const $ = (id) => document.getElementById(id);
@@ -305,10 +388,10 @@ function markErrorLineFrom(text) {
 
 // --- output ------------------------------------------------------------------
 
-function render(text) {
+function colorize(text) {
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const linkCodes = (s) => s.replace(/\b([A-Z]{3}\d{4})\b/g, '<a class="diag" data-code="$1" title="クリックで explain">$1</a>');
-  output.innerHTML = text.split("\n").map((line) => {
+  return text.split("\n").map((line) => {
     let cls = "";
     if (/^error\[/.test(line)) cls = "e";
     else if (/^warning\[/.test(line)) cls = "w";
@@ -320,6 +403,91 @@ function render(text) {
     const html = linkCodes(esc(line));
     return cls ? `<span class="${cls}">${html}</span>` : html;
   }).join("\n");
+}
+
+function render(text) { output.innerHTML = colorize(text); }
+
+// --- REPL --------------------------------------------------------------------
+
+const repl = {
+  buffer: [],      // lines of an unfinished multi-line entry
+  history: [],     // submitted entries, oldest first
+  cursor: 0,       // index into history; === length means "the live line"
+  draft: "",       // the line being typed, stashed while browsing history
+  ended: false,    // :quit was accepted; input stays closed until リセット
+};
+
+function replEcho(prompt, text) {
+  replAppend(`<span class="echo">${prompt} </span>${colorize(text)}\n`);
+}
+
+function replAppend(html) {
+  const log = $("repl-log");
+  log.insertAdjacentHTML("beforeend", html);
+  log.scrollTop = log.scrollHeight;
+}
+
+function replPrompt() {
+  $("repl-prompt").textContent = repl.buffer.length ? "..." : "lune>";
+}
+
+function replReset(call, lang) {
+  const banner = JSON.parse(call("lune_repl_reset", lang));
+  repl.buffer = [];
+  repl.ended = false;
+  $("repl-log").innerHTML = "";
+  replAppend(colorize(banner.text) + "\n");
+  $("repl-line").disabled = false;
+  replPrompt();
+  $("repl-line").focus();
+}
+
+function replSubmit(call, lang, source) {
+  const r = JSON.parse(call("lune_repl_submit", source, lang));
+  if (r.text) replAppend(colorize(r.text));
+  if (r.kind === "quit") {
+    repl.ended = true;
+    $("repl-line").disabled = true;
+    replAppend(`<span class="echo">(セッション終了 — 「リセット」で再開できます)</span>\n`);
+  }
+}
+
+// Enter: buffer the line if it opens a block, otherwise submit. A blank line
+// closes an open block — the same rule the terminal REPL uses.
+function replOnEnter(call, lang) {
+  if (repl.ended) return;
+  const line = $("repl-line").value;
+  $("repl-line").value = "";
+  replEcho(repl.buffer.length ? "..." : "lune>", line);
+
+  if (repl.buffer.length) {
+    if (line.trim()) { repl.buffer.push(line); replPrompt(); return; }
+  } else if (!line.trim()) {
+    return;
+  } else if (call("lune_repl_wants_more", line)) {
+    repl.buffer.push(line);
+    replPrompt();
+    return;
+  }
+
+  const source = repl.buffer.length ? repl.buffer.join("\n") : line;
+  repl.buffer = [];
+  replPrompt();
+  repl.history.push(source);
+  repl.cursor = repl.history.length;
+  replSubmit(call, lang, source);
+}
+
+function replOnHistory(dir) {
+  const input = $("repl-line");
+  if (!repl.history.length) return;
+  if (repl.cursor === repl.history.length) repl.draft = input.value;
+  const next = repl.cursor + dir;
+  if (next < 0 || next > repl.history.length) return;
+  repl.cursor = next;
+  // a multi-line entry comes back as one line so it can be edited and resent
+  input.value = next === repl.history.length ? repl.draft : repl.history[next].replace(/\n/g, " ");
+  input.setSelectionRange(input.value.length, input.value.length);
 }
 
 // --- presets / share links ---------------------------------------------------
@@ -379,12 +547,26 @@ async function main() {
   };
   $("btn-share").disabled = false;
 
-  output.addEventListener("click", (e) => {
+  const explainOnClick = (e) => {
     const code = e.target?.dataset?.code;
     if (!code || !py) return;
     $("explain-code").value = code;
+    showTab("output");
     $("btn-explain").onclick();
-  });
+  };
+  output.addEventListener("click", explainOnClick);
+  $("repl-log").addEventListener("click", explainOnClick);
+
+  function showTab(which) {
+    const isRepl = which === "repl";
+    $("output").hidden = isRepl;
+    $("repl").hidden = !isRepl;
+    $("tab-output").classList.toggle("active", !isRepl);
+    $("tab-repl").classList.toggle("active", isRepl);
+    if (isRepl && !repl.ended) $("repl-line").focus();
+  }
+  $("tab-output").onclick = () => showTab("output");
+  $("tab-repl").onclick = () => showTab("repl");
 
   const t0 = performance.now();
   py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
@@ -426,6 +608,28 @@ async function main() {
   $("btn-explain").onclick = () => timed("explain", async () =>
     render(call("lune_explain", $("explain-code").value || "TYP0007", $("lang").value)));
 
+  // --- REPL wiring ---
+  const lang = () => $("lang").value;
+  replReset(call, lang());
+  $("repl").hidden = true;          // replReset focuses the input; start on 出力
+
+  $("repl-line").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); timed("REPL", async () => replOnEnter(call, lang())); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); replOnHistory(-1); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); replOnHistory(1); }
+  });
+  $("btn-repl-reset").onclick = () => replReset(call, lang());
+  $("btn-repl-load").onclick = () => timed("REPL に読み込み", async () => {
+    showTab("repl");
+    if (repl.ended) replReset(call, lang());
+    const source = getCode().replace(/\n+$/, "");
+    if (!source.trim()) return;
+    replEcho("lune>", "(エディタの内容)");
+    replSubmit(call, lang(), source);
+  });
+  // the session was built with the language selected at load time
+  $("lang").addEventListener("change", () => replReset(call, lang()));
+
   if (cm) {
     cm.setOption("extraKeys", {
       "Ctrl-Enter": () => $("btn-run").onclick(),
@@ -433,7 +637,8 @@ async function main() {
     });
   }
 
-  for (const id of ["btn-run","btn-check","btn-fmt","btn-fix","btn-explain"])
+  for (const id of ["btn-run","btn-check","btn-fmt","btn-fix","btn-explain",
+                    "btn-repl-load","btn-repl-reset"])
     $(id).disabled = false;
 }
 
