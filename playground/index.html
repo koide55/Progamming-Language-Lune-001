@@ -129,8 +129,9 @@
       <button id="btn-check" disabled>型チェック</button>
       <button id="btn-fmt" disabled>整形 (fmt)</button>
       <button id="btn-fix" disabled>自動修正 (fix)</button>
-      <input type="text" id="explain-code" placeholder="TYP0007">
-      <button id="btn-explain" disabled>explain</button>
+      <input type="text" id="explain-code" placeholder="TYP0007"
+             title="診断コード。空のままなら、いま出ているエラーのコードを使います">
+      <button id="btn-explain" disabled title="診断コードの解説を読む">explain</button>
       <button id="btn-new" title="エディタを空にして書き始める">新規</button>
       <button id="btn-open" title="ローカルの .lune ファイルをエディタに読み込む">開く</button>
       <button id="btn-save" title="エディタの内容を .lune ファイルとして保存">保存</button>
@@ -783,8 +784,35 @@ async function main() {
     const r = JSON.parse(call("lune_fix", getCode(), $("lang").value));
     if (r.ok) { setCode(r.text); clearErrorLine(); render(`(自動修正: ${r.applied} 件適用)\n`); } else render(r.text);
   });
-  $("btn-explain").onclick = () => timed("explain", async () =>
-    render(call("lune_explain", $("explain-code").value || "TYP0007", $("lang").value)));
+  // With an empty box this used to explain TYP0007 unconditionally, so a
+  // beginner who had never written a `match` was told about non-exhaustive
+  // matches. Reach for the code that is actually on screen instead: pressing
+  // explain while looking at an error should explain *that* error.
+  const visibleDiagnosticCode = () => {
+    const panes = $("repl").hidden ? [output, $("repl-log")] : [$("repl-log"), output];
+    for (const pane of panes) {
+      const m = pane.textContent.match(/\b([A-Z]{3}\d{4})\b/);
+      if (m) return m[1];
+    }
+    return null;
+  };
+
+  $("btn-explain").onclick = () => timed("explain", async () => {
+    const typed = $("explain-code").value.trim();
+    const code = typed || visibleDiagnosticCode();
+    if (!code) {
+      showTab("output");
+      render(
+        "解説したい診断コードを入れてから「explain」を押してください(例: TYP0007)。\n\n" +
+        "エラーが出ているときは、欄を空のままにしておけば、そのエラーの解説が開きます。\n" +
+        "出力に現れた診断コードをクリックしても同じです。\n\n" +
+        "全コードの一覧は「診断カタログ」のページにあります。\n");
+      return;
+    }
+    if (!typed) $("explain-code").value = code;   // show which code was used
+    showTab("output");
+    render(call("lune_explain", code, $("lang").value));
+  });
 
   // --- REPL wiring ---
   const lang = () => $("lang").value;
