@@ -1,5 +1,7 @@
 # Summary
 
+[表紙](00-cover.md)
+[目次](00-toc.md)
 [序章 Lune へようこそ](00-preface.md)
 
 # 第I部 ひとめぐり
@@ -31,3 +33,7 @@
 [付録C 診断コード一覧](appendix-c-diagnostics.md)
 [付録D CLI・REPL コマンドリファレンス](appendix-d-cli.md)
 [付録E Lune の設計と、これから](appendix-e-design.md)
+
+---
+
+[索引](zz-index.md)

@@ -1,16 +1,50 @@
 /* Print/PDF tuning. Loaded on every page but almost all of it is @media print,
    so the on-screen book is unaffected. Build: books/tools/build_pdf.sh */
+
+/* --- 表紙 (src/00-cover.md) --------------------------------------------- */
+/* Applies on screen as well as in print: the cover should look like a cover in
+   both, and it is the one page that is not body text. */
+.cover {
+  text-align: center;
+  padding: 4em 0 2em;
+}
+.cover h1 {
+  font-size: 2.6em;
+  margin: 0 0 0.6em;
+  border-bottom: none;      /* mdBook underlines h1; a title page should not be */
+  padding-bottom: 0;
+}
+.cover h2 {
+  font-size: 1.15em;
+  font-weight: 400;
+  margin: 0 0 3em;
+  border-bottom: none;
+}
+.cover p { margin: 0.3em 0; }
+.cover-meta { margin-top: 4em; font-size: 0.9em; opacity: 0.7; }
 @media print {
   @page {
     size: A4;
     margin: 18mm 16mm 20mm 16mm;
   }
 
-  /* Each chapter and appendix starts on a fresh page. :first-of-type would not
-     help here — print.html concatenates every page, so the guard is on the
-     first h1 in the document. */
-  main > h1 { page-break-before: always; }
-  main > h1:first-child { page-break-before: avoid; }
+  /* mdBook already emits a `break-before: page` divider between chapters in
+     print.html, so adding our own break before every h1 produced a blank page
+     ahead of each chapter — 19 of them. Left to mdBook.
+
+     The cover owns page 1 by itself. It is the first section, so mdBook puts no
+     divider before it; the break has to come from here. */
+  .cover {
+    page-break-after: always;
+    padding: 0;
+    height: 82vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cover h1 { page-break-before: avoid; page-break-after: avoid; }
+  .cover h2 { margin-bottom: 2em; }
+  .cover-meta { margin-top: 3em; }
 
   /* Do not split things that lose their meaning when cut in half. */
   pre, table, blockquote, details { page-break-inside: avoid; }
