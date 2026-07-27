@@ -9,6 +9,7 @@
 
 - [OUTLINE.md](OUTLINE.md) — 本書の構成案（書名・対象読者・設計方針・全章の内容・付録・執筆計画）
 - 表紙: `lune-book/src/00-cover.md` — 書名・副題・著者。HTML では `index.html`、PDF では 1 ページ目
+- 目次: `lune-book/src/00-toc.md`、索引: `src/zz-index.md` — どちらも生成物（下の「PDF」を参照）
 - 序章: `lune-book/src/00-preface.md` — README の部活の物語と地続きの入り口
 - 本文: `01-tour.md` 〜 `13-case-studies.md`（全13章）。目次の正は `SUMMARY.md`
 - 付録: `appendix-a-reference.md`（言語リファレンス）〜 `appendix-e-design.md`（設計と、これから）
@@ -81,7 +82,26 @@ books/tools/build_pdf.sh ~/lune.pdf   # 出力先を指定
 ```
 
 mdBook が生成する `print.html`（全ページを1枚に連結したもの）を、ヘッドレスの
-Chrome で印刷する（OUTLINE の方針どおり）。紙面の調整は2つのファイルにある。
+Chrome で印刷する（OUTLINE の方針どおり）。
+
+**目次と索引にページ番号を入れるため 2 パスで組む。** mdBook にページの概念はなく、
+ページ番号は組み上がった PDF から実測するしかない。1 パス目で各章の開始ページを測り、
+2 パス目でそれを入れた目次と索引を使って組み直す。スクリプトは最後に「2 パスの間で
+章の開始ページが動いていないこと」を検算する（動いていたら目次の行数が変わったという
+ことで、ページ番号が嘘になる）。生成は `books/tools/book_pages.py` が行う。
+
+- **目次** `src/00-toc.md` — `SUMMARY.md` から生成。HTML 版のためにページ番号なしの版を
+  コミットしてあり、PDF ビルド中だけページ番号入りに差し替える（`trap` で必ず戻す）。
+- **索引** `src/zz-index.md` — 同じ扱い。索引語は `book_pages.py` の `CONCEPTS` に人が
+  定義する（自動抽出だと「診断」のような頻出語が並んで役に立たない）。ページ番号は
+  PDF の各ページのテキストから引く。表紙・目次・索引自身のページは対象から外す。
+- **しおり** — Chrome は PDF アウトラインを作らないので、`pikepdf` で後から注入する。
+  `pikepdf` が無ければこの工程だけ飛ばす（PDF 自体はできる）。システムの python が
+  PEP 668 で pip を拒む場合は venv を指す:
+  `python3 -m venv .venv && .venv/bin/pip install pikepdf` として
+  `PYTHON=.venv/bin/python books/tools/build_pdf.sh`。
+
+紙面の調整は2つのファイルにある。
 
 - `lune-book/theme/pdf.css` — 表紙の体裁、A4、コードの折り返し。表紙以外は
   `@media print` 内なので画面表示には影響しない。**章ごとの改ページは mdBook が
@@ -90,7 +110,7 @@ Chrome で印刷する（OUTLINE の方針どおり）。紙面の調整は2つ�
 - `lune-book/theme/head.hbs` — **`print.html` では演習の解答を開く**。
   PDF の読者は折りたたみをクリックできないため。通常の章ページでは畳んだまま。
 
-現在の出力は 163 ページ（A4）。PDF もコミットしない。
+現在の出力は 166 ページ（A4、表紙・目次・索引を含む）。PDF もコミットしない。
 
 執筆規約の補足:
 
